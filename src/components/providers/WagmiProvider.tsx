@@ -1,5 +1,6 @@
 import { createConfig, http, WagmiProvider } from "wagmi";
 import { base, degen, mainnet, optimism, unichain } from "wagmi/chains";
+import type { Chain } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { farcasterFrame } from "@farcaster/frame-wagmi-connector";
 import { coinbaseWallet, metaMask } from 'wagmi/connectors';
@@ -41,14 +42,33 @@ function useCoinbaseWalletAutoConnect() {
   return isCoinbaseWallet;
 }
 
+// Define Celo chain
+export const celo: Chain = {
+  id: 42220,
+  name: "Celo",
+  nativeCurrency: {
+    name: "Celo",
+    symbol: "CELO",
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: { http: ["https://forno.celo.org"] },
+    public: { http: ["https://forno.celo.org"] },
+  },
+  blockExplorers: {
+    default: { name: "CeloScan", url: "https://celoscan.io" },
+  },
+};
+
 export const config = createConfig({
-  chains: [base, optimism, mainnet, degen, unichain],
+  chains: [base, optimism, mainnet, degen, unichain, celo],
   transports: {
     [base.id]: http(),
     [optimism.id]: http(),
     [mainnet.id]: http(),
     [degen.id]: http(),
     [unichain.id]: http(),
+    [celo.id]: http(),
   },
   connectors: [
     farcasterFrame(),

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { Input } from "../components/ui/input";
 import { signIn, signOut, getCsrfToken } from "next-auth/react";
 import sdk, {
@@ -16,6 +16,7 @@ import {
   useConnect,
   useSwitchChain,
   useChainId,
+  useWriteContract,
 } from "wagmi";
 
 import { config } from "~/components/providers/WagmiProvider";
@@ -26,6 +27,142 @@ import { BaseError, UserRejectedRequestError } from "viem";
 import { useSession } from "next-auth/react";
 import { Label } from "~/components/ui/label";
 import { useFrame } from "~/components/providers/FrameProvider";
+import type { Chain } from "wagmi/chains";
+
+export const celo: Chain = {
+  id: 42220,
+  name: "Celo",
+  nativeCurrency: {
+    name: "Celo",
+    symbol: "CELO",
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: { http: ["https://forno.celo.org"] },
+    public: { http: ["https://forno.celo.org"] },
+  },
+  blockExplorers: {
+    default: { name: "CeloScan", url: "https://celoscan.io" },
+  },
+};
+
+const MOVIE_CONTRACT_ADDRESS = "0x6d83eF793A7e82BFa20B57a60907F85c06fB8828";
+const MOVIE_CONTRACT_ABI = [
+  {
+    "inputs": [
+      { "internalType": "address", "name": "_rewardToken", "type": "address" }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "address", "name": "user", "type": "address" },
+      { "indexed": false, "internalType": "uint256", "name": "amount", "type": "uint256" }
+    ],
+    "name": "RewardSent",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "movieId", "type": "uint256" },
+      { "indexed": false, "internalType": "address", "name": "voter", "type": "address" },
+      { "indexed": false, "internalType": "bool", "name": "vote", "type": "bool" }
+    ],
+    "name": "Voted",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      { "internalType": "string", "name": "_title", "type": "string" }
+    ],
+    "name": "addMovie",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "movieCount",
+    "outputs": [
+      { "internalType": "uint256", "name": "", "type": "uint256" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "", "type": "uint256" }
+    ],
+    "name": "movies",
+    "outputs": [
+      { "internalType": "uint256", "name": "id", "type": "uint256" },
+      { "internalType": "string", "name": "title", "type": "string" },
+      { "internalType": "uint256", "name": "yesVotes", "type": "uint256" },
+      { "internalType": "uint256", "name": "noVotes", "type": "uint256" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [
+      { "internalType": "address", "name": "", "type": "address" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "rewardAmount",
+    "outputs": [
+      { "internalType": "uint256", "name": "", "type": "uint256" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "rewardToken",
+    "outputs": [
+      { "internalType": "contract IERC20", "name": "", "type": "address" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "_amount", "type": "uint256" }
+    ],
+    "name": "setRewardAmount",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "address", "name": "_token", "type": "address" }
+    ],
+    "name": "setRewardToken",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "_movieId", "type": "uint256" },
+      { "internalType": "bool", "name": "_vote", "type": "bool" }
+    ],
+    "name": "vote",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  { "stateMutability": "payable", "type": "receive" }
+];
 
 export default function Demo(
   { title }: { title?: string } = { title: "Frames v2 Demo" }
@@ -38,6 +175,10 @@ export default function Demo(
 
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
+  const isOnCelo = chainId === 42220;
+
+  const profileRef = useRef<HTMLDivElement>(null);
+  const [showProfile, setShowProfile] = useState(false);
 
   useEffect(() => {
     console.log("isSDKLoaded", isSDKLoaded);
@@ -162,6 +303,33 @@ export default function Demo(
     setIsContextOpen((prev) => !prev);
   }, []);
 
+  // Voting logic
+  const [voteStatus, setVoteStatus] = useState<string | null>(null);
+  const [voteError, setVoteError] = useState<string | null>(null);
+  const { writeContractAsync, isPending: isVotePending } = useWriteContract();
+
+  const handleVote = async (vote: boolean) => {
+    setVoteStatus(null);
+    setVoteError(null);
+    try {
+      setVoteStatus("Waiting for user to confirm...");
+      await writeContractAsync({
+        address: MOVIE_CONTRACT_ADDRESS,
+        abi: MOVIE_CONTRACT_ABI,
+        functionName: "vote",
+        args: [0, vote], // movieId = 0 for demo, vote = true/false
+        chainId: 42220,
+      });
+      setVoteStatus("Vote submitted!");
+    } catch (err: any) {
+      setVoteError(err.message || "Error submitting vote");
+    }
+  };
+
+  const handleSwitchToCelo = () => {
+    switchChain({ chainId: 42220 });
+  };
+
   if (!isSDKLoaded) {
     return <div>Loading...</div>;
   }
@@ -174,9 +342,55 @@ export default function Demo(
         paddingLeft: context?.client.safeAreaInsets?.left ?? 0,
         paddingRight: context?.client.safeAreaInsets?.right ?? 0,
       }}
+      className="min-h-screen bg-black text-white relative"
     >
-      <div className="w-[300px] mx-auto py-2 px-2">
-        <h1 className="text-2xl font-bold text-center mb-4">{title}</h1>
+      {/* User Profile Avatar */}
+      <div className="absolute top-4 right-4 z-50">
+        <div
+          ref={profileRef}
+          className="relative"
+          onMouseEnter={() => setShowProfile(true)}
+          onMouseLeave={() => setShowProfile(false)}
+        >
+          {isConnected ? (
+            <div className="w-10 h-10 bg-white text-black flex items-center justify-center rounded-full font-bold cursor-pointer border border-white/20 shadow">
+              {address?.slice(2, 3).toUpperCase()}
+            </div>
+          ) : (
+            <div className="w-10 h-10 bg-white/20 text-white flex items-center justify-center rounded-full cursor-pointer border border-white/20 shadow">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118A7.5 7.5 0 0112 15.75a7.5 7.5 0 017.5 4.368" />
+              </svg>
+            </div>
+          )}
+          {/* Profile Dropdown */}
+          {showProfile && (
+            <div className="absolute right-0 mt-2 w-56 bg-[#181818] border border-white/10 rounded-xl shadow-lg p-4 text-sm text-white">
+              {isConnected ? (
+                <>
+                  <div className="mb-2 font-semibold">Profile</div>
+                  <div className="mb-2 break-all text-xs text-gray-300">{address}</div>
+                  <Button
+                    className="w-full bg-white text-black hover:bg-gray-200"
+                    onClick={() => disconnect()}
+                  >
+                    Disconnect
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  className="w-full bg-white text-black hover:bg-gray-200"
+                  onClick={() => connect({ connector: connectors[2] })}
+                >
+                  Connect Wallet
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="w-[340px] mx-auto py-2 px-2 bg-[#111] rounded-xl shadow-lg border border-white/10">
+        <h1 className="text-2xl font-bold text-center mb-4 text-white">{title}</h1>
 
         <div className="mb-4">
           <h2 className="font-2xl font-bold">Context</h2>
@@ -412,6 +626,23 @@ export default function Demo(
               </div>
             </>
           )}
+        </div>
+
+        <div className="my-8 p-4 rounded-xl border border-white/10 bg-[#181818]">
+          <h2 className="text-xl font-bold mb-2 text-white">Vote for Movie #0</h2>
+          <div className="flex gap-4">
+            <Button className="bg-white text-black hover:bg-gray-200" onClick={() => handleVote(true)} disabled={!isOnCelo || isVotePending}>Yes</Button>
+            <Button className="bg-white text-black hover:bg-gray-200" onClick={() => handleVote(false)} disabled={!isOnCelo || isVotePending}>No</Button>
+          </div>
+          {voteStatus && <div className="mt-2 text-green-400">{voteStatus}</div>}
+          {voteError && <div className="mt-2 text-red-400">{voteError}</div>}
+        </div>
+
+        <div className="my-8 p-4 rounded-xl border border-white/10 bg-[#181818]">
+          <h2 className="text-xl font-bold mb-2 text-white">Switch to Celo Network</h2>
+          <Button onClick={handleSwitchToCelo}>
+            Switch to Celo Network
+          </Button>
         </div>
       </div>
     </div>
