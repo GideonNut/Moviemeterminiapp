@@ -248,6 +248,9 @@ export default function Demo(
   const [movies, setMovies] = useState(SAMPLE_MOVIES);
   const [selectedMovieId, setSelectedMovieId] = useState<string | null>(null);
 
+  // Add new state for showing movies
+  const [showMovies, setShowMovies] = useState(false);
+
   useEffect(() => {
     console.log("isSDKLoaded", isSDKLoaded);
     console.log("context", context);
@@ -457,16 +460,16 @@ export default function Demo(
           {/* Profile Dropdown */}
           {showProfile && (
             <div className="absolute right-0 mt-2 w-56 bg-[#1A1A1A] border border-white/10 rounded-xl shadow-xl p-4 text-sm text-white backdrop-blur-sm">
-              {isConnected ? (
+            {isConnected ? (
                 <>
                   <div className="mb-2 font-semibold text-white/90">Profile</div>
                   <div className="mb-2 break-all text-xs text-white/60">{address}</div>
-                  <Button
+              <Button
                     variant="secondary"
-                    onClick={() => disconnect()}
-                  >
-                    Disconnect
-                  </Button>
+                onClick={() => disconnect()}
+              >
+                Disconnect
+              </Button>
                 </>
               ) : (
                 <Button
@@ -476,10 +479,10 @@ export default function Demo(
                   Connect Wallet
                 </Button>
               )}
-            </div>
-          )}
-        </div>
-      </div>
+              </div>
+            )}
+          </div>
+          </div>
 
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <h1 className="text-3xl font-bold text-center mb-8 text-white tracking-tight">{title}</h1>
@@ -490,29 +493,69 @@ export default function Demo(
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-white/60"></div>
               <span className="text-white/60 text-sm">Not connected to Celo</span>
-            </div>
-            <Button 
+              </div>
+                <Button
               variant="secondary"
               onClick={handleSwitchToCelo}
               className="text-sm px-4 py-1.5"
             >
               Switch Network
-            </Button>
+                </Button>
+                  </div>
+                )}
+
+        {/* Hero Section with Text */}
+        <div className="text-center mb-12">
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-8 tracking-tight">
+            Discover Movies, Share your taste and be rewarded
+          </h2>
+
+          {/* How it Works Section */}
+          <div className="max-w-3xl mx-auto mb-12">
+            <h3 className="text-2xl font-semibold text-white mb-6">How it works</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-[#1A1A1A] p-6 rounded-xl border border-white/10">
+                <div className="text-2xl mb-3">🎬</div>
+                <h4 className="text-lg font-medium text-white mb-2">Discover Movies</h4>
+                <p className="text-white/60 text-sm">Browse through our curated collection of movies and find your next favorite film.</p>
+              </div>
+              <div className="bg-[#1A1A1A] p-6 rounded-xl border border-white/10">
+                <div className="text-2xl mb-3">👍</div>
+                <h4 className="text-lg font-medium text-white mb-2">Vote & Share</h4>
+                <p className="text-white/60 text-sm">Vote yes or no on movies and share your opinions with the community.</p>
+              </div>
+              <div className="bg-[#1A1A1A] p-6 rounded-xl border border-white/10">
+                <div className="text-2xl mb-3">🎁</div>
+                <h4 className="text-lg font-medium text-white mb-2">Earn Rewards</h4>
+                <p className="text-white/60 text-sm">Get rewarded with cUSD and GoodDollar tokens for your participation.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Explore Button */}
+          <Button
+            variant="primary"
+            onClick={() => setShowMovies(true)}
+            className="text-lg px-8 py-4"
+          >
+            Explore Movies
+          </Button>
+        </div>
+
+        {/* Movies Grid - Only shown when showMovies is true */}
+        {showMovies && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {movies.map((movie) => (
+              <MovieCard
+                key={movie.id}
+                movie={movie}
+                onVote={(vote) => handleMovieVote(movie.id, vote)}
+                isVoting={isVotePending}
+                isConnected={isConnected}
+              />
+            ))}
           </div>
         )}
-
-        {/* Movies Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {movies.map((movie) => (
-            <MovieCard
-              key={movie.id}
-              movie={movie}
-              onVote={(vote) => handleMovieVote(movie.id, vote)}
-              isVoting={isVotePending}
-              isConnected={isConnected}
-            />
-          ))}
-        </div>
 
         {/* Close Frame Button */}
         <div className="fixed bottom-8 right-8">
