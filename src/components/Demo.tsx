@@ -28,6 +28,8 @@ import { useSession } from "next-auth/react";
 import { Label } from "~/components/ui/label";
 import { useFrame } from "~/components/providers/FrameProvider";
 import type { Chain } from "wagmi/chains";
+import { MovieCard } from "./MovieCard";
+import { Navigation } from "./Navigation";
 
 export const celo: Chain = {
   id: 42220,
@@ -164,6 +166,69 @@ const MOVIE_CONTRACT_ABI = [
   { "stateMutability": "payable", "type": "receive" }
 ];
 
+const SAMPLE_MOVIES = [
+  {
+    id: "1",
+    title: "Final Destination: Bloodlines",
+    description: "The next installment in the Final Destination franchise, continuing the story of death's design and those who try to escape it.",
+    releaseYear: "2024",
+    director: "Zach Lipovsky",
+    genres: ["Horror", "Thriller"],
+    rating: 7.2,
+    posterUrl: "https://i.postimg.cc/W4LC67zd/photo-2025-05-19-09-19-58.jpg",
+    voteCountYes: 0,
+    voteCountNo: 0
+  },
+  {
+    id: "2",
+    title: "Inception",
+    description: "A thief who steals corporate secrets through dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O.",
+    releaseYear: "2010",
+    director: "Christopher Nolan",
+    genres: ["Action", "Sci-Fi", "Thriller"],
+    rating: 8.8,
+    posterUrl: "https://i.postimg.cc/hPyRRxjj/IMG-8928.jpg",
+    voteCountYes: 0,
+    voteCountNo: 0
+  },
+  {
+    id: "3",
+    title: "Interstellar",
+    description: "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival.",
+    releaseYear: "2014",
+    director: "Christopher Nolan",
+    genres: ["Adventure", "Drama", "Sci-Fi"],
+    rating: 8.6,
+    posterUrl: "https://i.postimg.cc/k5nnn9CM/IMG-8929.jpg",
+    voteCountYes: 0,
+    voteCountNo: 0
+  },
+  {
+    id: "4",
+    title: "The Dark Knight",
+    description: "When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice.",
+    releaseYear: "2008",
+    director: "Christopher Nolan",
+    genres: ["Action", "Crime", "Drama"],
+    rating: 9.0,
+    posterUrl: "https://i.postimg.cc/SKNfc24B/IMG-8930.jpg",
+    voteCountYes: 0,
+    voteCountNo: 0
+  },
+  {
+    id: "5",
+    title: "Dune: Part Two",
+    description: "Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.",
+    releaseYear: "2024",
+    director: "Denis Villeneuve",
+    genres: ["Action", "Adventure", "Drama"],
+    rating: 8.7,
+    posterUrl: "https://i.postimg.cc/HsRqZmnv/IMG-8931.jpg",
+    voteCountYes: 0,
+    voteCountNo: 0
+  }
+];
+
 export default function Demo(
   { title }: { title?: string } = { title: "Frames v2 Demo" }
 ) {
@@ -179,6 +244,9 @@ export default function Demo(
 
   const profileRef = useRef<HTMLDivElement>(null);
   const [showProfile, setShowProfile] = useState(false);
+
+  const [movies, setMovies] = useState(SAMPLE_MOVIES);
+  const [selectedMovieId, setSelectedMovieId] = useState<string | null>(null);
 
   useEffect(() => {
     console.log("isSDKLoaded", isSDKLoaded);
@@ -308,7 +376,7 @@ export default function Demo(
   const [voteError, setVoteError] = useState<string | null>(null);
   const { writeContractAsync, isPending: isVotePending } = useWriteContract();
 
-  const handleVote = async (vote: boolean) => {
+  const handleMovieVote = async (movieId: string, vote: boolean) => {
     setVoteStatus(null);
     setVoteError(null);
     try {
@@ -317,10 +385,23 @@ export default function Demo(
         address: MOVIE_CONTRACT_ADDRESS,
         abi: MOVIE_CONTRACT_ABI,
         functionName: "vote",
-        args: [0, vote], // movieId = 0 for demo, vote = true/false
+        args: [movieId, vote],
         chainId: 42220,
       });
       setVoteStatus("Vote submitted!");
+      
+      // Update local state
+      setMovies(prevMovies => 
+        prevMovies.map(movie => 
+          movie.id === movieId 
+            ? {
+                ...movie,
+                voteCountYes: vote ? (movie.voteCountYes || 0) + 1 : movie.voteCountYes,
+                voteCountNo: !vote ? (movie.voteCountNo || 0) + 1 : movie.voteCountNo
+              }
+            : movie
+        )
+      );
     } catch (err: any) {
       setVoteError(err.message || "Error submitting vote");
     }
@@ -337,13 +418,15 @@ export default function Demo(
   return (
     <div
       style={{
-        paddingTop: context?.client.safeAreaInsets?.top ?? 0,
+        paddingTop: (context?.client.safeAreaInsets?.top ?? 0) + 64,
         paddingBottom: context?.client.safeAreaInsets?.bottom ?? 0,
         paddingLeft: context?.client.safeAreaInsets?.left ?? 0,
         paddingRight: context?.client.safeAreaInsets?.right ?? 0,
       }}
-      className="min-h-screen bg-black text-white relative"
+      className="min-h-screen bg-[#0A0A0A] text-white relative"
     >
+      <Navigation />
+
       {/* User Profile Avatar */}
       <div className="absolute top-4 right-4 z-50">
         <div
@@ -353,11 +436,19 @@ export default function Demo(
           onMouseLeave={() => setShowProfile(false)}
         >
           {isConnected ? (
-            <div className="w-10 h-10 bg-white text-black flex items-center justify-center rounded-full font-bold cursor-pointer border border-white/20 shadow">
-              {address?.slice(2, 3).toUpperCase()}
+            <div className="w-10 h-10 bg-white text-black flex items-center justify-center rounded-full font-bold cursor-pointer border border-white/20 shadow-lg overflow-hidden">
+              {context?.user?.pfpUrl ? (
+                <img 
+                  src={context.user.pfpUrl} 
+                  alt="Profile" 
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                address?.slice(2, 3).toUpperCase()
+              )}
             </div>
           ) : (
-            <div className="w-10 h-10 bg-white/20 text-white flex items-center justify-center rounded-full cursor-pointer border border-white/20 shadow">
+            <div className="w-10 h-10 bg-white/10 text-white flex items-center justify-center rounded-full cursor-pointer border border-white/20 shadow-lg">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118A7.5 7.5 0 0112 15.75a7.5 7.5 0 017.5 4.368" />
               </svg>
@@ -365,13 +456,13 @@ export default function Demo(
           )}
           {/* Profile Dropdown */}
           {showProfile && (
-            <div className="absolute right-0 mt-2 w-56 bg-[#181818] border border-white/10 rounded-xl shadow-lg p-4 text-sm text-white">
+            <div className="absolute right-0 mt-2 w-56 bg-[#1A1A1A] border border-white/10 rounded-xl shadow-xl p-4 text-sm text-white backdrop-blur-sm">
               {isConnected ? (
                 <>
-                  <div className="mb-2 font-semibold">Profile</div>
-                  <div className="mb-2 break-all text-xs text-gray-300">{address}</div>
+                  <div className="mb-2 font-semibold text-white/90">Profile</div>
+                  <div className="mb-2 break-all text-xs text-white/60">{address}</div>
                   <Button
-                    className="w-full bg-white text-black hover:bg-gray-200"
+                    variant="secondary"
                     onClick={() => disconnect()}
                   >
                     Disconnect
@@ -379,7 +470,7 @@ export default function Demo(
                 </>
               ) : (
                 <Button
-                  className="w-full bg-white text-black hover:bg-gray-200"
+                  variant="secondary"
                   onClick={() => connect({ connector: connectors[2] })}
                 >
                   Connect Wallet
@@ -389,259 +480,48 @@ export default function Demo(
           )}
         </div>
       </div>
-      <div className="w-[340px] mx-auto py-2 px-2 bg-[#111] rounded-xl shadow-lg border border-white/10">
-        <h1 className="text-2xl font-bold text-center mb-4 text-white">{title}</h1>
 
-        <div className="mb-4">
-          <h2 className="font-2xl font-bold">Context</h2>
-          <button
-            onClick={toggleContext}
-            className="flex items-center gap-2 transition-colors"
-          >
-            <span
-              className={`transform transition-transform ${
-                isContextOpen ? "rotate-90" : ""
-              }`}
-            >
-              ➤
-            </span>
-            Tap to expand
-          </button>
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <h1 className="text-3xl font-bold text-center mb-8 text-white tracking-tight">{title}</h1>
 
-          {isContextOpen && (
-            <div className="p-4 mt-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
-              <pre className="font-mono text-xs whitespace-pre-wrap break-words max-w-[260px] overflow-x-">
-                {JSON.stringify(context, null, 2)}
-              </pre>
+        {/* Network Status */}
+        {!isOnCelo && (
+          <div className="flex items-center justify-between mb-8 p-3 rounded-xl border border-white/10 bg-[#1A1A1A]">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-white/60"></div>
+              <span className="text-white/60 text-sm">Not connected to Celo</span>
             </div>
-          )}
-        </div>
-
-        <div>
-          <h2 className="font-2xl font-bold">Actions</h2>
-
-          <div className="mb-4">
-            <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg my-2">
-              <pre className="font-mono text-xs whitespace-pre-wrap break-words max-w-[260px] overflow-x-">
-                sdk.actions.signIn
-              </pre>
-            </div>
-            <SignIn />
-          </div>
-
-          <div className="mb-4">
-            <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg my-2">
-              <pre className="font-mono text-xs whitespace-pre-wrap break-words max-w-[260px] overflow-x-">
-                sdk.actions.openUrl
-              </pre>
-            </div>
-            <Button onClick={() => openUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ")}>Open Link</Button>
-          </div>
-
-          <div className="mb-4">
-            <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg my-2">
-              <pre className="font-mono text-xs whitespace-pre-wrap break-words max-w-[260px] overflow-x-">
-                sdk.actions.viewProfile
-              </pre>
-            </div>
-            <ViewProfile />
-          </div>
-
-          <div className="mb-4">
-            <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg my-2">
-              <pre className="font-mono text-xs whitespace-pre-wrap break-words max-w-[260px] overflow-x-">
-                sdk.actions.close
-              </pre>
-            </div>
-            <Button onClick={close}>Close Frame</Button>
-          </div>
-        </div>
-
-        <div className="mb-4">
-          <h2 className="font-2xl font-bold">Last event</h2>
-
-          <div className="p-4 mt-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
-            <pre className="font-mono text-xs whitespace-pre-wrap break-words max-w-[260px] overflow-x-">
-              {lastEvent || "none"}
-            </pre>
-          </div>
-        </div>
-
-        <div>
-          <h2 className="font-2xl font-bold">Add to client & notifications</h2>
-
-          <div className="mt-2 mb-4 text-sm">
-            Client fid {context?.client.clientFid},
-            {added ? " frame added to client," : " frame not added to client,"}
-            {notificationDetails
-              ? " notifications enabled"
-              : " notifications disabled"}
-          </div>
-
-          <div className="mb-4">
-            <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg my-2">
-              <pre className="font-mono text-xs whitespace-pre-wrap break-words max-w-[260px] overflow-x-">
-                sdk.actions.addFrame
-              </pre>
-            </div>
-            {addFrameResult && (
-              <div className="mb-2 text-sm">
-                Add frame result: {addFrameResult}
-              </div>
-            )}
-            <Button onClick={addFrame} disabled={added}>
-              Add frame to client
-            </Button>
-          </div>
-
-          {sendNotificationResult && (
-            <div className="mb-2 text-sm">
-              Send notification result: {sendNotificationResult}
-            </div>
-          )}
-          <div className="mb-4">
-            <Button onClick={sendNotification} disabled={!notificationDetails}>
-              Send notification
-            </Button>
-          </div>
-
-          <div className="mb-4">
             <Button 
-              onClick={async () => {
-                if (context?.user?.fid) {
-                  const shareUrl = `${process.env.NEXT_PUBLIC_URL}/share/${context.user.fid}`;
-                  await navigator.clipboard.writeText(shareUrl);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }
-              }}
-              disabled={!context?.user?.fid}
+              variant="secondary"
+              onClick={handleSwitchToCelo}
+              className="text-sm px-4 py-1.5"
             >
-              {copied ? "Copied!" : "Copy share URL"}
+              Switch Network
             </Button>
           </div>
+        )}
+
+        {/* Movies Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {movies.map((movie) => (
+            <MovieCard
+              key={movie.id}
+              movie={movie}
+              onVote={(vote) => handleMovieVote(movie.id, vote)}
+              isVoting={isVotePending}
+              isConnected={isConnected}
+            />
+          ))}
         </div>
 
-        <div>
-          <h2 className="font-2xl font-bold">Wallet</h2>
-
-          {address && (
-            <div className="my-2 text-xs">
-              Address: <pre className="inline">{truncateAddress(address)}</pre>
-            </div>
-          )}
-
-          {chainId && (
-            <div className="my-2 text-xs">
-              Chain ID: <pre className="inline">{chainId}</pre>
-            </div>
-          )}
-
-          <div className="mb-4">
-            {isConnected ? (
-              <Button
-                onClick={() => disconnect()}
-                className="w-full"
-              >
-                Disconnect
-              </Button>
-            ) : context ? (
-              /* if context is not null, mini app is running in frame client */
-              <Button
-                onClick={() => connect({ connector: connectors[0] })}
-                className="w-full"
-              >
-                Connect
-              </Button>
-            ) : (
-              /* if context is null, mini app is running in browser */
-              <div className="space-y-2">
-                <Button
-                  onClick={() => connect({ connector: connectors[1] })}
-                  className="w-full"
-                >
-                  Connect Coinbase Wallet
-                </Button>
-                <Button
-                  onClick={() => connect({ connector: connectors[2] })}
-                  className="w-full"
-                >
-                  Connect MetaMask
-                </Button>
-              </div>
-            )}
-          </div>
-
-          <div className="mb-4">
-            <SignMessage />
-          </div>
-
-          {isConnected && (
-            <>
-              <div className="mb-4">
-                <SendEth />
-              </div>
-              <div className="mb-4">
-                <Button
-                  onClick={sendTx}
-                  disabled={!isConnected || isSendTxPending}
-                  isLoading={isSendTxPending}
-                >
-                  Send Transaction (contract)
-                </Button>
-                {isSendTxError && renderError(sendTxError)}
-                {txHash && (
-                  <div className="mt-2 text-xs">
-                    <div>Hash: {truncateAddress(txHash)}</div>
-                    <div>
-                      Status:{" "}
-                      {isConfirming
-                        ? "Confirming..."
-                        : isConfirmed
-                        ? "Confirmed!"
-                        : "Pending"}
-                    </div>
-                  </div>
-                )}
-              </div>
-              <div className="mb-4">
-                <Button
-                  onClick={signTyped}
-                  disabled={!isConnected || isSignTypedPending}
-                  isLoading={isSignTypedPending}
-                >
-                  Sign Typed Data
-                </Button>
-                {isSignTypedError && renderError(signTypedError)}
-              </div>
-              <div className="mb-4">
-                <Button
-                  onClick={handleSwitchChain}
-                  disabled={isSwitchChainPending}
-                  isLoading={isSwitchChainPending}
-                >
-                  Switch to {nextChain.name}
-                </Button>
-                {isSwitchChainError && renderError(switchChainError)}
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="my-8 p-4 rounded-xl border border-white/10 bg-[#181818]">
-          <h2 className="text-xl font-bold mb-2 text-white">Vote for Movie #0</h2>
-          <div className="flex gap-4">
-            <Button className="bg-white text-black hover:bg-gray-200" onClick={() => handleVote(true)} disabled={!isOnCelo || isVotePending}>Yes</Button>
-            <Button className="bg-white text-black hover:bg-gray-200" onClick={() => handleVote(false)} disabled={!isOnCelo || isVotePending}>No</Button>
-          </div>
-          {voteStatus && <div className="mt-2 text-green-400">{voteStatus}</div>}
-          {voteError && <div className="mt-2 text-red-400">{voteError}</div>}
-        </div>
-
-        <div className="my-8 p-4 rounded-xl border border-white/10 bg-[#181818]">
-          <h2 className="text-xl font-bold mb-2 text-white">Switch to Celo Network</h2>
-          <Button onClick={handleSwitchToCelo}>
-            Switch to Celo Network
+        {/* Close Frame Button */}
+        <div className="fixed bottom-8 right-8">
+          <Button 
+            variant="outline"
+            onClick={close}
+            className="shadow-lg"
+          >
+            Close Frame
           </Button>
         </div>
       </div>
