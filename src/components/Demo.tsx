@@ -30,6 +30,7 @@ import { useFrame } from "~/components/providers/FrameProvider";
 import type { Chain } from "wagmi/chains";
 import { MovieCard } from "./MovieCard";
 import { Navigation } from "./Navigation";
+import Image from 'next/image';
 
 export const celo: Chain = {
   id: 42220,
@@ -405,7 +406,7 @@ export default function Demo(
             : movie
         )
       );
-    } catch (err: any) {
+    } catch (err: Error) {
       setVoteError(err.message || "Error submitting vote");
     }
   };
@@ -441,9 +442,11 @@ export default function Demo(
           {isConnected ? (
             <div className="w-10 h-10 bg-white text-black flex items-center justify-center rounded-full font-bold cursor-pointer border border-white/20 shadow-lg overflow-hidden">
               {context?.user?.pfpUrl ? (
-                <img 
+                <Image 
                   src={context.user.pfpUrl} 
                   alt="Profile" 
+                  width={40}
+                  height={40}
                   className="w-full h-full object-cover"
                 />
               ) : (
