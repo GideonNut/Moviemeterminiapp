@@ -378,20 +378,21 @@ export default function Demo(
   // Voting logic
   const [voteStatus, setVoteStatus] = useState<string | null>(null);
   const [voteError, setVoteError] = useState<string | null>(null);
-  const { writeContractAsync, isPending: isVotePending } = useWriteContract();
+  const { writeContract, data: hash, isPending: isVoting } = useWriteContract();
 
-  const handleMovieVote = async (movieId: string, vote: boolean) => {
-    setVoteStatus(null);
-    setVoteError(null);
+  const handleMovieVote = useCallback(async (movieId: string, vote: boolean) => {
+    if (!isOnCelo) {
+      switchChain({ chainId: celo.id });
+      return;
+    }
     try {
-      setVoteStatus("Waiting for user to confirm...");
-      await writeContractAsync({
+      const result = await writeContract({
         address: MOVIE_CONTRACT_ADDRESS,
         abi: MOVIE_CONTRACT_ABI,
         functionName: "vote",
-        args: [movieId, vote],
-        chainId: 42220,
+        args: [BigInt(movieId), vote],
       });
+      console.log("Vote transaction sent:", result);
       setVoteStatus("Vote submitted!");
       
       // Update local state
@@ -409,7 +410,7 @@ export default function Demo(
     } catch (err: unknown) {
       setVoteError(err instanceof Error ? err.message : "Error submitting vote");
     }
-  };
+  }, [isOnCelo, writeContract, switchChain]);
 
   const handleSwitchToCelo = () => {
     switchChain({ chainId: 42220 });
@@ -553,7 +554,7 @@ export default function Demo(
                 key={movie.id}
                 movie={movie}
                 onVote={(vote) => handleMovieVote(movie.id, vote)}
-                isVoting={isVotePending}
+                isVoting={isVoting}
                 isConnected={isConnected}
               />
             ))}
