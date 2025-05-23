@@ -30,7 +30,6 @@ import { useFrame } from "~/components/providers/FrameProvider";
 import type { Chain } from "wagmi/chains";
 import { MovieCard } from "./MovieCard";
 import { Navigation } from "./Navigation";
-import Image from 'next/image';
 
 export const celo: Chain = {
   id: 42220,
@@ -378,21 +377,20 @@ export default function Demo(
   // Voting logic
   const [voteStatus, setVoteStatus] = useState<string | null>(null);
   const [voteError, setVoteError] = useState<string | null>(null);
-  const { writeContract, data: hash, isPending: isVoting } = useWriteContract();
+  const { writeContractAsync, isPending: isVotePending } = useWriteContract();
 
-  const handleMovieVote = useCallback(async (movieId: string, vote: boolean) => {
-    if (!isOnCelo) {
-      switchChain({ chainId: celo.id });
-      return;
-    }
+  const handleMovieVote = async (movieId: string, vote: boolean) => {
+    setVoteStatus(null);
+    setVoteError(null);
     try {
-      const result = await writeContract({
+      setVoteStatus("Waiting for user to confirm...");
+      await writeContractAsync({
         address: MOVIE_CONTRACT_ADDRESS,
         abi: MOVIE_CONTRACT_ABI,
         functionName: "vote",
-        args: [BigInt(movieId), vote],
+        args: [movieId, vote],
+        chainId: 42220,
       });
-      console.log("Vote transaction sent:", result);
       setVoteStatus("Vote submitted!");
       
       // Update local state
@@ -407,10 +405,10 @@ export default function Demo(
             : movie
         )
       );
-    } catch (err: unknown) {
-      setVoteError(err instanceof Error ? err.message : "Error submitting vote");
+    } catch (err: any) {
+      setVoteError(err.message || "Error submitting vote");
     }
-  }, [isOnCelo, writeContract, switchChain]);
+  };
 
   const handleSwitchToCelo = () => {
     switchChain({ chainId: 42220 });
@@ -439,15 +437,13 @@ export default function Demo(
           className="relative"
           onMouseEnter={() => setShowProfile(true)}
           onMouseLeave={() => setShowProfile(false)}
-        >
+            >
           {isConnected ? (
             <div className="w-10 h-10 bg-white text-black flex items-center justify-center rounded-full font-bold cursor-pointer border border-white/20 shadow-lg overflow-hidden">
               {context?.user?.pfpUrl ? (
-                <Image 
+                <img 
                   src={context.user.pfpUrl} 
                   alt="Profile" 
-                  width={40}
-                  height={40}
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -475,7 +471,7 @@ export default function Demo(
                 Disconnect
               </Button>
                 </>
-              ) : (
+            ) : (
                 <Button
                   variant="secondary"
                   onClick={() => connect({ connector: connectors[2] })}
@@ -554,7 +550,7 @@ export default function Demo(
                 key={movie.id}
                 movie={movie}
                 onVote={(vote) => handleMovieVote(movie.id, vote)}
-                isVoting={isVoting}
+                isVoting={isVotePending}
                 isConnected={isConnected}
               />
             ))}
@@ -575,4 +571,237 @@ export default function Demo(
     </div>
   );
 }
+
+function SignMessage() {
+  const { isConnected } = useAccount();
+  const { connectAsync } = useConnect();
+  const {
+    signMessage,
+    data: signature,
+    error: signError,
+    isError: isSignError,
+    isPending: isSignPending,
+  } = useSignMessage();
+
+  const handleSignMessage = useCallback(async () => {
+    if (!isConnected) {
+      await connectAsync({
+        chainId: base.id,
+        connector: config.connectors[0],
+      });
+    }
+
+    signMessage({ message: "Hello from Frames v2!" });
+  }, [connectAsync, isConnected, signMessage]);
+
+  return (
+    <>
+      <Button
+        onClick={handleSignMessage}
+        disabled={isSignPending}
+        isLoading={isSignPending}
+      >
+        Sign Message
+      </Button>
+      {isSignError && renderError(signError)}
+      {signature && (
+        <div className="mt-2 text-xs">
+          <div>Signature: {signature}</div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function SendEth() {
+  const { isConnected, chainId } = useAccount();
+  const {
+    sendTransaction,
+    data,
+    error: sendTxError,
+    isError: isSendTxError,
+    isPending: isSendTxPending,
+  } = useSendTransaction();
+
+  const { isLoading: isConfirming, isSuccess: isConfirmed } =
+    useWaitForTransactionReceipt({
+      hash: data,
+    });
+
+  const toAddr = useMemo(() => {
+    // Protocol guild address
+    return chainId === base.id
+      ? "0x32e3C7fD24e175701A35c224f2238d18439C7dBC"
+      : "0xB3d8d7887693a9852734b4D25e9C0Bb35Ba8a830";
+  }, [chainId]);
+
+  const handleSend = useCallback(() => {
+    sendTransaction({
+      to: toAddr,
+      value: 1n,
+    });
+  }, [toAddr, sendTransaction]);
+
+  return (
+    <>
+      <Button
+        onClick={handleSend}
+        disabled={!isConnected || isSendTxPending}
+        isLoading={isSendTxPending}
+      >
+        Send Transaction (eth)
+      </Button>
+      {isSendTxError && renderError(sendTxError)}
+      {data && (
+        <div className="mt-2 text-xs">
+          <div>Hash: {truncateAddress(data)}</div>
+          <div>
+            Status:{" "}
+            {isConfirming
+              ? "Confirming..."
+              : isConfirmed
+              ? "Confirmed!"
+              : "Pending"}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function SignIn() {
+  const [signingIn, setSigningIn] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signInResult, setSignInResult] = useState<SignInCore.SignInResult>();
+  const [signInFailure, setSignInFailure] = useState<string>();
+  const { data: session, status } = useSession();
+
+  const getNonce = useCallback(async () => {
+    const nonce = await getCsrfToken();
+    if (!nonce) throw new Error("Unable to generate nonce");
+    return nonce;
+  }, []);
+
+  const handleSignIn = useCallback(async () => {
+    try {
+      setSigningIn(true);
+      setSignInFailure(undefined);
+      const nonce = await getNonce();
+      const result = await sdk.actions.signIn({ nonce });
+      setSignInResult(result);
+
+      await signIn("credentials", {
+        message: result.message,
+        signature: result.signature,
+        redirect: false,
+      });
+    } catch (e) {
+      if (e instanceof SignInCore.RejectedByUser) {
+        setSignInFailure("Rejected by user");
+        return;
+      }
+
+      setSignInFailure("Unknown error");
+    } finally {
+      setSigningIn(false);
+    }
+  }, [getNonce]);
+
+  const handleSignOut = useCallback(async () => {
+    try {
+      setSigningOut(true);
+      await signOut({ redirect: false });
+      setSignInResult(undefined);
+    } finally {
+      setSigningOut(false);
+    }
+  }, []);
+
+  return (
+    <>
+      {status !== "authenticated" && (
+        <Button onClick={handleSignIn} disabled={signingIn}>
+          Sign In with Farcaster
+        </Button>
+      )}
+      {status === "authenticated" && (
+        <Button onClick={handleSignOut} disabled={signingOut}>
+          Sign out
+        </Button>
+      )}
+      {session && (
+        <div className="my-2 p-2 text-xs overflow-x-scroll bg-gray-100 rounded-lg font-mono">
+          <div className="font-semibold text-gray-500 mb-1">Session</div>
+          <div className="whitespace-pre">
+            {JSON.stringify(session, null, 2)}
+          </div>
+        </div>
+      )}
+      {signInFailure && !signingIn && (
+        <div className="my-2 p-2 text-xs overflow-x-scroll bg-gray-100 rounded-lg font-mono">
+          <div className="font-semibold text-gray-500 mb-1">SIWF Result</div>
+          <div className="whitespace-pre">{signInFailure}</div>
+        </div>
+      )}
+      {signInResult && !signingIn && (
+        <div className="my-2 p-2 text-xs overflow-x-scroll bg-gray-100 rounded-lg font-mono">
+          <div className="font-semibold text-gray-500 mb-1">SIWF Result</div>
+          <div className="whitespace-pre">
+            {JSON.stringify(signInResult, null, 2)}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function ViewProfile() {
+  const [fid, setFid] = useState("3");
+
+  return (
+    <>
+      <div>
+        <Label
+          className="text-xs font-semibold text-gray-500 mb-1"
+          htmlFor="view-profile-fid"
+        >
+          Fid
+        </Label>
+        <Input
+          id="view-profile-fid"
+          type="number"
+          value={fid}
+          className="mb-2"
+          onChange={(e) => {
+            setFid(e.target.value);
+          }}
+          step="1"
+          min="1"
+        />
+      </div>
+      <Button
+        onClick={() => {
+          sdk.actions.viewProfile({ fid: parseInt(fid) });
+        }}
+      >
+        View Profile
+      </Button>
+    </>
+  );
+}
+
+const renderError = (error: Error | null) => {
+  if (!error) return null;
+  if (error instanceof BaseError) {
+    const isUserRejection = error.walk(
+      (e) => e instanceof UserRejectedRequestError
+    );
+
+    if (isUserRejection) {
+      return <div className="text-red-500 text-xs mt-1">Rejected by user.</div>;
+    }
+  }
+
+  return <div className="text-red-500 text-xs mt-1">{error.message}</div>;
+};
 
