@@ -239,6 +239,7 @@ export default function Demo(
   const [copied, setCopied] = useState(false);
 
   const { address, isConnected } = useAccount();
+  const { connect, connectors } = useConnect();
   const chainId = useChainId();
   const isOnCelo = chainId === 42220;
 
@@ -247,8 +248,6 @@ export default function Demo(
 
   const [movies, setMovies] = useState(SAMPLE_MOVIES);
   const [selectedMovieId, setSelectedMovieId] = useState<string | null>(null);
-
-  // Add new state for showing movies
   const [showMovies, setShowMovies] = useState(false);
 
   useEffect(() => {
@@ -258,6 +257,20 @@ export default function Demo(
     console.log("isConnected", isConnected);
     console.log("chainId", chainId);
   }, [context, address, isConnected, chainId, isSDKLoaded]);
+
+  useEffect(() => {
+    // Auto-connect to Farcaster wallet when component mounts
+    if (!isConnected && connectors) {
+      // Find the Farcaster connector
+      const farcasterConnector = connectors.find(connector => 
+        connector.name.toLowerCase().includes('farcaster')
+      );
+      
+      if (farcasterConnector) {
+        connect({ connector: farcasterConnector });
+      }
+    }
+  }, [isConnected, connect, connectors]);
 
   const {
     sendTransaction,
@@ -279,7 +292,6 @@ export default function Demo(
   } = useSignTypedData();
 
   const { disconnect } = useDisconnect();
-  const { connect, connectors } = useConnect();
 
   const {
     switchChain,
@@ -382,15 +394,27 @@ export default function Demo(
   const handleMovieVote = async (movieId: string, vote: boolean) => {
     setVoteStatus(null);
     setVoteError(null);
+    
+    if (!isConnected) {
+      setVoteError("Please connect your wallet first");
+      return;
+    }
+
+    if (!isOnCelo) {
+      setVoteError("Please switch to Celo network");
+      return;
+    }
+
     try {
       setVoteStatus("Waiting for user to confirm...");
-      await writeContractAsync({
-        address: MOVIE_CONTRACT_ADDRESS,
+      const result = await writeContractAsync({
+        address: MOVIE_CONTRACT_ADDRESS as `0x${string}`,
         abi: MOVIE_CONTRACT_ABI,
         functionName: "vote",
-        args: [movieId, vote],
+        args: [BigInt(movieId), vote],
         chainId: 42220,
       });
+      
       setVoteStatus("Vote submitted!");
       
       // Update local state
@@ -406,12 +430,40 @@ export default function Demo(
         )
       );
     } catch (err: any) {
+      console.error("Voting error:", err);
       setVoteError(err.message || "Error submitting vote");
     }
   };
 
-  const handleSwitchToCelo = () => {
-    switchChain({ chainId: 42220 });
+  const handleSwitchToCelo = async () => {
+    try {
+      await switchChain({ 
+        chainId: 42220
+      });
+    } catch (error) {
+      console.error("Error switching to Celo:", error);
+      // If the chain is not added to the wallet, we need to add it first
+      if (error instanceof Error && error.message.includes("chain not configured")) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: '0xA4EC', // 42220 in hex
+              chainName: 'Celo',
+              nativeCurrency: {
+                name: 'CELO',
+                symbol: 'CELO',
+                decimals: 18
+              },
+              rpcUrls: ['https://forno.celo.org'],
+              blockExplorerUrls: ['https://celoscan.io']
+            }]
+          });
+        } catch (addError) {
+          console.error("Error adding Celo chain:", addError);
+        }
+      }
+    }
   };
 
   if (!isSDKLoaded) {
@@ -430,6 +482,25 @@ export default function Demo(
     >
       <Navigation />
 
+      {/* Network Switch Button */}
+      {isConnected && !isOnCelo && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-40">
+          <div className="flex items-center gap-2 bg-[#1A1A1A] px-2 py-1 rounded-full border border-white/10 shadow-lg">
+            <div className="flex items-center gap-1">
+              <div className="w-1 h-1 rounded-full bg-yellow-500"></div>
+              <span className="text-white/60 text-xs">Not connected to Celo</span>
+            </div>
+            <Button
+              variant="secondary"
+              onClick={handleSwitchToCelo}
+              className="text-xs px-2 py-0.5"
+            >
+              Switch to Celo
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* User Profile Avatar */}
       <div className="absolute top-4 right-4 z-50">
         <div
@@ -437,7 +508,7 @@ export default function Demo(
           className="relative"
           onMouseEnter={() => setShowProfile(true)}
           onMouseLeave={() => setShowProfile(false)}
-            >
+        >
           {isConnected ? (
             <div className="w-10 h-10 bg-white text-black flex items-center justify-center rounded-full font-bold cursor-pointer border border-white/20 shadow-lg overflow-hidden">
               {context?.user?.pfpUrl ? (
@@ -451,7 +522,7 @@ export default function Demo(
               )}
             </div>
           ) : (
-            <div className="w-10 h-10 bg-white/10 text-white flex items-center justify-center rounded-full cursor-pointer border border-white/20 shadow-lg">
+            <div className="w-10 h-10 bg-white/10 text-white flex items-center justify-center rounded-full border border-white/20 shadow-lg">
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118A7.5 7.5 0 0112 15.75a7.5 7.5 0 017.5 4.368" />
               </svg>
@@ -471,13 +542,8 @@ export default function Demo(
                 Disconnect
               </Button>
                 </>
-            ) : (
-                <Button
-                  variant="secondary"
-                  onClick={() => connect({ connector: connectors[2] })}
-                >
-                  Connect Wallet
-                </Button>
+              ) : (
+                <div className="text-white/60 text-sm">Connecting...</div>
               )}
               </div>
             )}
@@ -486,23 +552,6 @@ export default function Demo(
 
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <h1 className="text-3xl font-bold text-center mb-8 text-white tracking-tight">{title}</h1>
-
-        {/* Network Status */}
-        {!isOnCelo && (
-          <div className="flex items-center justify-between mb-8 p-3 rounded-xl border border-white/10 bg-[#1A1A1A]">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-white/60"></div>
-              <span className="text-white/60 text-sm">Not connected to Celo</span>
-              </div>
-                <Button
-              variant="secondary"
-              onClick={handleSwitchToCelo}
-              className="text-sm px-4 py-1.5"
-            >
-              Switch Network
-                </Button>
-                  </div>
-                )}
 
         {/* Hero Section with Text */}
         <div className="text-center mb-12">
@@ -556,17 +605,6 @@ export default function Demo(
             ))}
           </div>
         )}
-
-        {/* Close Frame Button */}
-        <div className="fixed bottom-8 right-8">
-          <Button 
-            variant="outline"
-            onClick={close}
-            className="shadow-lg"
-          >
-            Close Frame
-          </Button>
-        </div>
       </div>
     </div>
   );
