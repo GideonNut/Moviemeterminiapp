@@ -1,4 +1,5 @@
 import { Button } from "./ui/Button";
+import Image from 'next/image';
 
 interface Movie {
   id: string;
@@ -29,9 +30,11 @@ export function MovieCard({ movie, onVote, isVoting, isConnected }: MovieCardPro
     <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#1A1A1A] transition-all duration-300 hover:border-white/20">
       {/* Movie Poster */}
       <div className="relative aspect-[2/3] w-full overflow-hidden">
-        <img
+        <Image
           src={movie.posterUrl}
           alt={movie.title}
+          width={300}
+          height={450}
           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />

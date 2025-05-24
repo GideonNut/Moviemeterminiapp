@@ -229,7 +229,8 @@ const SAMPLE_MOVIES = [
   }
 ];
 
-export default function Demo(
+/* eslint-disable @typescript-eslint/no-unused-vars */
+export function Demo(
   { title }: { title?: string } = { title: "Frames v2 Demo" }
 ) {
   const { isSDKLoaded, context, added, notificationDetails, lastEvent, addFrame, addFrameResult, openUrl, close } = useFrame();
@@ -609,6 +610,7 @@ export default function Demo(
     </div>
   );
 }
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 function SignMessage() {
   const { isConnected } = useAccount();
