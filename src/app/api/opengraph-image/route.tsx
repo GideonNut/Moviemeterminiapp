@@ -4,7 +4,7 @@ export const runtime = 'edge';
 
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
     const username = searchParams.get('username');
 
     if (!username) {
@@ -18,8 +18,8 @@ export async function GET(request: Request) {
       pfp_url: 'https://i.postimg.cc/Gtz6FMmk/new-favicon.png'
     };
 
-    return new ImageResponse(
-      (
+  return new ImageResponse(
+    (
         <div style={{
           height: '100%',
           width: '100%',
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
           backgroundColor: '#6B46C1',
           padding: '40px',
         }}>
-          {user?.pfp_url && (
+        {user?.pfp_url && (
             <div style={{
               width: '384px',
               height: '384px',
@@ -48,8 +48,8 @@ export async function GET(request: Request) {
                   objectFit: 'cover',
                 }}
               />
-            </div>
-          )}
+          </div>
+        )}
           <h1 style={{
             fontSize: '96px',
             color: 'white',
@@ -57,13 +57,13 @@ export async function GET(request: Request) {
           }}>
             {user?.display_name ? `Hello from ${user.display_name ?? user.username}!` : 'Hello!'}
           </h1>
-        </div>
-      ),
-      {
-        width: 1200,
+      </div>
+    ),
+    {
+      width: 1200,
         height: 630,
-      }
-    );
+    }
+  );
   } catch (e) {
     console.error(e);
     return new Response('Failed to generate image', { status: 500 });

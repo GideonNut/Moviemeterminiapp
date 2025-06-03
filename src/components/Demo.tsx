@@ -29,7 +29,8 @@ import { Label } from "~/components/ui/label";
 import { useFrame } from "~/components/providers/FrameProvider";
 import type { Chain } from "wagmi/chains";
 import { MovieCard } from "./MovieCard";
-import { Navigation } from "./Navigation";
+import Link from 'next/link';
+import Image from 'next/image';
 
 export const celo: Chain = {
   id: 42220,
@@ -472,140 +473,254 @@ export function Demo(
   }
 
   return (
-    <div
-      style={{
-        paddingTop: (context?.client.safeAreaInsets?.top ?? 0) + 64,
-        paddingBottom: context?.client.safeAreaInsets?.bottom ?? 0,
-        paddingLeft: context?.client.safeAreaInsets?.left ?? 0,
-        paddingRight: context?.client.safeAreaInsets?.right ?? 0,
-      }}
-      className="min-h-screen bg-[#0A0A0A] text-white relative"
-    >
-      <Navigation />
-
-      {/* Network Switch Button */}
-      {isConnected && !isOnCelo && (
-        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-40">
-          <div className="flex items-center gap-2 bg-[#1A1A1A] px-2 py-1 rounded-full border border-white/10 shadow-lg">
-            <div className="flex items-center gap-1">
-              <div className="w-1 h-1 rounded-full bg-yellow-500"></div>
-              <span className="text-white/60 text-xs">Not connected to Celo</span>
+    <div className="min-h-screen bg-[#0A0A0A]">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0A0A0A] border-b border-white/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-8">
+              <Link href="/" className="text-white text-xl font-bold flex items-center">
+                <div className="w-32 h-8 relative">
+                  <Image
+                    src="/logo2.png"
+                    alt="MovieMetter Logo"
+                    layout="fill"
+                    objectFit="contain"
+                  />
+                </div>
+              </Link>
+              <Link
+                href="/rewards"
+                className="px-4 py-2 rounded-md text-base font-medium border-2 border-transparent transition-colors duration-200 text-white hover:bg-white/10"
+              >
+                Rewards
+              </Link>
             </div>
-            <Button
-              variant="secondary"
-              onClick={handleSwitchToCelo}
-              className="text-xs px-2 py-0.5"
-            >
-              Switch to Celo
-            </Button>
           </div>
         </div>
-      )}
-
-      {/* User Profile Avatar */}
-      <div className="absolute top-4 right-4 z-50">
-        <div
-          ref={profileRef}
-          className="relative"
-          onMouseEnter={() => setShowProfile(true)}
-          onMouseLeave={() => setShowProfile(false)}
-        >
-          {isConnected ? (
-            <div className="w-10 h-10 bg-white text-black flex items-center justify-center rounded-full font-bold cursor-pointer border border-white/20 shadow-lg overflow-hidden">
-              {context?.user?.pfpUrl ? (
-                <img 
-                  src={context.user.pfpUrl} 
-                  alt="Profile" 
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                address?.slice(2, 3).toUpperCase()
-              )}
-            </div>
-          ) : (
-            <div className="w-10 h-10 bg-white/10 text-white flex items-center justify-center rounded-full border border-white/20 shadow-lg">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118A7.5 7.5 0 0112 15.75a7.5 7.5 0 017.5 4.368" />
-              </svg>
+      </nav>
+      <div
+        className="min-h-screen bg-[#0A0A0A] text-white relative"
+      >
+        {/* User Profile Avatar */}
+        <div className="absolute top-4 right-4 z-50">
+          <div
+            ref={profileRef}
+            className="relative"
+            onMouseEnter={() => setShowProfile(true)}
+            onMouseLeave={() => setShowProfile(false)}
+          >
+            {isConnected ? (
+              <div className="w-10 h-10 bg-white text-black flex items-center justify-center rounded-full font-bold cursor-pointer border border-white/20 shadow-lg overflow-hidden">
+                {context?.user?.pfpUrl ? (
+                  <img 
+                    src={context.user.pfpUrl} 
+                    alt="Profile" 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  address?.slice(2, 3).toUpperCase()
+                )}
+              </div>
+            ) : (
+              <div className="w-10 h-10 bg-white/10 text-white flex items-center justify-center rounded-full border border-white/20 shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118A7.5 7.5 0 0112 15.75a7.5 7.5 0 017.5 4.368" />
+                </svg>
+              </div>
+            )}
+            {/* Profile Dropdown */}
+            {showProfile && (
+              <div className="absolute right-0 mt-2 w-72 bg-[#1A1A1A] border border-white/10 rounded-xl shadow-xl p-4 text-sm text-white backdrop-blur-sm">
+                {isConnected ? (
+                  <>
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="w-12 h-12 rounded-full overflow-hidden border border-white/20">
+                        {context?.user?.pfpUrl ? (
+                          <img 
+                            src={context.user.pfpUrl} 
+                            alt="Profile" 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-white/10 flex items-center justify-center text-lg font-bold">
+                            {address?.slice(2, 3).toUpperCase()}
             </div>
           )}
-          {/* Profile Dropdown */}
-          {showProfile && (
-            <div className="absolute right-0 mt-2 w-56 bg-[#1A1A1A] border border-white/10 rounded-xl shadow-xl p-4 text-sm text-white backdrop-blur-sm">
-            {isConnected ? (
-                <>
-                  <div className="mb-2 font-semibold text-white/90">Profile</div>
-                  <div className="mb-2 break-all text-xs text-white/60">{address}</div>
+        </div>
+        <div>
+                        <div className="font-semibold text-white/90">
+                          {context?.user?.displayName || 'Anonymous User'}
+                        </div>
+                        <div className="text-xs text-white/60 break-all">
+                          {address}
+                        </div>
+            </div>
+          </div>
+
+                    {/* Stats Section */}
+                    <div className="grid grid-cols-3 gap-4 mb-4 p-3 bg-white/5 rounded-lg">
+                      <div>
+                        <div className="text-xs text-white/60">Movies Voted</div>
+                        <div className="text-lg font-semibold">
+                          {movies.filter(m => m.voteCountYes > 0 || m.voteCountNo > 0).length}
+            </div>
+          </div>
+                      <div>
+                        <div className="text-xs text-white/60">Network</div>
+                        <div className="text-lg font-semibold">
+                          {isOnCelo ? 'Celo' : 'Not on Celo'}
+            </div>
+          </div>
+                      <div>
+                        <div className="text-xs text-white/60">Voting Streak</div>
+                        <div className="text-lg font-semibold flex items-center gap-1">
+                          <span>🔥</span>
+                          <span>3</span>
+            </div>
+          </div>
+        </div>
+
+                    {/* Streak Progress */}
+        <div className="mb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-xs font-semibold text-white/60">Streak Progress</div>
+                        <div className="text-xs text-white/60">3/7 days</div>
+                      </div>
+                      <div className="w-full bg-white/5 rounded-full h-1.5">
+                        <div 
+                          className="bg-gradient-to-r from-yellow-500 to-orange-500 h-1.5 rounded-full" 
+                          style={{ width: '42%' }}
+                        ></div>
+                      </div>
+                      <div className="mt-2 text-xs text-white/60">
+                        Vote for 4 more days to get a bonus reward!
+          </div>
+        </div>
+
+                    {/* Recent Votes */}
+          <div className="mb-4">
+                      <div className="text-xs font-semibold text-white/60 mb-2">Recent Votes</div>
+                      <div className="space-y-2 max-h-40 overflow-y-auto">
+                        {movies
+                          .filter(m => m.voteCountYes > 0 || m.voteCountNo > 0)
+                          .slice(0, 3)
+                          .map(movie => (
+                            <div key={movie.id} className="flex items-center gap-2 p-2 bg-white/5 rounded-lg">
+                              <div className="w-8 h-8 rounded overflow-hidden">
+                                <img 
+                                  src={movie.posterUrl} 
+                                  alt={movie.title}
+                                  className="w-full h-full object-cover"
+                                />
+            </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-medium truncate">{movie.title}</div>
+                                <div className="text-xs text-white/60">
+                                  {movie.voteCountYes > 0 ? '👍 Voted Yes' : '👎 Voted No'}
+              </div>
+          </div>
+            </div>
+                          ))}
+                        {movies.filter(m => m.voteCountYes > 0 || m.voteCountNo > 0).length === 0 && (
+                          <div className="text-xs text-white/60 p-2">No votes yet</div>
+                        )}
+          </div>
+        </div>
+
+                    <div className="flex gap-2">
               <Button
-                    variant="secondary"
+                        variant="secondary"
                 onClick={() => disconnect()}
+                        className="flex-1"
               >
                 Disconnect
               </Button>
-                </>
-              ) : (
-                <div className="text-white/60 text-sm">Connecting...</div>
-              )}
+              <Button
+                        variant="secondary"
+                        onClick={() => window.open('https://celoscan.io/address/' + address, '_blank')}
+                        className="flex-1"
+              >
+                        View on CeloScan
+              </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-white/60 text-sm">Connecting...</div>
+                )}
               </div>
             )}
           </div>
           </div>
 
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <h1 className="text-3xl font-bold text-center mb-8 text-white tracking-tight">{title}</h1>
+        <div className="container mx-auto px-4 py-8 max-w-6xl">
+          <h1 className="text-3xl font-bold text-center mb-8 text-white tracking-tight">{title}</h1>
 
-        {/* Hero Section with Text */}
-        <div className="text-center mb-12">
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-8 tracking-tight">
-            Discover Movies, Share your taste and be rewarded
-          </h2>
+          {/* Hero Section with Text */}
+          <div className="text-center mb-12">
+            {/* Network Switch Button */}
+            {isConnected && !isOnCelo && (
+              <div className="flex justify-center mb-6">
+                <button
+                  onClick={handleSwitchToCelo}
+                  className="bg-[#1A1A1A] hover:bg-white/10 text-white font-medium px-4 py-2 rounded-lg border border-white/10 transition-colors duration-200 flex items-center gap-2"
+                >
+                  <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                  <span>Switch to Celo</span>
+                </button>
+              </div>
+            )}
 
-          {/* How it Works Section */}
-          <div className="max-w-3xl mx-auto mb-12">
-            <h3 className="text-2xl font-semibold text-white mb-6">How it works</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-[#1A1A1A] p-6 rounded-xl border border-white/10">
-                <div className="text-2xl mb-3">🎬</div>
-                <h4 className="text-lg font-medium text-white mb-2">Discover Movies</h4>
-                <p className="text-white/60 text-sm">Browse through our curated collection of movies and find your next favorite film.</p>
-              </div>
-              <div className="bg-[#1A1A1A] p-6 rounded-xl border border-white/10">
-                <div className="text-2xl mb-3">👍</div>
-                <h4 className="text-lg font-medium text-white mb-2">Vote & Share</h4>
-                <p className="text-white/60 text-sm">Vote yes or no on movies and share your opinions with the community.</p>
-              </div>
-              <div className="bg-[#1A1A1A] p-6 rounded-xl border border-white/10">
-                <div className="text-2xl mb-3">🎁</div>
-                <h4 className="text-lg font-medium text-white mb-2">Earn Rewards</h4>
-                <p className="text-white/60 text-sm">Get rewarded with cUSD and GoodDollar tokens for your participation.</p>
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-8 tracking-tight">
+              Discover Movies, Share your taste and be rewarded
+            </h2>
+
+            {/* How it Works Section */}
+            <div className="max-w-3xl mx-auto mb-12">
+              <h3 className="text-2xl font-semibold text-white mb-6">How it works</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-[#1A1A1A] p-6 rounded-xl border border-white/10">
+                  <div className="text-2xl mb-3">🎬</div>
+                  <h4 className="text-lg font-medium text-white mb-2">Discover Movies</h4>
+                  <p className="text-white/60 text-sm">Browse through our curated collection of movies and find your next favorite film.</p>
+                </div>
+                <div className="bg-[#1A1A1A] p-6 rounded-xl border border-white/10">
+                  <div className="text-2xl mb-3">👍</div>
+                  <h4 className="text-lg font-medium text-white mb-2">Vote & Share</h4>
+                  <p className="text-white/60 text-sm">Vote yes or no on movies and share your opinions with the community.</p>
+                </div>
+                <div className="bg-[#1A1A1A] p-6 rounded-xl border border-white/10">
+                  <div className="text-2xl mb-3">🎁</div>
+                  <h4 className="text-lg font-medium text-white mb-2">Earn Rewards</h4>
+                  <p className="text-white/60 text-sm">Get rewarded with cUSD and GoodDollar tokens for your participation.</p>
+                </div>
               </div>
             </div>
+
+            {/* Explore Button */}
+                <Button
+              variant="primary"
+              onClick={() => setShowMovies(true)}
+              className="text-lg px-8 py-4"
+            >
+              Explore Movies
+                </Button>
           </div>
 
-          {/* Explore Button */}
-          <Button
-            variant="primary"
-            onClick={() => setShowMovies(true)}
-            className="text-lg px-8 py-4"
-          >
-            Explore Movies
-          </Button>
+          {/* Movies Grid - Only shown when showMovies is true */}
+          {showMovies && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {movies.map((movie) => (
+                <MovieCard
+                  key={movie.id}
+                  movie={movie}
+                  onVote={(vote) => handleMovieVote(movie.id, vote)}
+                  isVoting={isVotePending}
+                  isConnected={isConnected}
+                />
+              ))}
+              </div>
+          )}
         </div>
-
-        {/* Movies Grid - Only shown when showMovies is true */}
-        {showMovies && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {movies.map((movie) => (
-              <MovieCard
-                key={movie.id}
-                movie={movie}
-                onVote={(vote) => handleMovieVote(movie.id, vote)}
-                isVoting={isVotePending}
-                isConnected={isConnected}
-              />
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
