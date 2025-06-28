@@ -31,8 +31,11 @@ import type { Chain } from "wagmi/chains";
 import { MovieCard } from "./MovieCard";
 import Link from 'next/link';
 import Image from 'next/image';
+import { getDataSuffix, submitReferral } from '@divvi/referral-sdk';
+import { encodeFunctionData } from 'viem';
 
-export const celo: Chain = {
+// Define celo chain configuration
+const celoChain: Chain = {
   id: 42220,
   name: "Celo",
   nativeCurrency: {
@@ -252,6 +255,9 @@ export function Demo(
   const [selectedMovieId, setSelectedMovieId] = useState<string | null>(null);
   const [showMovies, setShowMovies] = useState(false);
 
+  // Add this state to track if user has been referred
+  const [hasBeenReferred, setHasBeenReferred] = useState(false);
+
   useEffect(() => {
     console.log("isSDKLoaded", isSDKLoaded);
     console.log("context", context);
@@ -259,20 +265,6 @@ export function Demo(
     console.log("isConnected", isConnected);
     console.log("chainId", chainId);
   }, [context, address, isConnected, chainId, isSDKLoaded]);
-
-  useEffect(() => {
-    // Auto-connect to Farcaster wallet when component mounts
-    if (!isConnected && connectors) {
-      // Find the Farcaster connector
-      const farcasterConnector = connectors.find(connector => 
-        connector.name.toLowerCase().includes('farcaster')
-      );
-      
-      if (farcasterConnector) {
-        connect({ connector: farcasterConnector });
-      }
-    }
-  }, [isConnected, connect, connectors]);
 
   const {
     sendTransaction,
@@ -393,6 +385,21 @@ export function Demo(
   const [voteError, setVoteError] = useState<string | null>(null);
   const { writeContractAsync, isPending: isVotePending } = useWriteContract();
 
+  // Add this function to check if user has voted before
+  const checkUserVoteHistory = useCallback(async () => {
+    if (!address) return;
+    
+    try {
+      const hasVoted = movies.some(movie => 
+        movie.voteCountYes > 0 || movie.voteCountNo > 0
+      );
+      setHasBeenReferred(hasVoted);
+    } catch (error) {
+      console.error("Error checking vote history:", error);
+    }
+  }, [address, movies]);
+
+  // Update handleMovieVote to use wagmi hooks correctly
   const handleMovieVote = async (movieId: string, vote: boolean) => {
     setVoteStatus(null);
     setVoteError(null);
@@ -409,13 +416,54 @@ export function Demo(
 
     try {
       setVoteStatus("Waiting for user to confirm...");
-      const result = await writeContractAsync({
-        address: MOVIE_CONTRACT_ADDRESS as `0x${string}`,
-        abi: MOVIE_CONTRACT_ABI,
-        functionName: "vote",
-        args: [BigInt(movieId), vote],
-        chainId: 42220,
-      });
+
+      // Add Divvi referral data if this is the user's first vote
+      if (!hasBeenReferred) {
+        const dataSuffix = getDataSuffix({
+          consumer: '0xc49B8e093600f684b69ed6Ba1E36b7dFaD42F982', // Your Divvi Identifier
+          providers: [
+            '0x0423189886d7966f0dd7e7d256898daeee625dca',
+            '0xc95876688026be9d6fa7a7c33328bd013effa2bb',
+            '0x5f0a55fad9424ac99429f635dfb9bf20c3360ab8',
+            '0x6226dde08402642964f9a6de844ea3116f0dfc7e' // Added missing provider
+          ],
+        });
+
+        // Encode the function data
+        const functionData = encodeFunctionData({
+          abi: MOVIE_CONTRACT_ABI,
+          functionName: "vote",
+          args: [BigInt(movieId), vote],
+        });
+
+        // Append the data suffix
+        const dataWithSuffix = functionData + dataSuffix;
+
+        // Send the transaction with referral data
+        const txHash = await writeContractAsync({
+          address: MOVIE_CONTRACT_ADDRESS as `0x${string}`,
+          abi: MOVIE_CONTRACT_ABI,
+          functionName: "vote",
+          args: [BigInt(movieId), vote],
+          chainId: 42220,
+        });
+
+        // Submit referral to Divvi
+        await submitReferral({
+          txHash,
+          chainId: 42220, // Celo chain ID
+        });
+        setHasBeenReferred(true);
+      } else {
+        // Send regular transaction without referral data
+        await writeContractAsync({
+          address: MOVIE_CONTRACT_ADDRESS as `0x${string}`,
+          abi: MOVIE_CONTRACT_ABI,
+          functionName: "vote",
+          args: [BigInt(movieId), vote],
+          chainId: 42220,
+        });
+      }
       
       setVoteStatus("Vote submitted!");
       
@@ -433,9 +481,22 @@ export function Demo(
       );
     } catch (err: any) {
       console.error("Voting error:", err);
-      setVoteError(err.message || "Error submitting vote");
+      if (err.message?.includes("User rejected")) {
+        setVoteError("Transaction was rejected. Please try again.");
+      } else if (err.message?.includes("insufficient funds")) {
+        setVoteError("Insufficient funds for gas. Please add some CELO to your wallet.");
+      } else {
+        setVoteError(err.message || "Error submitting vote. Please try again.");
+      }
     }
   };
+
+  // Remove the useEffect for auto-connecting to Farcaster wallet
+  useEffect(() => {
+    if (isConnected) {
+      checkUserVoteHistory();
+    }
+  }, [isConnected, checkUserVoteHistory]);
 
   const handleSwitchToCelo = async () => {
     try {
@@ -444,27 +505,17 @@ export function Demo(
       });
     } catch (error) {
       console.error("Error switching to Celo:", error);
-      // If the chain is not added to the wallet, we need to add it first
-      if (error instanceof Error && error.message.includes("chain not configured")) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [{
-              chainId: '0xA4EC', // 42220 in hex
-              chainName: 'Celo',
-              nativeCurrency: {
-                name: 'CELO',
-                symbol: 'CELO',
-                decimals: 18
-              },
-              rpcUrls: ['https://forno.celo.org'],
-              blockExplorerUrls: ['https://celoscan.io']
-            }]
-          });
-        } catch (addError) {
-          console.error("Error adding Celo chain:", addError);
-        }
-      }
+    }
+  };
+
+  const handleConnectWallet = async () => {
+    try {
+      // Try Warpcast first
+      await connect({ connector: connectors[0] });
+    } catch (error) {
+      console.error("Error connecting to Warpcast:", error);
+      // Fallback to MetaMask
+      await connect({ connector: connectors[2] });
     }
   };
 
@@ -479,7 +530,7 @@ export function Demo(
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-8">
               <Link href="/" className="text-white text-xl font-bold flex items-center">
-                <div className="w-32 h-8 relative">
+                <div className="w-48 h-12 relative">
                   <Image
                     src="/logo2.png"
                     alt="MovieMetter Logo"
@@ -495,14 +546,24 @@ export function Demo(
                 Rewards
               </Link>
             </div>
+            <div className="flex items-center gap-4">
+              {!isConnected && (
+                <button
+                  onClick={handleConnectWallet}
+                  className="bg-[#1A1A1A] hover:bg-white/10 text-white font-medium px-4 py-2 rounded-lg border border-white/10 transition-colors duration-200"
+                >
+                  Connect Wallet
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </nav>
       <div
         className="min-h-screen bg-[#0A0A0A] text-white relative"
       >
-        {/* User Profile Avatar */}
-        <div className="absolute top-4 right-4 z-50">
+        {/* User Profile Avatar - Updated to fixed position */}
+        <div className="fixed top-4 right-4 z-50">
           <div
             ref={profileRef}
             className="relative"
@@ -532,7 +593,7 @@ export function Demo(
             {showProfile && (
               <div className="absolute right-0 mt-2 w-72 bg-[#1A1A1A] border border-white/10 rounded-xl shadow-xl p-4 text-sm text-white backdrop-blur-sm">
                 {isConnected ? (
-                  <>
+                  <div>
                     <div className="flex items-center gap-3 mb-4">
                       <div className="w-12 h-12 rounded-full overflow-hidden border border-white/20">
                         {context?.user?.pfpUrl ? (
@@ -544,18 +605,18 @@ export function Demo(
                         ) : (
                           <div className="w-full h-full bg-white/10 flex items-center justify-center text-lg font-bold">
                             {address?.slice(2, 3).toUpperCase()}
-            </div>
-          )}
-        </div>
-        <div>
+                          </div>
+                        )}
+                      </div>
+                      <div>
                         <div className="font-semibold text-white/90">
                           {context?.user?.displayName || 'Anonymous User'}
                         </div>
                         <div className="text-xs text-white/60 break-all">
                           {address}
                         </div>
-            </div>
-          </div>
+                      </div>
+                    </div>
 
                     {/* Stats Section */}
                     <div className="grid grid-cols-3 gap-4 mb-4 p-3 bg-white/5 rounded-lg">
@@ -563,25 +624,25 @@ export function Demo(
                         <div className="text-xs text-white/60">Movies Voted</div>
                         <div className="text-lg font-semibold">
                           {movies.filter(m => m.voteCountYes > 0 || m.voteCountNo > 0).length}
-            </div>
-          </div>
+                        </div>
+                      </div>
                       <div>
                         <div className="text-xs text-white/60">Network</div>
                         <div className="text-lg font-semibold">
                           {isOnCelo ? 'Celo' : 'Not on Celo'}
-            </div>
-          </div>
+                        </div>
+                      </div>
                       <div>
                         <div className="text-xs text-white/60">Voting Streak</div>
                         <div className="text-lg font-semibold flex items-center gap-1">
                           <span>🔥</span>
                           <span>3</span>
-            </div>
-          </div>
-        </div>
+                        </div>
+                      </div>
+                    </div>
 
                     {/* Streak Progress */}
-        <div className="mb-4">
+                    <div className="mb-4">
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-xs font-semibold text-white/60">Streak Progress</div>
                         <div className="text-xs text-white/60">3/7 days</div>
@@ -594,11 +655,11 @@ export function Demo(
                       </div>
                       <div className="mt-2 text-xs text-white/60">
                         Vote for 4 more days to get a bonus reward!
-          </div>
-        </div>
+                      </div>
+                    </div>
 
                     {/* Recent Votes */}
-          <div className="mb-4">
+                    <div className="mb-4">
                       <div className="text-xs font-semibold text-white/60 mb-2">Recent Votes</div>
                       <div className="space-y-2 max-h-40 overflow-y-auto">
                         {movies
@@ -612,115 +673,104 @@ export function Demo(
                                   alt={movie.title}
                                   className="w-full h-full object-cover"
                                 />
-            </div>
+                              </div>
                               <div className="flex-1 min-w-0">
                                 <div className="text-xs font-medium truncate">{movie.title}</div>
                                 <div className="text-xs text-white/60">
                                   {movie.voteCountYes > 0 ? '👍 Voted Yes' : '👎 Voted No'}
-              </div>
-          </div>
-            </div>
+                                </div>
+                              </div>
+                            </div>
                           ))}
                         {movies.filter(m => m.voteCountYes > 0 || m.voteCountNo > 0).length === 0 && (
                           <div className="text-xs text-white/60 p-2">No votes yet</div>
                         )}
-          </div>
-        </div>
+                      </div>
+                    </div>
 
                     <div className="flex gap-2">
-              <Button
+                      <Button
                         variant="secondary"
-                onClick={() => disconnect()}
+                        onClick={() => disconnect()}
                         className="flex-1"
-              >
-                Disconnect
-              </Button>
-              <Button
+                      >
+                        Disconnect
+                      </Button>
+                      <Button
                         variant="secondary"
                         onClick={() => window.open('https://celoscan.io/address/' + address, '_blank')}
                         className="flex-1"
-              >
+                      >
                         View on CeloScan
-              </Button>
+                      </Button>
                     </div>
-                  </>
+                  </div>
                 ) : (
                   <div className="text-white/60 text-sm">Connecting...</div>
                 )}
               </div>
             )}
           </div>
-          </div>
+        </div>
+      </div>
 
-        <div className="container mx-auto px-4 py-8 max-w-6xl">
-          <h1 className="text-3xl font-bold text-center mb-8 text-white tracking-tight">{title}</h1>
+      <div className="container mx-auto px-4 py-8 max-w-6xl mt-8">
+        <h1 className="text-3xl font-bold text-center mb-8 text-white tracking-tight">{title}</h1>
 
-          {/* Hero Section with Text */}
-          <div className="text-center mb-12">
-            {/* Network Switch Button */}
-            {isConnected && !isOnCelo && (
-              <div className="flex justify-center mb-6">
-                <button
-                  onClick={handleSwitchToCelo}
-                  className="bg-[#1A1A1A] hover:bg-white/10 text-white font-medium px-4 py-2 rounded-lg border border-white/10 transition-colors duration-200 flex items-center gap-2"
-                >
-                  <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-                  <span>Switch to Celo</span>
-                </button>
+        {/* Hero Section with Text */}
+        <div className="text-center mb-12">
+          <h2 className="text-4xl md:text-5xl font-bold text-white mb-8 tracking-tight">
+            Discover Movies, Share your taste and be rewarded
+          </h2>
+
+          {/* How it Works Section */}
+          <div className="max-w-3xl mx-auto mb-12">
+            <h3 className="text-2xl font-semibold text-white mb-6">How it works</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-[#1A1A1A] p-6 rounded-xl border border-white/10">
+                <div className="text-2xl mb-3">🎬</div>
+                <h4 className="text-lg font-medium text-white mb-2">Discover Movies</h4>
+                <p className="text-white/60 text-sm">Browse through our curated collection of movies and find your next favorite film.</p>
               </div>
-            )}
-
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-8 tracking-tight">
-              Discover Movies, Share your taste and be rewarded
-            </h2>
-
-            {/* How it Works Section */}
-            <div className="max-w-3xl mx-auto mb-12">
-              <h3 className="text-2xl font-semibold text-white mb-6">How it works</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-[#1A1A1A] p-6 rounded-xl border border-white/10">
-                  <div className="text-2xl mb-3">🎬</div>
-                  <h4 className="text-lg font-medium text-white mb-2">Discover Movies</h4>
-                  <p className="text-white/60 text-sm">Browse through our curated collection of movies and find your next favorite film.</p>
-                </div>
-                <div className="bg-[#1A1A1A] p-6 rounded-xl border border-white/10">
-                  <div className="text-2xl mb-3">👍</div>
-                  <h4 className="text-lg font-medium text-white mb-2">Vote & Share</h4>
-                  <p className="text-white/60 text-sm">Vote yes or no on movies and share your opinions with the community.</p>
-                </div>
-                <div className="bg-[#1A1A1A] p-6 rounded-xl border border-white/10">
-                  <div className="text-2xl mb-3">🎁</div>
-                  <h4 className="text-lg font-medium text-white mb-2">Earn Rewards</h4>
-                  <p className="text-white/60 text-sm">Get rewarded with cUSD and GoodDollar tokens for your participation.</p>
-                </div>
+              <div className="bg-[#1A1A1A] p-6 rounded-xl border border-white/10">
+                <div className="text-2xl mb-3">👍</div>
+                <h4 className="text-lg font-medium text-white mb-2">Vote & Share</h4>
+                <p className="text-white/60 text-sm">Vote yes or no on movies and share your opinions with the community.</p>
+              </div>
+              <div className="bg-[#1A1A1A] p-6 rounded-xl border border-white/10">
+                <div className="text-2xl mb-3">🎁</div>
+                <h4 className="text-lg font-medium text-white mb-2">Earn Rewards</h4>
+                <p className="text-white/60 text-sm">Get rewarded with cUSD and GoodDollar tokens for your participation.</p>
               </div>
             </div>
+          </div>
 
-            {/* Explore Button */}
-                <Button
+          {/* Explore Button */}
+          {!showMovies && (
+            <Button
               variant="primary"
               onClick={() => setShowMovies(true)}
               className="text-lg px-8 py-4"
             >
               Explore Movies
-                </Button>
-          </div>
-
-          {/* Movies Grid - Only shown when showMovies is true */}
-          {showMovies && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {movies.map((movie) => (
-                <MovieCard
-                  key={movie.id}
-                  movie={movie}
-                  onVote={(vote) => handleMovieVote(movie.id, vote)}
-                  isVoting={isVotePending}
-                  isConnected={isConnected}
-                />
-              ))}
-              </div>
+            </Button>
           )}
         </div>
+
+        {/* Movies Grid */}
+        {showMovies && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {movies.map((movie) => (
+              <MovieCard
+                key={movie.id}
+                movie={movie}
+                onVote={(vote) => handleMovieVote(movie.id, vote)}
+                isVoting={isVotePending}
+                isConnected={isConnected}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

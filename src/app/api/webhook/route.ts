@@ -1,8 +1,3 @@
-import {
-  ParseWebhookEvent,
-  parseWebhookEvent,
-  verifyAppKeyWithNeynar,
-} from "@farcaster/frame-node";
 import { NextRequest } from "next/server";
 import {
   deleteUserNotificationDetails,
@@ -11,80 +6,64 @@ import {
 import { sendFrameNotification } from "~/lib/notifs";
 
 export async function POST(request: NextRequest) {
-  // If Neynar is enabled, we don't need to handle webhooks here
-  // as they will be handled by Neynar's webhook endpoint
-  const neynarEnabled = process.env.NEYNAR_API_KEY && process.env.NEYNAR_CLIENT_ID;
-  if (neynarEnabled) {
-    return Response.json({ success: true });
-  }
-
-  const requestJson = await request.json();
-
-  let data;
   try {
-    data = await parseWebhookEvent(requestJson, verifyAppKeyWithNeynar);
-  } catch (e: unknown) {
-    const error = e as ParseWebhookEvent.ErrorType;
-
-    switch (error.name) {
-      case "VerifyJsonFarcasterSignature.InvalidDataError":
-      case "VerifyJsonFarcasterSignature.InvalidEventDataError":
-        // The request data is invalid
-        return Response.json(
-          { success: false, error: error.message },
-          { status: 400 }
-        );
-      case "VerifyJsonFarcasterSignature.InvalidAppKeyError":
-        // The app key is invalid
-        return Response.json(
-          { success: false, error: error.message },
-          { status: 401 }
-        );
-      case "VerifyJsonFarcasterSignature.VerifyAppKeyError":
-        // Internal error verifying the app key (caller may want to try again)
-        return Response.json(
-          { success: false, error: error.message },
-          { status: 500 }
-        );
+    const requestJson = await request.json();
+    
+    // Basic webhook validation - you may want to add proper signature verification
+    if (!requestJson.fid || !requestJson.event) {
+      return Response.json(
+        { success: false, error: "Invalid webhook data" },
+        { status: 400 }
+      );
     }
-  }
 
-  const fid = data.fid;
-  const event = data.event;
+    const fid = requestJson.fid;
+    const event = requestJson.event;
 
-  // Only handle notifications if Neynar is not enabled
-  // When Neynar is enabled, notifications are handled through their webhook
-  switch (event.event) {
-    case "frame_added":
-      if (event.notificationDetails) {
-        await setUserNotificationDetails(fid, event.notificationDetails);
-        await sendFrameNotification({
-          fid,
-          title: "Welcome to Frames v2",
-          body: "Frame is now added to your client",
-        });
-      } else {
+    // Handle different webhook events
+    switch (event.event) {
+      case "frame_added":
+        if (event.notificationDetails) {
+          await setUserNotificationDetails(fid, event.notificationDetails);
+          await sendFrameNotification({
+            fid,
+            title: "Welcome to Moviemeter",
+            body: "Your movie rating frame is now ready!",
+          });
+        } else {
+          await deleteUserNotificationDetails(fid);
+        }
+        break;
+      
+      case "frame_removed":
         await deleteUserNotificationDetails(fid);
-      }
-      break;
+        break;
+      
+      case "notifications_enabled":
+        if (event.notificationDetails) {
+          await setUserNotificationDetails(fid, event.notificationDetails);
+          await sendFrameNotification({
+            fid,
+            title: "Notifications Enabled",
+            body: "You'll now receive updates about your movie ratings!",
+          });
+        }
+        break;
 
-    case "frame_removed":
-      await deleteUserNotificationDetails(fid);
-      break;
+      case "notifications_disabled":
+        await deleteUserNotificationDetails(fid);
+        break;
+      
+      default:
+        console.log(`Unhandled webhook event: ${event.event}`);
+    }
 
-    case "notifications_enabled":
-      await setUserNotificationDetails(fid, event.notificationDetails);
-      await sendFrameNotification({
-        fid,
-        title: "Ding ding ding",
-        body: "Notifications are now enabled",
-      });
-      break;
-
-    case "notifications_disabled":
-      await deleteUserNotificationDetails(fid);
-      break;
+    return Response.json({ success: true });
+  } catch (error) {
+    console.error('Webhook error:', error);
+    return Response.json(
+      { success: false, error: "Internal server error" },
+      { status: 500 }
+    );
   }
-
-  return Response.json({ success: true });
 }

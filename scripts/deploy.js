@@ -24,32 +24,53 @@ async function validateSeedPhrase(seedPhrase) {
   }
 }
 
-async function lookupFidByCustodyAddress(custodyAddress, apiKey) {
-  if (!apiKey) {
-    throw new Error('Neynar API key is required');
-  }
+async function lookupFidByCustodyAddress(custodyAddress) {
   const lowerCasedCustodyAddress = custodyAddress.toLowerCase();
 
-  const response = await fetch(
-    `https://api.neynar.com/v2/farcaster/user/bulk-by-address?addresses=${lowerCasedCustodyAddress}&address_types=custody_address`,
-    {
-      headers: {
-        'accept': 'application/json',
-        'x-api-key': apiKey
+  try {
+    // Try the primary endpoint first
+    const response = await fetch(
+      `https://api.farcaster.xyz/v2/users?custody_address=${lowerCasedCustodyAddress}`,
+      {
+        headers: {
+          'accept': 'application/json',
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to lookup FID: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    // Check if we have users in the response
+    if (data.users && Array.isArray(data.users) && data.users.length > 0) {
+      return data.users[0].fid;
+    }
+
+    // If no users found, try alternative endpoint
+    console.log('No users found with primary endpoint, trying alternative...');
+    const altResponse = await fetch(
+      `https://api.farcaster.xyz/v2/user_by_custody_address?custody_address=${lowerCasedCustodyAddress}`,
+      {
+        headers: {
+          'accept': 'application/json',
+        }
+      }
+    );
+
+    if (altResponse.ok) {
+      const altData = await altResponse.json();
+      if (altData.user && altData.user.fid) {
+        return altData.user.fid;
       }
     }
-  );
 
-  if (!response.ok) {
-    throw new Error(`Failed to lookup FID: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  if (!data[lowerCasedCustodyAddress]?.length || !data[lowerCasedCustodyAddress][0].custody_address) {
     throw new Error('No FID found for this custody address');
+  } catch (error) {
+    throw new Error(`Failed to lookup FID: ${error.message}`);
   }
-
-  return data[lowerCasedCustodyAddress][0].fid;
 }
 
 async function generateFarcasterMetadata(domain, fid, accountAddress, seedPhrase, webhookUrl) {
@@ -120,9 +141,7 @@ async function loadEnvLocal() {
           'NEXT_PUBLIC_FRAME_DESCRIPTION',
           'NEXT_PUBLIC_FRAME_PRIMARY_CATEGORY',
           'NEXT_PUBLIC_FRAME_TAGS',
-          'NEXT_PUBLIC_FRAME_BUTTON_TEXT',
-          'NEYNAR_API_KEY',
-          'NEYNAR_CLIENT_ID'
+          'NEXT_PUBLIC_FRAME_BUTTON_TEXT'
         ];
         
         // Copy allowed values except SEED_PHRASE to .env
@@ -437,12 +456,10 @@ async function deployToVercel(useGitHub = false) {
     if (process.env.SEED_PHRASE) {
       console.log('\n🔨 Generating frame metadata...');
       const accountAddress = await validateSeedPhrase(process.env.SEED_PHRASE);
-      fid = await lookupFidByCustodyAddress(accountAddress, process.env.NEYNAR_API_KEY ?? 'FARCASTER_V2_FRAMES_DEMO');
+      fid = await lookupFidByCustodyAddress(accountAddress);
       
-      // Determine webhook URL based on Neynar configuration
-      const webhookUrl = process.env.NEYNAR_API_KEY && process.env.NEYNAR_CLIENT_ID 
-        ? `https://api.neynar.com/f/app/${process.env.NEYNAR_CLIENT_ID}/event`
-        : `https://${domain}/api/webhook`;
+      // Use native webhook URL
+      const webhookUrl = `https://${domain}/api/webhook`;
 
       frameMetadata = await generateFarcasterMetadata(domain, fid, accountAddress, process.env.SEED_PHRASE, webhookUrl);
       console.log('✅ Frame metadata generated and signed');
@@ -456,10 +473,6 @@ async function deployToVercel(useGitHub = false) {
       AUTH_SECRET: nextAuthSecret, // Fallback for some NextAuth versions
       NEXTAUTH_URL: `https://${domain}`, // Add the deployment URL
       NEXT_PUBLIC_URL: `https://${domain}`,
-      
-      // Optional vars that should be set if they exist
-      ...(process.env.NEYNAR_API_KEY && { NEYNAR_API_KEY: process.env.NEYNAR_API_KEY }),
-      ...(process.env.NEYNAR_CLIENT_ID && { NEYNAR_CLIENT_ID: process.env.NEYNAR_CLIENT_ID }),
       
       // Frame metadata - don't stringify here
       ...(frameMetadata && { FRAME_METADATA: frameMetadata }),
@@ -534,9 +547,7 @@ async function deployToVercel(useGitHub = false) {
             console.log('🔄 Updating environment variables with correct domain...');
             
             // Update domain-dependent environment variables
-            const webhookUrl = process.env.NEYNAR_API_KEY && process.env.NEYNAR_CLIENT_ID 
-              ? `https://api.neynar.com/f/app/${process.env.NEYNAR_CLIENT_ID}/event`
-              : `https://${actualDomain}/api/webhook`;
+            const webhookUrl = `https://${actualDomain}/api/webhook`;
 
             if (frameMetadata) {
               frameMetadata = await generateFarcasterMetadata(actualDomain, fid, await validateSeedPhrase(process.env.SEED_PHRASE), process.env.SEED_PHRASE, webhookUrl);

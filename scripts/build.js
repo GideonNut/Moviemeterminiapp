@@ -16,32 +16,53 @@ const reset = '\x1b[0m';
 // First load .env for main config
 dotenv.config({ path: '.env' });
 
-async function lookupFidByCustodyAddress(custodyAddress, apiKey) {
-  if (!apiKey) {
-    throw new Error('Neynar API key is required');
-  }
+async function lookupFidByCustodyAddress(custodyAddress) {
   const lowerCasedCustodyAddress = custodyAddress.toLowerCase();
 
-  const response = await fetch(
-    `https://api.neynar.com/v2/farcaster/user/bulk-by-address?addresses=${lowerCasedCustodyAddress}&address_types=custody_address`,
-    {
-      headers: {
-        'accept': 'application/json',
-        'x-api-key': apiKey
+  try {
+    // Try the primary endpoint first
+    const response = await fetch(
+      `https://api.farcaster.xyz/v2/users?custody_address=${lowerCasedCustodyAddress}`,
+      {
+        headers: {
+          'accept': 'application/json',
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to lookup FID: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    
+    // Check if we have users in the response
+    if (data.users && Array.isArray(data.users) && data.users.length > 0) {
+      return data.users[0].fid;
+    }
+
+    // If no users found, try alternative endpoint
+    console.log('No users found with primary endpoint, trying alternative...');
+    const altResponse = await fetch(
+      `https://api.farcaster.xyz/v2/user_by_custody_address?custody_address=${lowerCasedCustodyAddress}`,
+      {
+        headers: {
+          'accept': 'application/json',
+        }
+      }
+    );
+
+    if (altResponse.ok) {
+      const altData = await altResponse.json();
+      if (altData.user && altData.user.fid) {
+        return altData.user.fid;
       }
     }
-  );
 
-  if (!response.ok) {
-    throw new Error(`Failed to lookup FID: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  if (!data[lowerCasedCustodyAddress]?.length || !data[lowerCasedCustodyAddress][0].custody_address) {
     throw new Error('No FID found for this custody address');
+  } catch (error) {
+    throw new Error(`Failed to lookup FID: ${error.message}`);
   }
-
-  return data[lowerCasedCustodyAddress][0].fid;
 }
 
 async function loadEnvLocal() {
@@ -111,27 +132,6 @@ async function validateDomain(domain) {
   return cleanDomain;
 }
 
-async function queryNeynarApp(apiKey) {
-  if (!apiKey) {
-    return null;
-  }
-  try {
-    const response = await fetch(
-      `https://api.neynar.com/portal/app_by_api_key`,
-      {
-        headers: {
-          'x-api-key': apiKey
-        }
-      }
-    );
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Error querying Neynar app data:', error);
-    return null;
-  }
-}
-
 async function validateSeedPhrase(seedPhrase) {
   try {
     // Try to create an account from the seed phrase
@@ -199,7 +199,8 @@ async function main() {
       {
         type: 'input',
         name: 'domain',
-        message: 'Enter the domain where your mini app will be deployed (e.g., example.com):',
+        message: 'Enter your domain (e.g., myapp.vercel.app):',
+        default: process.env.NEXT_PUBLIC_URL?.replace('https://', '') || '',
         validate: async (input) => {
           try {
             await validateDomain(input);
@@ -243,60 +244,6 @@ async function main() {
       }
     ]);
 
-    // Get Neynar configuration
-    let neynarApiKey = process.env.NEYNAR_API_KEY;
-    let neynarClientId = process.env.NEYNAR_CLIENT_ID;
-    let useNeynar = true;
-
-    while (useNeynar) {
-      if (!neynarApiKey) {
-        const { neynarApiKey: inputNeynarApiKey } = await inquirer.prompt([
-          {
-            type: 'password',
-            name: 'neynarApiKey',
-            message: 'Enter your Neynar API key (optional - leave blank to skip):',
-            default: null
-          }
-        ]);
-        neynarApiKey = inputNeynarApiKey;
-      } else {
-        console.log('Using existing Neynar API key from .env');
-      }
-
-      if (!neynarApiKey) {
-        useNeynar = false;
-        break;
-      }
-
-      // Try to get client ID from API
-      const appInfo = await queryNeynarApp(neynarApiKey);
-      if (appInfo) {
-        neynarClientId = appInfo.app_uuid;
-        console.log('✅ Fetched Neynar app client ID');
-        break;
-      }
-
-      // If we get here, the API key was invalid
-      console.log('\n⚠️  Could not find Neynar app information. The API key may be incorrect.');
-      const { retry } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'retry',
-          message: 'Would you like to try a different API key?',
-          default: true
-        }
-      ]);
-
-      // Reset for retry
-      neynarApiKey = null;
-      neynarClientId = null;
-
-      if (!retry) {
-        useNeynar = false;
-        break;
-      }
-    }
-
     // Get seed phrase from user
     let seedPhrase = process.env.SEED_PHRASE;
     if (!seedPhrase) {
@@ -326,18 +273,74 @@ async function main() {
     const accountAddress = await validateSeedPhrase(seedPhrase);
     console.log('✅ Generated account address from seed phrase');
 
-    const fid = await lookupFidByCustodyAddress(accountAddress, neynarApiKey ?? 'FARCASTER_V2_FRAMES_DEMO');
+    // Look up FID using native Farcaster API
+    console.log('🔍 Looking up FID using Farcaster API...');
+    let fid;
+    try {
+      fid = await lookupFidByCustodyAddress(accountAddress);
+      console.log(`✅ Found FID: ${fid}`);
+    } catch (error) {
+      console.log('❌ Could not automatically find FID:', error.message);
+      console.log('💡 You can manually enter your FID if you know it.');
+      
+      const { manualFid } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'manualFid',
+          message: 'Enter your Farcaster ID (FID) manually (or press Enter to skip):',
+          default: process.env.FID || '',
+          validate: (input) => {
+            if (input.trim() === '') {
+              return true; // Allow empty input to skip
+            }
+            const num = parseInt(input);
+            if (isNaN(num) || num <= 0) {
+              return 'FID must be a positive number';
+            }
+            return true;
+          }
+        }
+      ]);
+      
+      if (manualFid.trim()) {
+        fid = parseInt(manualFid);
+        console.log(`✅ Using manually entered FID: ${fid}`);
+      } else {
+        console.log('⚠️  No FID provided. The manifest will be generated without FID association.');
+        fid = null;
+      }
+    }
 
     // Generate and sign manifest
     console.log('\n🔨 Generating mini app manifest...');
     
-    // Determine webhook URL based on environment variables
-    const webhookUrl = neynarApiKey && neynarClientId 
-      ? `https://api.neynar.com/f/app/${neynarClientId}/event`
-      : `${domain}/api/webhook`;
+    // Use native webhook URL
+    const webhookUrl = `${domain}/api/webhook`;
 
-    const metadata = await generateFarcasterMetadata(domain, fid, accountAddress, seedPhrase, webhookUrl);
-    console.log('\n✅ Mini app manifest generated' + (seedPhrase ? ' and signed' : ''));
+    let metadata;
+    if (fid) {
+      metadata = await generateFarcasterMetadata(domain, fid, accountAddress, seedPhrase, webhookUrl);
+      console.log('\n✅ Mini app manifest generated and signed');
+    } else {
+      // Generate metadata without account association
+      metadata = {
+        frame: {
+          version: "1",
+          name: process.env.NEXT_PUBLIC_FRAME_NAME,
+          iconUrl: `https://${domain}/icon.png`,
+          homeUrl: `https://${domain}`,
+          imageUrl: `https://${domain}/api/opengraph-image`,
+          buttonTitle: process.env.NEXT_PUBLIC_FRAME_BUTTON_TEXT,
+          splashImageUrl: `https://${domain}/splash.png`,
+          splashBackgroundColor: "#f7f7f7",
+          webhookUrl,
+          description: process.env.NEXT_PUBLIC_FRAME_DESCRIPTION,
+          primaryCategory: process.env.NEXT_PUBLIC_FRAME_PRIMARY_CATEGORY,
+          tags: process.env.NEXT_PUBLIC_FRAME_TAGS?.split(','),
+        },
+      };
+      console.log('\n✅ Mini app manifest generated (without account association)');
+    }
 
     // Read existing .env file or create new one
     const envPath = path.join(projectRoot, '.env');
@@ -355,14 +358,8 @@ async function main() {
       `NEXT_PUBLIC_FRAME_TAGS="${process.env.NEXT_PUBLIC_FRAME_TAGS || ''}"`,
       `NEXT_PUBLIC_FRAME_BUTTON_TEXT="${buttonText}"`,
 
-      // Neynar configuration (if it exists in current env)
-      ...(process.env.NEYNAR_API_KEY ? 
-        [`NEYNAR_API_KEY="${process.env.NEYNAR_API_KEY}"`] : []),
-      ...(neynarClientId ? 
-        [`NEYNAR_CLIENT_ID="${neynarClientId}"`] : []),
-
-      // FID (if it exists in current env)
-      ...(process.env.FID ? [`FID="${process.env.FID}"`] : []),
+      // FID (only if it exists)
+      ...(fid ? [`FID="${fid}"`] : []),
 
       // NextAuth configuration
       `NEXTAUTH_SECRET="${process.env.NEXTAUTH_SECRET || crypto.randomBytes(32).toString('hex')}"`,

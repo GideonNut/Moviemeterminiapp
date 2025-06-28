@@ -1,26 +1,27 @@
 import type { Metadata } from "next";
-
-import { getSession } from "~/auth"
-import "~/app/globals.css";
-import { Providers } from "~/app/providers";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import { Providers } from "~/components/providers/Providers";
 import { APP_NAME, APP_DESCRIPTION } from "~/lib/constants";
+
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: APP_NAME,
   description: APP_DESCRIPTION,
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {  
-  const session = await getSession()
-
+}) {
   return (
-    <html lang="en" className="dark">
-      <body>
-        <Providers session={session}>{children}</Providers>
+    <html lang="en">
+      <body className={inter.className}>
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

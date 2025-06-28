@@ -1,49 +1,18 @@
+"use client";
+
 import { createConfig, http, WagmiProvider } from "wagmi";
 import { base, degen, mainnet, optimism, unichain } from "wagmi/chains";
 import type { Chain } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { farcasterFrame } from "@farcaster/frame-wagmi-connector";
-import { coinbaseWallet, metaMask } from 'wagmi/connectors';
+import { coinbaseWallet, metaMask, injected } from 'wagmi/connectors';
 import { APP_NAME, APP_ICON_URL, APP_URL } from "~/lib/constants";
 import { useEffect, useState } from "react";
 import { useConnect, useAccount } from "wagmi";
 import React from "react";
 
-// Custom hook for Coinbase Wallet detection and auto-connection
-function useCoinbaseWalletAutoConnect() {
-  const [isCoinbaseWallet, setIsCoinbaseWallet] = useState(false);
-  const { connect, connectors } = useConnect();
-  const { isConnected } = useAccount();
-
-  useEffect(() => {
-    // Check if we're running in Coinbase Wallet
-    const checkCoinbaseWallet = () => {
-      const isInCoinbaseWallet = window.ethereum?.isCoinbaseWallet || 
-        window.ethereum?.isCoinbaseWalletExtension ||
-        window.ethereum?.isCoinbaseWalletBrowser;
-      setIsCoinbaseWallet(!!isInCoinbaseWallet);
-    };
-    
-    checkCoinbaseWallet();
-    window.addEventListener('ethereum#initialized', checkCoinbaseWallet);
-    
-    return () => {
-      window.removeEventListener('ethereum#initialized', checkCoinbaseWallet);
-    };
-  }, []);
-
-  useEffect(() => {
-    // Auto-connect if in Coinbase Wallet and not already connected
-    if (isCoinbaseWallet && !isConnected) {
-      connect({ connector: connectors[1] }); // Coinbase Wallet connector
-    }
-  }, [isCoinbaseWallet, isConnected, connect, connectors]);
-
-  return isCoinbaseWallet;
-}
-
 // Define Celo chain
-export const celo: Chain = {
+const celoChain: Chain = {
   id: 42220,
   name: "Celo",
   nativeCurrency: {
@@ -60,47 +29,73 @@ export const celo: Chain = {
   },
 };
 
+const queryClient = new QueryClient();
+
+// Create transport configurations with dynamic RPC URLs
+const transports = {
+  [celoChain.id]: http(celoChain.rpcUrls.default.http[0]),
+  [base.id]: http(base.rpcUrls.default.http[0]),
+  [optimism.id]: http(optimism.rpcUrls.default.http[0]),
+  [degen.id]: http(degen.rpcUrls.default.http[0]),
+  [unichain.id]: http(unichain.rpcUrls.default.http[0]),
+};
+
 export const config = createConfig({
-  chains: [base, optimism, mainnet, degen, unichain, celo],
-  transports: {
-    [base.id]: http(),
-    [optimism.id]: http(),
-    [mainnet.id]: http(),
-    [degen.id]: http(),
-    [unichain.id]: http(),
-    [celo.id]: http(),
-  },
+  chains: [celoChain, base, optimism, degen, unichain],
+  transports,
   connectors: [
     farcasterFrame(),
+    metaMask(),
     coinbaseWallet({
       appName: APP_NAME,
       appLogoUrl: APP_ICON_URL,
-      preference: 'all',
     }),
-    metaMask({
-      dappMetadata: {
-        name: APP_NAME,
-        url: APP_URL,
-      },
+    injected({
+      target: 'metaMask',
     }),
   ],
 });
 
-const queryClient = new QueryClient();
+// Custom hook for auto-connecting to Warpcast
+function useAutoConnect() {
+  const { connect, connectors } = useConnect();
+  const { isConnected } = useAccount();
 
-// Wrapper component that provides Coinbase Wallet auto-connection
-function CoinbaseWalletAutoConnect({ children }: { children: React.ReactNode }) {
-  useCoinbaseWalletAutoConnect();
+  useEffect(() => {
+    const autoConnect = async () => {
+      if (!isConnected && connectors?.[0]) {
+        try {
+          await connect({ connector: connectors[0] });
+        } catch (error) {
+          console.error("Error auto-connecting to Warpcast:", error);
+        }
+      }
+    };
+
+    autoConnect();
+  }, [isConnected, connect, connectors]);
+}
+
+// Wrapper component that provides auto-connection
+function AutoConnect({ children }: { children: React.ReactNode }) {
+  useAutoConnect();
   return <>{children}</>;
 }
 
-export default function Provider({ children }: { children: React.ReactNode }) {
+export function WagmiConfig({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) {
+    return null;
+  }
+
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
-        <CoinbaseWalletAutoConnect>
+        <AutoConnect>
           {children}
-        </CoinbaseWalletAutoConnect>
+        </AutoConnect>
       </QueryClientProvider>
     </WagmiProvider>
   );
