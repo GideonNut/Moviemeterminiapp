@@ -20,16 +20,6 @@ const nextConfig = {
     // your project has ESLint errors.
     ignoreDuringBuilds: true,
   },
-  async redirects() {
-    return [
-      {
-        source: '/.well-known/farcaster.json',
-        destination: 'https://api.farcaster.xyz/miniapps/hosted-manifest/0197b3ca-0db3-c04e-edc1-cc530282cc9e',
-        permanent: false,
-        statusCode: 307,
-      },
-    ];
-  },
 };
 
 export default nextConfig; 
