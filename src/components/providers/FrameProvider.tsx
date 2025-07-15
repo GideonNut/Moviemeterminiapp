@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import sdk, { type Context, type FrameNotificationDetails, AddMiniApp } from "@farcaster/frame-sdk";
+import { sdk } from "@farcaster/miniapp-sdk";
 import { createStore } from "mipd";
 import React from "react";
 
 interface FrameContextType {
   isSDKLoaded: boolean;
-  context: Context.FrameContext | undefined;
+  context: any;
   openUrl: (url: string) => Promise<void>;
   close: () => Promise<void>;
   added: boolean;
-  notificationDetails: FrameNotificationDetails | null;
+  notificationDetails: any;
   lastEvent: string;
   addFrame: () => Promise<void>;
   addFrameResult: string;
@@ -21,9 +21,9 @@ const FrameContext = React.createContext<FrameContextType | undefined>(undefined
 
 export function useFrame() {
   const [isSDKLoaded, setIsSDKLoaded] = useState(false);
-  const [context, setContext] = useState<Context.FrameContext>();
+  const [context, setContext] = useState<any>();
   const [added, setAdded] = useState(false);
-  const [notificationDetails, setNotificationDetails] = useState<FrameNotificationDetails | null>(null);
+  const [notificationDetails, setNotificationDetails] = useState<any>(null);
   const [lastEvent, setLastEvent] = useState("");
   const [addFrameResult, setAddFrameResult] = useState("");
 
@@ -57,75 +57,29 @@ export function useFrame() {
           ? `Added, got notificaton token ${result.notificationDetails.token} and url ${result.notificationDetails.url}`
           : "Added, got no notification details"
       );
-    } catch (error) {
-      if (error instanceof AddMiniApp.RejectedByUser || error instanceof AddMiniApp.InvalidDomainManifest) {
-        setAddFrameResult(`Not added: ${error.message}`);
-      }else {
-        setAddFrameResult(`Error: ${error}`);
-      }
+    } catch (error: any) {
+      setAddFrameResult(`Error: ${error.message || error}`);
     }
   }, []);
 
   useEffect(() => {
     const load = async () => {
-      const context = await sdk.context;
-      setContext(context);
+      // The new miniapp-sdk may not have sdk.context, so skip context for now
       setIsSDKLoaded(true);
-
-      // Set up event listeners
-      sdk.on("frameAdded", ({ notificationDetails }) => {
-        console.log("Frame added", notificationDetails);
-        setAdded(true);
-        setNotificationDetails(notificationDetails ?? null);
-        setLastEvent("Frame added");
-      });
-
-      sdk.on("frameAddRejected", ({ reason }) => {
-        console.log("Frame add rejected", reason);
-        setAdded(false);
-        setLastEvent(`Frame add rejected: ${reason}`);
-      });
-
-      sdk.on("frameRemoved", () => {
-        console.log("Frame removed");
-        setAdded(false);
-        setLastEvent("Frame removed");
-      });
-
-      sdk.on("notificationsEnabled", ({ notificationDetails }) => {
-        console.log("Notifications enabled", notificationDetails);
-        setNotificationDetails(notificationDetails ?? null);
-        setLastEvent("Notifications enabled");
-      });
-
-      sdk.on("notificationsDisabled", () => {
-        console.log("Notifications disabled");
-        setNotificationDetails(null);
-        setLastEvent("Notifications disabled");
-      });
-
-      sdk.on("primaryButtonClicked", () => {
-        console.log("Primary button clicked");
-        setLastEvent("Primary button clicked");
-      });
-
       // Call ready action
-      console.log("Calling ready");
-      sdk.actions.ready({});
-
-      // Set up MIPD Store
+      console.log("NOT calling ready");
+      // await sdk.actions.ready();
+      // Set up MIPD Store (optional, can be removed if not needed)
       const store = createStore();
       store.subscribe((providerDetails) => {
         console.log("PROVIDER DETAILS", providerDetails);
       });
     };
 
-    if (sdk && !isSDKLoaded) {
-      console.log("Calling load");
-      setIsSDKLoaded(true);
+    if (!isSDKLoaded) {
       load();
       return () => {
-        sdk.removeAllListeners();
+        if (sdk.removeAllListeners) sdk.removeAllListeners();
       };
     }
   }, [isSDKLoaded]);
@@ -133,13 +87,13 @@ export function useFrame() {
   return {
     isSDKLoaded,
     context,
+    openUrl,
+    close,
     added,
     notificationDetails,
     lastEvent,
     addFrame,
     addFrameResult,
-    openUrl,
-    close,
   };
 }
 
