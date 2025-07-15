@@ -1,0 +1,17 @@
+{
+  "mcp": {
+    "servers": {
+      "MongoDB": {
+        "type": "stdio",
+        "command": "npx",
+        "args": [
+          "-y",
+          "mongodb-mcp-server",
+          "--connectionString",
+          "mongodb+srv://ngideon538:ufQs4Zy2RzQfwd7j@cluster0.cbv9vmn.mongodb.net/",
+          "--readOnly"
+        ]
+      }
+    }
+  }
+}
