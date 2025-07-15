@@ -16,6 +16,7 @@ interface Movie {
   screenshots?: string[];
   voteCountYes?: number;
   voteCountNo?: number;
+  _id?: string; // Added _id to the interface
 }
 
 interface MovieCardProps {
@@ -26,6 +27,16 @@ interface MovieCardProps {
 }
 
 export function MovieCard({ movie, onVote, isVoting, isConnected }: MovieCardProps) {
+  const handleVote = async (vote: boolean) => {
+    const movieId = movie._id ? movie._id.toString() : movie.id;
+    await fetch("/api/vote", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ movieId, vote }),
+    });
+    onVote(vote);
+  };
+
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#1A1A1A] transition-all duration-300 hover:border-white/20">
       {/* Movie Poster */}
@@ -81,7 +92,7 @@ export function MovieCard({ movie, onVote, isVoting, isConnected }: MovieCardPro
           <Button
             variant="primary"
             className="flex-1"
-            onClick={() => onVote(true)}
+            onClick={() => handleVote(true)}
             disabled={!isConnected || isVoting}
           >
             Yes
@@ -89,7 +100,7 @@ export function MovieCard({ movie, onVote, isVoting, isConnected }: MovieCardPro
           <Button
             variant="secondary"
             className="flex-1"
-            onClick={() => onVote(false)}
+            onClick={() => handleVote(false)}
             disabled={!isConnected || isVoting}
           >
             No
@@ -98,4 +109,4 @@ export function MovieCard({ movie, onVote, isVoting, isConnected }: MovieCardPro
       </div>
     </div>
   );
-} 
+}
