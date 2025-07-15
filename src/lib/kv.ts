@@ -1,9 +1,12 @@
 import { FrameNotificationDetails } from "@farcaster/frame-sdk";
 import { Redis } from "@upstash/redis";
 import { APP_NAME } from "./constants";
+import { getMoviesCollection, getVotesCollection } from "./mongo";
 
 // In-memory fallback storage
 const localStore = new Map<string, FrameNotificationDetails>();
+const localVoteStore = new Map<string, { yes: number; no: number }>();
+const localMovieStore = new Map<string, any>();
 
 // Use Redis if KV env vars are present, otherwise use in-memory
 const useRedis = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN;
@@ -47,4 +50,18 @@ export async function deleteUserNotificationDetails(
   } else {
     localStore.delete(key);
   }
+}
+
+function getMovieVoteKey(movieId: string): string {
+  return `${APP_NAME}:movie:${movieId}:votes`;
+}
+
+export async function saveVote(movieId: string, vote: boolean): Promise<void> {
+  const votes = await getVotesCollection();
+  await votes.insertOne({ movieId, vote, timestamp: new Date() });
+}
+
+export async function saveMovie(movie: any): Promise<void> {
+  const movies = await getMoviesCollection();
+  await movies.insertOne(movie);
 }
