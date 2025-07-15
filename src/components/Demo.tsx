@@ -31,7 +31,6 @@ import type { Chain } from "wagmi/chains";
 import { MovieCard } from "./MovieCard";
 import Link from 'next/link';
 import Image from 'next/image';
-import { getDataSuffix, submitReferral } from '@divvi/referral-sdk';
 import { encodeFunctionData } from 'viem';
 
 // Define celo chain configuration
@@ -170,70 +169,6 @@ const MOVIE_CONTRACT_ABI = [
   { "stateMutability": "payable", "type": "receive" }
 ];
 
-const SAMPLE_MOVIES = [
-  {
-    id: "1",
-    title: "Final Destination: Bloodlines",
-    description: "The next installment in the Final Destination franchise, continuing the story of death's design and those who try to escape it.",
-    releaseYear: "2024",
-    director: "Zach Lipovsky",
-    genres: ["Horror", "Thriller"],
-    rating: 7.2,
-    posterUrl: "https://i.postimg.cc/W4LC67zd/photo-2025-05-19-09-19-58.jpg",
-    voteCountYes: 0,
-    voteCountNo: 0
-  },
-  {
-    id: "2",
-    title: "Inception",
-    description: "A thief who steals corporate secrets through dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O.",
-    releaseYear: "2010",
-    director: "Christopher Nolan",
-    genres: ["Action", "Sci-Fi", "Thriller"],
-    rating: 8.8,
-    posterUrl: "https://i.postimg.cc/hPyRRxjj/IMG-8928.jpg",
-    voteCountYes: 0,
-    voteCountNo: 0
-  },
-  {
-    id: "3",
-    title: "Interstellar",
-    description: "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival.",
-    releaseYear: "2014",
-    director: "Christopher Nolan",
-    genres: ["Adventure", "Drama", "Sci-Fi"],
-    rating: 8.6,
-    posterUrl: "https://i.postimg.cc/k5nnn9CM/IMG-8929.jpg",
-    voteCountYes: 0,
-    voteCountNo: 0
-  },
-  {
-    id: "4",
-    title: "The Dark Knight",
-    description: "When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice.",
-    releaseYear: "2008",
-    director: "Christopher Nolan",
-    genres: ["Action", "Crime", "Drama"],
-    rating: 9.0,
-    posterUrl: "https://i.postimg.cc/SKNfc24B/IMG-8930.jpg",
-    voteCountYes: 0,
-    voteCountNo: 0
-  },
-  {
-    id: "5",
-    title: "Dune: Part Two",
-    description: "Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family.",
-    releaseYear: "2024",
-    director: "Denis Villeneuve",
-    genres: ["Action", "Adventure", "Drama"],
-    rating: 8.7,
-    posterUrl: "https://i.postimg.cc/HsRqZmnv/IMG-8931.jpg",
-    voteCountYes: 0,
-    voteCountNo: 0
-  }
-];
-
-/* eslint-disable @typescript-eslint/no-unused-vars */
 export function Demo(
   { title }: { title?: string } = { title: "Frames v2 Demo" }
 ) {
@@ -251,7 +186,8 @@ export function Demo(
   const profileRef = useRef<HTMLDivElement>(null);
   const [showProfile, setShowProfile] = useState(false);
 
-  const [movies, setMovies] = useState(SAMPLE_MOVIES);
+  const [movies, setMovies] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedMovieId, setSelectedMovieId] = useState<string | null>(null);
   const [showMovies, setShowMovies] = useState(false);
 
@@ -417,44 +353,6 @@ export function Demo(
     try {
       setVoteStatus("Waiting for user to confirm...");
 
-      // Add Divvi referral data if this is the user's first vote
-      if (!hasBeenReferred) {
-        const dataSuffix = getDataSuffix({
-          consumer: '0xc49B8e093600f684b69ed6Ba1E36b7dFaD42F982', // Your Divvi Identifier
-          providers: [
-            '0x0423189886d7966f0dd7e7d256898daeee625dca',
-            '0xc95876688026be9d6fa7a7c33328bd013effa2bb',
-            '0x5f0a55fad9424ac99429f635dfb9bf20c3360ab8',
-            '0x6226dde08402642964f9a6de844ea3116f0dfc7e' // Added missing provider
-          ],
-        });
-
-        // Encode the function data
-        const functionData = encodeFunctionData({
-          abi: MOVIE_CONTRACT_ABI,
-          functionName: "vote",
-          args: [BigInt(movieId), vote],
-        });
-
-        // Append the data suffix
-        const dataWithSuffix = functionData + dataSuffix;
-
-        // Send the transaction with referral data
-        const txHash = await writeContractAsync({
-          address: MOVIE_CONTRACT_ADDRESS as `0x${string}`,
-          abi: MOVIE_CONTRACT_ABI,
-          functionName: "vote",
-          args: [BigInt(movieId), vote],
-          chainId: 42220,
-        });
-
-        // Submit referral to Divvi
-        await submitReferral({
-          txHash,
-          chainId: 42220, // Celo chain ID
-        });
-        setHasBeenReferred(true);
-      } else {
         // Send regular transaction without referral data
         await writeContractAsync({
           address: MOVIE_CONTRACT_ADDRESS as `0x${string}`,
@@ -463,22 +361,11 @@ export function Demo(
           args: [BigInt(movieId), vote],
           chainId: 42220,
         });
-      }
       
       setVoteStatus("Vote submitted!");
       
-      // Update local state
-      setMovies(prevMovies => 
-        prevMovies.map(movie => 
-          movie.id === movieId 
-            ? {
-                ...movie,
-                voteCountYes: vote ? (movie.voteCountYes || 0) + 1 : movie.voteCountYes,
-                voteCountNo: !vote ? (movie.voteCountNo || 0) + 1 : movie.voteCountNo
-              }
-            : movie
-        )
-      );
+      // Refetch movies to update vote counts
+      fetchMovies();
     } catch (err: any) {
       console.error("Voting error:", err);
       if (err.message?.includes("User rejected")) {
@@ -518,6 +405,26 @@ export function Demo(
       await connect({ connector: connectors[2] });
     }
   };
+
+  // Fetch movies from API
+  const fetchMovies = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/movies");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.movies)) {
+        setMovies(data.movies);
+      }
+    } catch (error) {
+      console.error('Error fetching movies:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMovies();
+  }, [fetchMovies]);
 
   if (!isSDKLoaded) {
     return <div>Loading...</div>;
@@ -759,17 +666,23 @@ export function Demo(
 
         {/* Movies Grid */}
         {showMovies && (
+          loading ? (
+            <div className="text-white text-center py-10">Loading movies...</div>
+          ) : movies.length === 0 ? (
+            <div className="text-white text-center py-10">No movies found.</div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {movies.map((movie) => (
+              {movies.map((movie: any) => (
               <MovieCard
-                key={movie.id}
+                  key={movie.id || movie._id}
                 movie={movie}
-                onVote={(vote) => handleMovieVote(movie.id, vote)}
+                  onVote={(vote) => handleMovieVote(movie.id || movie._id, vote)}
                 isVoting={isVotePending}
                 isConnected={isConnected}
               />
             ))}
           </div>
+          )
         )}
       </div>
     </div>
