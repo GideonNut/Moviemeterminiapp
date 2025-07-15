@@ -1,4 +1,11 @@
 {
   "buildCommand": "next build",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "redirects": [
+    {
+      "source": "/.well-known/farcaster.json",
+      "destination": "https://api.farcaster.xyz/miniapps/hosted-manifest/01980bf7-d0b9-fa50-f6f1-cfeb2ae619f1",
+      "statusCode": 307
+    }
+  ]
 } 
