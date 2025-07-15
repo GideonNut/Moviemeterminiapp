@@ -5,48 +5,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 
-const SAMPLE_MOVIES = [
-  {
-    id: "1",
-    title: "Inception",
-    description: "A thief who steals corporate secrets through dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O.",
-    releaseYear: "2010",
-    director: "Christopher Nolan",
-    genres: ["Action", "Sci-Fi", "Thriller"],
-    rating: 8.8,
-    posterUrl: "https://example.com/inception.jpg",
-    voteCountYes: 0,
-    voteCountNo: 0
-  },
-  {
-    id: "2",
-    title: "The Shawshank Redemption",
-    description: "Two imprisoned men bond over a number of years, finding solace and eventual redemption through acts of common decency.",
-    releaseYear: "1994",
-    director: "Frank Darabont",
-    genres: ["Drama"],
-    rating: 9.3,
-    posterUrl: "https://example.com/shawshank.jpg",
-    voteCountYes: 0,
-    voteCountNo: 0
-  },
-  {
-    id: "3",
-    title: "The Dark Knight",
-    description: "When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological and physical tests of his ability to fight injustice.",
-    releaseYear: "2008",
-    director: "Christopher Nolan",
-    genres: ["Action", "Crime", "Drama"],
-    rating: 9.0,
-    posterUrl: "https://example.com/dark-knight.jpg",
-    voteCountYes: 0,
-    voteCountNo: 0
-  }
-];
-
 export default function DiscoverPage() {
   const [isVoting, setIsVoting] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  const [movies, setMovies] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const checkConnection = async () => {
@@ -58,8 +21,24 @@ export default function DiscoverPage() {
         setIsConnected(false);
       }
     };
-
     checkConnection();
+  }, []);
+
+  useEffect(() => {
+    const fetchMovies = async () => {
+      try {
+        const res = await fetch("/api/movies");
+        const data = await res.json();
+        if (data.success && Array.isArray(data.movies)) {
+          setMovies(data.movies);
+        }
+      } catch (error) {
+        console.error('Error fetching movies:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMovies();
   }, []);
 
   const handleVote = async (movieId: string, vote: 'yes' | 'no') => {
@@ -101,17 +80,23 @@ export default function DiscoverPage() {
       </nav>
       <main className="pt-20 pb-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {loading ? (
+            <div className="text-white text-center py-10">Loading movies...</div>
+          ) : movies.length === 0 ? (
+            <div className="text-white text-center py-10">No movies found.</div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {SAMPLE_MOVIES.map((movie) => (
+              {movies.map((movie: any) => (
               <MovieCard
-                key={movie.id}
+                  key={movie.id || movie._id}
                 movie={movie}
-                onVote={(vote) => handleVote(movie.id, vote ? 'yes' : 'no')}
+                  onVote={(vote) => handleVote(movie.id || movie._id, vote ? 'yes' : 'no')}
                 isVoting={isVoting}
                 isConnected={isConnected}
               />
             ))}
           </div>
+          )}
         </div>
       </main>
     </div>
