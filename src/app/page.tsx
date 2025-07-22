@@ -10,6 +10,7 @@ export default function DiscoverPage() {
   const [isConnected, setIsConnected] = useState(false);
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const checkConnection = async () => {
@@ -52,6 +53,11 @@ export default function DiscoverPage() {
     }
   };
 
+  const filteredMovies = movies.filter((movie: any) =>
+    movie.title.toLowerCase().includes(search.toLowerCase()) ||
+    (movie.genres && movie.genres.some((g: string) => g.toLowerCase().includes(search.toLowerCase())))
+  );
+
   return (
     <div className="min-h-screen bg-[#0A0A0A]">
       <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0A0A0A] border-b border-white/10">
@@ -73,6 +79,15 @@ export default function DiscoverPage() {
             >
               Rewards
             </Link>
+            <div className="flex-1 flex justify-end">
+              <input
+                type="text"
+                placeholder="Search movies or genres..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="ml-6 px-4 py-2 rounded-lg bg-[#18181B] text-white border border-white/20 focus:outline-none focus:border-blue-500 w-64"
+              />
+            </div>
           </div>
         </div>
       </nav>
@@ -108,11 +123,11 @@ export default function DiscoverPage() {
           <div className="bg-[#18181B] rounded-2xl shadow-lg p-6 w-full">
             {loading ? (
               <div className="text-white text-center py-16 text-lg font-medium">Loading movies...</div>
-            ) : movies.length === 0 ? (
+            ) : filteredMovies.length === 0 ? (
               <div className="text-white text-center py-16 text-lg font-medium">No movies found.</div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                {movies.map((movie: any) => (
+                {filteredMovies.map((movie: any) => (
                   <MovieCard
                     key={movie.id || movie._id}
                     movie={movie}
