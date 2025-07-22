@@ -38,7 +38,7 @@ export function MovieCard({ movie, onVote, isVoting, isConnected }: MovieCardPro
   };
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#1A1A1A] transition-all duration-300 hover:border-white/20">
+    <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#23232B] shadow-2xl transition-all duration-300 hover:border-white/20 flex flex-col">
       {/* Movie Poster */}
       <div className="relative aspect-[2/3] w-full overflow-hidden">
         <Image
@@ -52,29 +52,28 @@ export function MovieCard({ movie, onVote, isVoting, isConnected }: MovieCardPro
       </div>
 
       {/* Movie Info */}
-      <div className="p-4">
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-white">{movie.title}</h3>
-          <span className="text-sm text-white/60">{movie.releaseYear}</span>
-        </div>
-        
-        <p className="mb-4 text-sm text-white/70 line-clamp-2">{movie.description}</p>
-        
-        {movie.genres && (
-          <div className="mb-4 flex flex-wrap gap-2">
-            {movie.genres.map((genre) => (
-              <span
-                key={genre}
-                className="rounded-full bg-white/10 px-2 py-1 text-xs text-white/60"
-              >
-                {genre}
-              </span>
-            ))}
+      <div className="flex-1 flex flex-col justify-between p-6">
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-white line-clamp-1">{movie.title}</h3>
+            <span className="text-sm text-white/60">{movie.releaseYear}</span>
           </div>
-        )}
-
+          <p className="mb-4 text-sm text-white/70 line-clamp-2">{movie.description}</p>
+          {movie.genres && (
+            <div className="mb-4 flex flex-wrap gap-2">
+              {movie.genres.map((genre) => (
+                <span
+                  key={genre}
+                  className="rounded-full bg-white/10 px-2 py-1 text-xs text-white/60"
+                >
+                  {genre}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
         {/* Vote Counts */}
-        <div className="mb-4 flex items-center justify-between text-sm">
+        <div className="mb-4 flex items-center justify-between text-sm mt-2">
           <div className="flex items-center gap-2">
             <span className="text-green-400">Yes: {movie.voteCountYes || 0}</span>
             <span className="text-red-400">No: {movie.voteCountNo || 0}</span>
@@ -86,9 +85,8 @@ export function MovieCard({ movie, onVote, isVoting, isConnected }: MovieCardPro
             </div>
           )}
         </div>
-
         {/* Vote Buttons */}
-        <div className="flex gap-3">
+        <div className="flex gap-3 mt-2">
           <Button
             variant="primary"
             className="flex-1"
