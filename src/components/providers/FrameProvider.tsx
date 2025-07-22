@@ -67,8 +67,8 @@ export function useFrame() {
       // The new miniapp-sdk may not have sdk.context, so skip context for now
       setIsSDKLoaded(true);
       // Call ready action
-      console.log("NOT calling ready");
-      // await sdk.actions.ready();
+      console.log("Calling ready");
+      await sdk.actions.ready();
       // Set up MIPD Store (optional, can be removed if not needed)
       const store = createStore();
       store.subscribe((providerDetails) => {
