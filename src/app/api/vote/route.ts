@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     if (typeof movieId !== "string" || typeof vote !== "boolean") {
       return Response.json({ success: false, error: "Invalid input" }, { status: 400 });
     }
-    await saveVote(movieId, vote);
+    await saveVote(movieId, vote ? "yes" : "no");
     return Response.json({ success: true });
   } catch (error) {
     return Response.json({ success: false, error: (error as Error).message }, { status: 500 });
