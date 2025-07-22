@@ -1,12 +1,23 @@
 import { FrameNotificationDetails } from "@farcaster/frame-sdk";
 import { Redis } from "@upstash/redis";
 import { APP_NAME } from "./constants";
-import { getMoviesCollection, getVotesCollection } from "./mongo";
+
+interface Movie {
+  id: string;
+  title: string;
+  description: string;
+  posterUrl?: string;
+  releaseYear?: string;
+  genres?: string[];
+  votes: {
+    yes: number;
+    no: number;
+  };
+}
 
 // In-memory fallback storage
 const localStore = new Map<string, FrameNotificationDetails>();
-const localVoteStore = new Map<string, { yes: number; no: number }>();
-const localMovieStore = new Map<string, any>();
+const localMovieStore = new Map<string, Movie>();
 
 // Use Redis if KV env vars are present, otherwise use in-memory
 const useRedis = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN;
@@ -52,16 +63,53 @@ export async function deleteUserNotificationDetails(
   }
 }
 
-function getMovieVoteKey(movieId: string): string {
-  return `${APP_NAME}:movie:${movieId}:votes`;
+function getMovieKey(id: string): string {
+  return `${APP_NAME}:movie:${id}`;
 }
 
-export async function saveVote(movieId: string, vote: boolean): Promise<void> {
-  const votes = await getVotesCollection();
-  await votes.insertOne({ movieId, vote, timestamp: new Date() });
+export async function saveMovie(movie: Omit<Movie, 'votes'>): Promise<void> {
+  const movieData: Movie = {
+    ...movie,
+    votes: { yes: 0, no: 0 }
+  };
+  const key = getMovieKey(movie.id);
+  
+  if (redis) {
+    await redis.set(key, JSON.stringify(movieData));
+  } else {
+    localMovieStore.set(key, movieData);
+  }
 }
 
-export async function saveMovie(movie: any): Promise<void> {
-  const movies = await getMoviesCollection();
-  await movies.insertOne(movie);
+export async function getAllMovies(): Promise<Movie[]> {
+  if (redis) {
+    const keys = await redis.keys(`${APP_NAME}:movie:*`);
+    const movies = await Promise.all(
+      keys.map(async (key) => {
+        const data = await redis.get(key);
+        return data ? JSON.parse(data as string) : null;
+      })
+    );
+    return movies.filter(Boolean);
+  }
+  return Array.from(localMovieStore.values());
+}
+
+export async function saveVote(movieId: string, type: 'yes' | 'no'): Promise<void> {
+  const key = getMovieKey(movieId);
+  
+  if (redis) {
+    const movieData = await redis.get(key);
+    if (!movieData) throw new Error('Movie not found');
+    
+    const movie: Movie = JSON.parse(movieData as string);
+    movie.votes[type] += 1;
+    await redis.set(key, JSON.stringify(movie));
+  } else {
+    const movie = localMovieStore.get(key);
+    if (!movie) throw new Error('Movie not found');
+    
+    movie.votes[type] += 1;
+    localMovieStore.set(key, movie);
+  }
 }
