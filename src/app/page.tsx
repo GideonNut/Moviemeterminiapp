@@ -27,6 +27,7 @@ export default function DiscoverPage() {
 
   useEffect(() => {
     const fetchMovies = async () => {
+      setLoading(true);
       try {
         const res = await fetch("/api/movies");
         const data = await res.json();
@@ -45,7 +46,20 @@ export default function DiscoverPage() {
   const handleVote = async (movieId: string, vote: 'yes' | 'no') => {
     setIsVoting(true);
     try {
-      console.log(`Voting ${vote} for movie ${movieId}`);
+      const res = await fetch("/api/movies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "vote", id: movieId, type: vote })
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Refresh movies after voting
+        const res = await fetch("/api/movies");
+        const updated = await res.json();
+        if (updated.success && Array.isArray(updated.movies)) {
+          setMovies(updated.movies);
+        }
+      }
     } catch (error) {
       console.error('Error voting:', error);
     } finally {
@@ -129,9 +143,9 @@ export default function DiscoverPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
                 {filteredMovies.map((movie: any) => (
                   <MovieCard
-                    key={movie.id || movie._id}
+                    key={movie.id}
                     movie={movie}
-                    onVote={(vote) => handleVote(movie.id || movie._id, vote ? 'yes' : 'no')}
+                    onVote={(vote) => handleVote(movie.id, vote ? 'yes' : 'no')}
                     isVoting={isVoting}
                     isConnected={isConnected}
                   />
