@@ -1,31 +1,30 @@
 import { NextRequest } from "next/server";
-import { getMoviesCollection, getVotesCollection } from "../../../lib/mongo";
+import { getAllMovies, saveMovie, saveVote } from "../../../lib/kv";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {
-    const moviesCollection = await getMoviesCollection();
-    const votesCollection = await getVotesCollection();
-    const movies = await moviesCollection.find({}).toArray();
-    // Aggregate votes for each movie
-    const movieIds = movies.map(m => m._id?.toString() || m.id);
-    const votes = await votesCollection.aggregate([
-      { $match: { movieId: { $in: movieIds } } },
-      { $group: {
-        _id: "$movieId",
-        yes: { $sum: { $cond: ["$vote", 1, 0] } },
-        no: { $sum: { $cond: ["$vote", 0, 1] } }
-      }}
-    ]).toArray();
-    const voteMap = Object.fromEntries(votes.map(v => [v._id, v]));
-    const moviesWithVotes = movies.map(m => {
-      const id = m._id?.toString() || m.id;
-      const v = voteMap[id] || { yes: 0, no: 0 };
-      return { ...m, voteCountYes: v.yes, voteCountNo: v.no };
-    });
-    return Response.json({ success: true, movies: moviesWithVotes });
+    const movies = await getAllMovies();
+    return Response.json({ success: true, movies });
   } catch (error) {
     return Response.json({ success: false, error: (error as Error).message }, { status: 500 });
   }
-} 
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    if (body.action === "add") {
+      await saveMovie(body.movie);
+      return Response.json({ success: true });
+    } else if (body.action === "vote") {
+      await saveVote(body.id, body.type);
+      return Response.json({ success: true });
+    } else {
+      return Response.json({ success: false, error: "Invalid action" }, { status: 400 });
+    }
+  } catch (error) {
+    return Response.json({ success: false, error: (error as Error).message }, { status: 500 });
+  }
+}
