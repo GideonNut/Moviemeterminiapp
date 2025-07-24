@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "~/components/providers/Providers";
 import { APP_NAME, APP_DESCRIPTION } from "~/lib/constants";
+// ...existing code...
+import FarcasterReady from "~/components/FarcasterReady";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -20,6 +22,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <Providers>
+          <FarcasterReady />
           {children}
         </Providers>
       </body>
