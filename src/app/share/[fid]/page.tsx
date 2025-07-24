@@ -1,7 +1,6 @@
 import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { APP_URL, APP_NAME, APP_DESCRIPTION } from "~/lib/constants";
-import { getFrameEmbedMetadata } from "~/lib/utils";
 
 type PageProps = {
   params: Promise<{
@@ -28,7 +27,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       images: [imageUrl],
     },
     other: {
-      "fc:frame": JSON.stringify(getFrameEmbedMetadata(imageUrl)),
+      "fc:frame": JSON.stringify({
+        imageUrl,
+        width: 1200,
+        height: 630,
+        alt: `${APP_NAME} - Share`,
+      }),
     },
   };
 }
