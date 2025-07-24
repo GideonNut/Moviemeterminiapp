@@ -88,7 +88,7 @@ export function MovieCard({ movie, onVote, isVoting, isConnected }: MovieCardPro
         {/* Vote Buttons */}
         <div className="flex gap-3 mt-2">
           <Button
-            variant="primary"
+            variant="default"
             className="flex-1"
             onClick={() => handleVote(true)}
             disabled={!isConnected || isVoting}
