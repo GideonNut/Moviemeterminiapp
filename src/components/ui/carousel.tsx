@@ -229,6 +229,8 @@ const CarouselNext = React.forwardRef<
 >(({ className, variant = "outline", size = "icon", ...props }, ref) => {
   const { orientation, scrollNext, canScrollNext } = useCarousel()
 
+  // Always show the next arrow on mobile, even if canScrollNext is false
+  const alwaysShow = typeof window !== "undefined" && window.innerWidth < 640;
   return (
     <Button
       ref={ref}
@@ -241,7 +243,7 @@ const CarouselNext = React.forwardRef<
           : "-bottom-12 left-1/2 -translate-x-1/2 rotate-90",
         className
       )}
-      disabled={!canScrollNext}
+      disabled={!canScrollNext && !alwaysShow}
       onClick={scrollNext}
       {...props}
     >
