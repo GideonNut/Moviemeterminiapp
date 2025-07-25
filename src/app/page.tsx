@@ -143,17 +143,9 @@ export default function DiscoverPage() {
                 </MenubarContent>
               </MenubarMenu>
               <MenubarMenu>
-                <MenubarTrigger className="bg-transparent">Rewards</MenubarTrigger>
-                <MenubarContent className="bg-[#18181B] text-white">
-                  <MenubarItem>Actors</MenubarItem>
-                  <MenubarItem>Directors</MenubarItem>
-                  <MenubarItem>Celebrity News</MenubarItem>
-                  <MenubarItem>Most Popular Celebrities</MenubarItem>
-                  <MenubarItem>Top 100 Celebrities</MenubarItem>
-                  <MenubarItem>Highest Net Worth Celebrities</MenubarItem>
-                  <MenubarItem>Celebrities born today</MenubarItem>
-                  <MenubarItem>Updates</MenubarItem>
-                </MenubarContent>
+                <MenubarTrigger asChild>
+                  <Link href="/rewards" className="bg-transparent px-3 py-1 rounded-sm text-sm font-medium text-white hover:bg-accent hover:text-accent-foreground transition-colors">Rewards</Link>
+                </MenubarTrigger>
               </MenubarMenu>
               <MenubarMenu>
                 <MenubarTrigger className="bg-transparent">On Demand</MenubarTrigger>
