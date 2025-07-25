@@ -16,6 +16,13 @@ import {
   MenubarSeparator,
 } from "~/components/ui/menubar";
 import trailersData from "../data/trailers.json";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "~/components/ui/carousel";
 
 export default function DiscoverPage() {
   const [isVoting, setIsVoting] = useState(false);
@@ -117,25 +124,27 @@ export default function DiscoverPage() {
               </MenubarMenu>
               <MenubarMenu>
                 <MenubarTrigger className="bg-transparent">Movies</MenubarTrigger>
-                <MenubarContent>
+                <MenubarContent className="bg-[#18181B] text-white">
                   <MenubarItem>Movie News</MenubarItem>
                   <MenubarItem>Top Movies</MenubarItem>
                   <MenubarItem>Best movies top 250</MenubarItem>
                   <MenubarItem>Movie updates</MenubarItem>
-                  <MenubarItem>Vote Movies</MenubarItem>
+                  <MenubarItem>
+                    <Link href="/vote-movies" className="w-full h-full block">Vote Movies</Link>
+                  </MenubarItem>
                   <MenubarItem>News Updates</MenubarItem>
                 </MenubarContent>
               </MenubarMenu>
               <MenubarMenu>
                 <MenubarTrigger className="bg-transparent">TV Shows</MenubarTrigger>
-                <MenubarContent>
+                <MenubarContent className="bg-[#18181B] text-white">
                   <MenubarItem>TV News</MenubarItem>
                   <MenubarItem>TV Shows updates</MenubarItem>
                 </MenubarContent>
               </MenubarMenu>
               <MenubarMenu>
                 <MenubarTrigger className="bg-transparent">Rewards</MenubarTrigger>
-                <MenubarContent>
+                <MenubarContent className="bg-[#18181B] text-white">
                   <MenubarItem>Actors</MenubarItem>
                   <MenubarItem>Directors</MenubarItem>
                   <MenubarItem>Celebrity News</MenubarItem>
@@ -148,7 +157,7 @@ export default function DiscoverPage() {
               </MenubarMenu>
               <MenubarMenu>
                 <MenubarTrigger className="bg-transparent">On Demand</MenubarTrigger>
-                <MenubarContent>
+                <MenubarContent className="bg-[#18181B] text-white">
                   <MenubarItem>Netflix</MenubarItem>
                   <MenubarItem>Disney+</MenubarItem>
                   <MenubarItem>Amazon Prime</MenubarItem>
@@ -162,7 +171,7 @@ export default function DiscoverPage() {
               </MenubarMenu>
               <MenubarMenu>
                 <MenubarTrigger className="bg-transparent">Awards/Events</MenubarTrigger>
-                <MenubarContent>
+                <MenubarContent className="bg-[#18181B] text-white">
                   <MenubarItem>Oscars</MenubarItem>
                   <MenubarItem>Emmys</MenubarItem>
                   <MenubarItem>Sundance Film Festival</MenubarItem>
@@ -200,12 +209,12 @@ export default function DiscoverPage() {
           {/* Centered Search Bar Below Navigation */}
           <div className="flex justify-center mt-2 mb-2">
             <Input
-              type="text"
-              placeholder="Search movies or genres..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+                type="text"
+                placeholder="Search movies or genres..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
               className="w-96"
-            />
+              />
           </div>
         </div>
       </nav>
@@ -214,32 +223,47 @@ export default function DiscoverPage() {
         {/* Newest Trailers (from trailers.json) */}
         <section className="mb-10">
           <h2 className="text-2xl font-bold text-white mb-4">Newest Trailers</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {trailers.length === 0 ? (
-              <div className="col-span-4 text-center text-white">No trailers found.</div>
-            ) : (
-              trailers.slice(0, 4).map((trailer: any) => (
-                <Card key={trailer.id} className="bg-[#18181B] text-white cursor-pointer" onClick={() => setOpenTrailer({ title: trailer.title, youtubeId: trailer.youtubeId })}>
-                  <CardContent className="flex flex-col items-center p-4">
-                    <div className="w-full h-40 mb-3 flex items-center justify-center overflow-hidden rounded">
-                      <Image
-                        src={`https://img.youtube.com/vi/${trailer.youtubeId}/hqdefault.jpg`}
-                        alt={trailer.title}
-                        width={320}
-                        height={180}
-                        className="object-cover w-full h-full"
-                      />
-                    </div>
-                    <CardTitle className="mb-1 text-center w-full line-clamp-1">{trailer.title}</CardTitle>
-                    <CardDescription className="mb-2 text-center w-full">{trailer.genre} / {trailer.year}</CardDescription>
-                    <Button className="w-full" variant="secondary" onClick={e => { e.stopPropagation(); setOpenTrailer({ title: trailer.title, youtubeId: trailer.youtubeId }); }}>
-                      Watch Trailer
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-          </div>
+          <Carousel className="w-full">
+            <CarouselContent className="-ml-1">
+              {trailers.length === 0 ? (
+                <div className="text-center text-white">No trailers found.</div>
+              ) : (
+                trailers.map((trailer: any) => (
+                  <CarouselItem key={trailer.id} className="pl-1 md:basis-1/2 lg:basis-1/3 xl:basis-1/4">
+                    <div className="p-1">
+                      <Card className="bg-[#18181B] text-white cursor-pointer" onClick={() => setOpenTrailer({ title: trailer.title, youtubeId: trailer.youtubeId })}>
+                        <CardContent className="flex flex-col items-center p-4">
+                          <div className="w-full h-40 mb-3 flex items-center justify-center overflow-hidden rounded">
+                            <Image
+                              src={
+                                trailer.title === "Dune: Part Two"
+                                  ? "https://i.postimg.cc/tg8JzJ5J/dune-2.jpg"
+                                  : trailer.title === "Deadpool & Wolverine"
+                                  ? "https://i.postimg.cc/j2whFDV1/deadpool.jpg"
+                                  : trailer.title === "Kingdom of the Planet of the Apes"
+                                  ? "https://i.postimg.cc/4xQN9wK8/KINGDOM.jpg"
+                                  : `https://img.youtube.com/vi/${trailer.youtubeId}/hqdefault.jpg`
+                              }
+                              alt={trailer.title}
+                              width={320}
+                              height={180}
+                              className="object-cover w-full h-full"
+                            />
+                </div>
+                          <CardTitle className="mb-1 text-center w-full line-clamp-1">{trailer.title}</CardTitle>
+                          <CardDescription className="mb-2 text-center w-full">{trailer.genre} / {trailer.year}</CardDescription>
+                          <Button className="w-full" variant="secondary" onClick={e => { e.stopPropagation(); setOpenTrailer({ title: trailer.title, youtubeId: trailer.youtubeId }); }}>
+                            Watch Trailer
+                          </Button>
+                        </CardContent>
+                      </Card>
+                </div>
+                  </CarouselItem>
+                ))
+              )}
+            </CarouselContent>
+            <CarouselNext />
+          </Carousel>
           {/* Trailer Modal */}
           {openTrailer && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
@@ -270,21 +294,10 @@ export default function DiscoverPage() {
         {/* Newest Reviews (placeholder for now) */}
         <section className="mb-10">
           <h2 className="text-2xl font-bold text-white mb-4">Newest Reviews</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1,2,3].map((i) => (
-              <Card key={i} className="bg-[#18181B] text-white">
-                <CardContent className="flex gap-4 items-start p-4">
-                  <Image src={`https://randomuser.me/api/portraits/men/3${i}.jpg`} alt="User" width={48} height={48} className="rounded-full border border-white/10" />
-                  <div>
-                    <CardTitle>User {i}</CardTitle>
-                    <CardDescription className="mb-2">"This is a review snippet for movie {i}."</CardDescription>
-                    <span className="text-xs text-white/60">Today, 12:0{i}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
+          <div className="flex justify-center items-center min-h-[100px]">
+            <span className="text-white/60 text-lg">There are no reviews at this time.</span>
+            </div>
+          </section>
         {/* Recently Added Movies (show next 4 movies as example) */}
         <section className="mb-10">
           <h2 className="text-2xl font-bold text-white mb-4">Recently Added Movies</h2>
@@ -295,9 +308,9 @@ export default function DiscoverPage() {
               <div className="col-span-4 text-center text-white">No movies found.</div>
             ) : (
               filteredMovies.slice(4, 8).map((movie: any) => (
-                <MovieCard
+                  <MovieCard
                   key={movie.id || movie._id}
-                  movie={movie}
+                    movie={movie}
                   onVote={() => {}}
                   isVoting={false}
                   isConnected={true}
@@ -309,34 +322,16 @@ export default function DiscoverPage() {
         {/* Trending Celebrities (placeholder for now) */}
         <section className="mb-10">
           <h2 className="text-2xl font-bold text-white mb-4">Trending Celebrities</h2>
-          <div className="flex gap-6 overflow-x-auto pb-2">
-            {[1,2,3,4,5,6].map((i) => (
-              <Card key={i} className="bg-[#18181B] text-white min-w-[160px]">
-                <CardContent className="flex flex-col items-center p-4">
-                  <Image src={`https://randomuser.me/api/portraits/men/${30+i}.jpg`} alt="Celebrity" width={64} height={64} className="rounded-full border border-white/10 mb-2" />
-                  <CardTitle>Celebrity {i}</CardTitle>
-                  <CardDescription>Popularity: {100 + i * 10}</CardDescription>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="flex justify-center items-center min-h-[100px]">
+            <span className="text-white/60 text-lg">There are no trending celebrities at this time.</span>
           </div>
         </section>
         {/* Trending On Demand (placeholder for now) */}
         <section className="mb-10">
           <h2 className="text-2xl font-bold text-white mb-4">Trending On Demand</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {[1,2,3,4].map((i) => (
-              <Card key={i} className="bg-[#18181B] text-white">
-                <CardContent className="flex flex-col items-center p-4">
-                  <div className="w-full h-32 bg-neutral-800 rounded mb-2 flex items-center justify-center">
-                    <span className="text-3xl">📺</span>
-                  </div>
-                  <CardTitle>On Demand {i}</CardTitle>
-                  <CardDescription>Service: Netflix</CardDescription>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <div className="flex justify-center items-center min-h-[100px]">
+            <span className="text-white/60 text-lg">There are no trending on demand items at this time.</span>
+              </div>
         </section>
         {/* Trending Movies & TV Shows (show next 4 movies as example) */}
         <section className="mb-10">
