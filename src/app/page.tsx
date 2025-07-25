@@ -125,14 +125,11 @@ export default function DiscoverPage() {
               <MenubarMenu>
                 <MenubarTrigger className="bg-transparent">Movies</MenubarTrigger>
                 <MenubarContent className="bg-[#18181B] text-white">
-                  <MenubarItem>Movie News</MenubarItem>
-                  <MenubarItem>Top Movies</MenubarItem>
-                  <MenubarItem>Best movies top 250</MenubarItem>
-                  <MenubarItem>Movie updates</MenubarItem>
                   <MenubarItem>
                     <Link href="/vote-movies" className="w-full h-full block">Vote Movies</Link>
                   </MenubarItem>
-                  <MenubarItem>News Updates</MenubarItem>
+                  <MenubarItem>Top Movies</MenubarItem>
+                  <MenubarItem>Movie News</MenubarItem>
                 </MenubarContent>
               </MenubarMenu>
               <MenubarMenu>
@@ -149,17 +146,6 @@ export default function DiscoverPage() {
               </MenubarMenu>
               <MenubarMenu>
                 <MenubarTrigger className="bg-transparent">On Demand</MenubarTrigger>
-                <MenubarContent className="bg-[#18181B] text-white">
-                  <MenubarItem>Netflix</MenubarItem>
-                  <MenubarItem>Disney+</MenubarItem>
-                  <MenubarItem>Amazon Prime</MenubarItem>
-                  <MenubarItem>HBO Max</MenubarItem>
-                  <MenubarItem>BBC iPlayer</MenubarItem>
-                  <MenubarItem>Apple TV+</MenubarItem>
-                  <MenubarItem>Hulu</MenubarItem>
-                  <MenubarItem>Paramount Plus</MenubarItem>
-                  <MenubarItem>Sky Go</MenubarItem>
-                </MenubarContent>
               </MenubarMenu>
               <MenubarMenu>
                 <MenubarTrigger className="bg-transparent">Awards/Events</MenubarTrigger>
@@ -241,7 +227,7 @@ export default function DiscoverPage() {
                               height={180}
                               className="object-cover w-full h-full"
                             />
-                </div>
+                          </div>
                           <CardTitle className="mb-1 text-center w-full line-clamp-1">{trailer.title}</CardTitle>
                           <CardDescription className="mb-2 text-center w-full">{trailer.genre} / {trailer.year}</CardDescription>
                           <Button className="w-full" variant="secondary" onClick={e => { e.stopPropagation(); setOpenTrailer({ title: trailer.title, youtubeId: trailer.youtubeId }); }}>
@@ -249,7 +235,7 @@ export default function DiscoverPage() {
                           </Button>
                         </CardContent>
                       </Card>
-                </div>
+                    </div>
                   </CarouselItem>
                 ))
               )}
@@ -283,13 +269,6 @@ export default function DiscoverPage() {
             </div>
           )}
         </section>
-        {/* Newest Reviews (placeholder for now) */}
-        <section className="mb-10">
-          <h2 className="text-2xl font-bold text-white mb-4">Newest Reviews</h2>
-          <div className="flex justify-center items-center min-h-[100px]">
-            <span className="text-white/60 text-lg">There are no reviews at this time.</span>
-            </div>
-          </section>
         {/* Recently Added Movies (show next 4 movies as example) */}
         <section className="mb-10">
           <h2 className="text-2xl font-bold text-white mb-4">Recently Added Movies</h2>
@@ -300,9 +279,9 @@ export default function DiscoverPage() {
               <div className="col-span-4 text-center text-white">No movies found.</div>
             ) : (
               filteredMovies.slice(4, 8).map((movie: any) => (
-                  <MovieCard
+                <MovieCard
                   key={movie.id || movie._id}
-                    movie={movie}
+                  movie={movie}
                   onVote={() => {}}
                   isVoting={false}
                   isConnected={true}
@@ -311,6 +290,13 @@ export default function DiscoverPage() {
             )}
           </div>
         </section>
+        {/* Newest Reviews (placeholder for now) */}
+        <section className="mb-10">
+          <h2 className="text-2xl font-bold text-white mb-4">Newest Reviews</h2>
+          <div className="flex justify-center items-center min-h-[100px]">
+            <span className="text-white/60 text-lg">There are no reviews at this time.</span>
+            </div>
+          </section>
         {/* Trending Celebrities (placeholder for now) */}
         <section className="mb-10">
           <h2 className="text-2xl font-bold text-white mb-4">Trending Celebrities</h2>
