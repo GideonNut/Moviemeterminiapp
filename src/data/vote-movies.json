@@ -1,0 +1,30 @@
+[
+  {
+    "id": "1",
+    "title": "Oppenheimer",
+    "genre": "Biography / Drama",
+    "year": "2023",
+    "posterUrl": "https://m.media-amazon.com/images/I/81+5nQhU5GL._AC_SY679_.jpg"
+  },
+  {
+    "id": "2",
+    "title": "Barbie",
+    "genre": "Comedy / Adventure",
+    "year": "2023",
+    "posterUrl": "https://m.media-amazon.com/images/I/71VbHaAqbML._AC_SY679_.jpg"
+  },
+  {
+    "id": "3",
+    "title": "Spider-Man: Across the Spider-Verse",
+    "genre": "Animation / Action",
+    "year": "2023",
+    "posterUrl": "https://m.media-amazon.com/images/I/91dSMhdIzTL._AC_SY679_.jpg"
+  },
+  {
+    "id": "4",
+    "title": "John Wick: Chapter 4",
+    "genre": "Action / Thriller",
+    "year": "2023",
+    "posterUrl": "https://m.media-amazon.com/images/I/81T6Oe6H+qL._AC_SY679_.jpg"
+  }
+] 
