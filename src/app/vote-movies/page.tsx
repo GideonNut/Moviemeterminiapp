@@ -56,6 +56,7 @@ export default function VoteMoviesPage() {
                   alt={movie.title}
                   width={320}
                   height={420}
+                  loading="lazy"
                   className="object-cover w-full h-full"
                 />
               </div>
