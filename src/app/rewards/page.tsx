@@ -2,6 +2,7 @@
 import { Card, CardContent, CardTitle, CardDescription } from "~/components/ui/card";
 import { useRouter } from "next/navigation";
 
+
 export default function RewardsPage() {
   const router = useRouter();
   return (
