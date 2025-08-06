@@ -7,14 +7,7 @@ import Image from 'next/image';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/Button";
-import {
-  Menubar,
-  MenubarMenu,
-  MenubarTrigger,
-  MenubarContent,
-  MenubarItem,
-  MenubarSeparator,
-} from "~/components/ui/menubar";
+import { Home, Film, Tv, Gift } from "lucide-react";
 import trailersData from "../data/trailers.json";
 import {
   Carousel,
@@ -23,6 +16,7 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "~/components/ui/carousel";
+import  Header  from "~/components/Header";
 
 export default function DiscoverPage() {
   const [isVoting, setIsVoting] = useState(false);
@@ -96,122 +90,37 @@ export default function DiscoverPage() {
     }
   };
 
+  const handleSearch = (query: string) => {
+    // Handle search logic here
+    console.log('Searching for:', query);
+  };
+
   const filteredMovies = movies.filter((movie: any) =>
     movie.title.toLowerCase().includes(search.toLowerCase()) ||
     (movie.genres && movie.genres.some((g: string) => g.toLowerCase().includes(search.toLowerCase())))
   );
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A]">
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0A0A0A] border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center h-16 justify-between">
-            {/* Left: Logo */}
-            <Link href="/" className="flex items-center mr-6">
-              <div className="w-10 h-10 relative">
-                <Image
-                  src="https://i.postimg.cc/Gtz6FMmk/new-favicon.png"
-                  alt="MovieMetter Logo"
-                  layout="fill"
-                  objectFit="contain"
-                />
-              </div>
-            </Link>
-            {/* Center: Navigation Links */}
-            <Menubar className="bg-transparent border-none shadow-none text-white">
-              <MenubarMenu>
-                <MenubarTrigger className="bg-transparent">Home</MenubarTrigger>
-              </MenubarMenu>
-              <MenubarMenu>
-                <MenubarTrigger className="bg-transparent">Movies</MenubarTrigger>
-                <MenubarContent className="bg-[#18181B] text-white">
-                  <MenubarItem>
-                    <Link href="/vote-movies" className="w-full h-full block">Vote Movies</Link>
-                  </MenubarItem>
-                  <MenubarItem>Top Movies</MenubarItem>
-                  <MenubarItem>Movie News</MenubarItem>
-                </MenubarContent>
-              </MenubarMenu>
-              <MenubarMenu>
-                <MenubarTrigger className="bg-transparent">TV Shows</MenubarTrigger>
-                <MenubarContent className="bg-[#18181B] text-white">
-                  <MenubarItem>TV News</MenubarItem>
-                  <MenubarItem>TV Shows updates</MenubarItem>
-                </MenubarContent>
-              </MenubarMenu>
-              <MenubarMenu>
-                <MenubarTrigger asChild>
-                  <Link href="/rewards" className="bg-transparent px-3 py-1 rounded-sm text-sm font-medium text-white hover:bg-accent hover:text-accent-foreground transition-colors">Rewards</Link>
-                </MenubarTrigger>
-              </MenubarMenu>
-              <MenubarMenu>
-                <MenubarTrigger className="bg-transparent">On Demand</MenubarTrigger>
-              </MenubarMenu>
-              <MenubarMenu>
-                <MenubarTrigger className="bg-transparent">Awards/Events</MenubarTrigger>
-                <MenubarContent className="bg-[#18181B] text-white">
-                  <MenubarItem>Oscars</MenubarItem>
-                  <MenubarItem>Emmys</MenubarItem>
-                  <MenubarItem>Sundance Film Festival</MenubarItem>
-                  <MenubarItem>Cannes Film Festival</MenubarItem>
-                  <MenubarItem>SXSW Film Festival</MenubarItem>
-                  <MenubarItem>Tribeca Film Festival</MenubarItem>
-                </MenubarContent>
-              </MenubarMenu>
-              <MenubarMenu>
-                <MenubarTrigger className="bg-transparent">About Us</MenubarTrigger>
-              </MenubarMenu>
-              <MenubarMenu>
-                <MenubarTrigger className="bg-transparent">Contact Us</MenubarTrigger>
-              </MenubarMenu>
-            </Menubar>
-            {/* Right: Language Switcher & Profile/Login */}
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1 bg-[#18181B] rounded px-2 py-1 text-white text-sm">
-                <button className="font-bold">NL</button>
-                <span className="mx-1">/</span>
-                <button>GB</button>
-              </div>
-              <div className="flex items-center">
-                <Image
-                  src="https://randomuser.me/api/portraits/men/32.jpg"
-                  alt="Profile Picture"
-                  width={36}
-                  height={36}
-                  className="rounded-full border-2 border-white/20 object-cover"
-                />
-                <span className="ml-2 text-white text-sm font-medium hidden sm:inline">Login</span>
-              </div>
-            </div>
-          </div>
-          {/* Centered Search Bar Below Navigation */}
-          <div className="flex justify-center mt-2 mb-2">
-            <Input
-                type="text"
-                placeholder="Search movies or genres..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              className="w-96"
-              />
-          </div>
-        </div>
-      </nav>
-      {/* Main Content: Moviemeter.io style sections */}
-      <main className="pt-32 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Newest Trailers (from trailers.json) */}
-        <section className="mb-10">
-          <h2 className="text-2xl font-bold text-white mb-4">Newest Trailers</h2>
-          <Carousel className="w-full">
-            <CarouselContent className="-ml-1">
-              {trailers.length === 0 ? (
-                <div className="text-center text-white">No trailers found.</div>
-              ) : (
-                trailers.map((trailer: any) => (
-                  <CarouselItem key={trailer.id} className="pl-1 md:basis-1/2 lg:basis-1/3 xl:basis-1/4">
-                    <div className="p-1">
+    <div className="min-h-screen bg-[#0A0A0A] pb-10 overflow-x-hidden">
+      {/* Top Header */}
+      <Header showSearch={true} onSearch={handleSearch} />
+
+      {/* Main Content */}
+      <main className="pt-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        {/* Newest Trailers */}
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold text-white mb-3">Newest Trailers</h2>
+          <div className="relative">
+            <Carousel className="w-full">
+              <CarouselContent className="-ml-2 md:-ml-4">
+                {trailers.length === 0 ? (
+                  <div className="text-center text-white w-full text-sm">No trailers found.</div>
+                ) : (
+                  trailers.map((trailer: any) => (
+                    <CarouselItem key={trailer.id} className="pl-2 md:pl-4 basis-[280px] md:basis-1/2 lg:basis-1/3 xl:basis-1/4">
                       <Card className="bg-[#18181B] text-white cursor-pointer" onClick={() => setOpenTrailer({ title: trailer.title, youtubeId: trailer.youtubeId })}>
-                        <CardContent className="flex flex-col items-center p-4">
-                          <div className="w-full h-40 mb-3 flex items-center justify-center overflow-hidden rounded">
+                        <CardContent className="flex flex-col items-center p-3">
+                          <div className="w-full h-36 mb-2 flex items-center justify-center overflow-hidden rounded">
                             <Image
                               src={
                                 trailer.title === "Dune: Part Two"
@@ -221,118 +130,127 @@ export default function DiscoverPage() {
                                   : trailer.title === "Kingdom of the Planet of the Apes"
                                   ? "https://i.postimg.cc/4xQN9wK8/KINGDOM.jpg"
                                   : `https://img.youtube.com/vi/${trailer.youtubeId}/hqdefault.jpg`
-                              }
-                              alt={trailer.title}
-                              width={320}
-                              height={180}
-                              className="object-cover w-full h-full"
-                            />
-                          </div>
-                          <CardTitle className="mb-1 text-center w-full line-clamp-1">{trailer.title}</CardTitle>
-                          <CardDescription className="mb-2 text-center w-full">{trailer.genre} / {trailer.year}</CardDescription>
-                          <Button className="w-full" variant="secondary" onClick={e => { e.stopPropagation(); setOpenTrailer({ title: trailer.title, youtubeId: trailer.youtubeId }); }}>
-                            Watch Trailer
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    </div>
+                            }
+                            alt={trailer.title}
+                            width={320}
+                            height={180}
+                            className="object-cover w-full h-full"
+                          />
+                        </div>
+                        <CardTitle className="mb-1 text-center w-full line-clamp-1 text-sm font-medium">{trailer.title}</CardTitle>
+                        <CardDescription className="mb-2 text-center w-full text-xs text-white/70">{trailer.genre} / {trailer.year}</CardDescription>
+                        <Button className="w-full text-xs py-1.5" variant="secondary" onClick={e => { e.stopPropagation(); setOpenTrailer({ title: trailer.title, youtubeId: trailer.youtubeId }); }}>
+                          Watch Trailer
+                        </Button>
+                      </CardContent>
+                    </Card>
                   </CarouselItem>
                 ))
               )}
             </CarouselContent>
-            <CarouselNext />
+            <CarouselPrevious className="hidden md:flex -left-4" />
+            <CarouselNext className="hidden md:flex -right-4" />
           </Carousel>
-          {/* Trailer Modal */}
-          {openTrailer && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-              <div className="bg-[#18181B] rounded-lg shadow-lg p-4 max-w-xl w-full relative">
-                <button
-                  className="absolute top-2 right-2 text-white text-2xl font-bold hover:text-red-400"
-                  onClick={() => setOpenTrailer(null)}
-                  aria-label="Close"
-                >
-                  ×
-                </button>
-                <h3 className="text-lg font-bold text-white mb-4 text-center">{openTrailer.title}</h3>
-                <div className="aspect-video w-full">
-                  <iframe
-                    width="100%"
-                    height="315"
-                    src={`https://www.youtube.com/embed/${openTrailer.youtubeId}?autoplay=1`}
-                    title={openTrailer.title}
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
+        </div>
+        {/* Trailer Modal */}
+        {openTrailer && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
+            <div className="bg-[#18181B] rounded-lg shadow-lg p-4 max-w-xl w-full relative">
+              <button
+                className="absolute top-2 right-2 text-white text-xl font-bold hover:text-red-400"
+                onClick={() => setOpenTrailer(null)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+              <h3 className="text-base font-semibold text-white mb-3 text-center pr-6">{openTrailer.title}</h3>
+              <div className="aspect-video w-full">
+                <iframe
+                  width="100%"
+                  height="315"
+                  src={`https://www.youtube.com/embed/${openTrailer.youtubeId}?autoplay=1`}
+                  title={openTrailer.title}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
               </div>
             </div>
+          </div>
+        )}
+      </section>
+
+      {/* Recently Added Movies */}
+      <section className="mb-8">
+        <h2 className="text-xl font-semibold text-white mb-3">Recently Added Movies</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          {loading ? (
+            <div className="col-span-4 text-center text-white text-sm py-8">Loading movies...</div>
+          ) : filteredMovies.length === 0 ? (
+            <div className="col-span-4 text-center text-white text-sm py-8">No movies found.</div>
+          ) : (
+            filteredMovies.slice(4, 8).map((movie: any) => (
+              <MovieCard
+                key={movie.id || movie._id}
+                movie={movie}
+                onVote={() => {}}
+                isVoting={false}
+                isConnected={true}
+              />
+            ))
           )}
-        </section>
-        {/* Recently Added Movies (show next 4 movies as example) */}
-        <section className="mb-10">
-          <h2 className="text-2xl font-bold text-white mb-4">Recently Added Movies</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {loading ? (
-              <div className="col-span-4 text-center text-white">Loading movies...</div>
-            ) : filteredMovies.length === 0 ? (
-              <div className="col-span-4 text-center text-white">No movies found.</div>
-            ) : (
-              filteredMovies.slice(4, 8).map((movie: any) => (
-                <MovieCard
-                  key={movie.id || movie._id}
-                  movie={movie}
-                  onVote={() => {}}
-                  isVoting={false}
-                  isConnected={true}
-                />
-              ))
-            )}
-          </div>
-        </section>
-        {/* Newest Reviews (placeholder for now) */}
-        <section className="mb-10">
-          <h2 className="text-2xl font-bold text-white mb-4">Newest Reviews</h2>
-          <div className="flex justify-center items-center min-h-[100px]">
-            <span className="text-white/60 text-lg">There are no reviews at this time.</span>
-            </div>
-          </section>
-        {/* Trending Celebrities (placeholder for now) */}
-        <section className="mb-10">
-          <h2 className="text-2xl font-bold text-white mb-4">Trending Celebrities</h2>
-          <div className="flex justify-center items-center min-h-[100px]">
-            <span className="text-white/60 text-lg">There are no trending celebrities at this time.</span>
-          </div>
-        </section>
-        {/* Trending On Demand (placeholder for now) */}
-        <section className="mb-10">
-          <h2 className="text-2xl font-bold text-white mb-4">Trending On Demand</h2>
-          <div className="flex justify-center items-center min-h-[100px]">
-            <span className="text-white/60 text-lg">There are no trending on demand items at this time.</span>
-              </div>
-        </section>
-        {/* Trending Movies & TV Shows (show next 4 movies as example) */}
-        <section className="mb-10">
-          <h2 className="text-2xl font-bold text-white mb-4">Trending Movies & TV Shows</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {loading ? (
-              <div className="col-span-4 text-center text-white">Loading movies...</div>
-            ) : filteredMovies.length === 0 ? (
-              <div className="col-span-4 text-center text-white">No movies found.</div>
-            ) : (
-              filteredMovies.slice(8, 12).map((movie: any) => (
-                <MovieCard
-                  key={movie.id || movie._id}
-                  movie={movie}
-                  onVote={() => {}}
-                  isVoting={false}
-                  isConnected={true}
-                />
-              ))
-            )}
-          </div>
-        </section>
-      </main>
-    </div>
+        </div>
+      </section>
+
+      {/* Newest Reviews */}
+      <section className="mb-8">
+        <h2 className="text-xl font-semibold text-white mb-3">Newest Reviews</h2>
+        <div className="flex justify-center items-center min-h-[80px]">
+          <span className="text-white/60 text-sm">There are no reviews at this time.</span>
+        </div>
+      </section>
+
+      {/* Trending Celebrities */}
+      <section className="mb-8">
+        <h2 className="text-xl font-semibold text-white mb-3">Trending Celebrities</h2>
+        <div className="flex justify-center items-center min-h-[80px]">
+          <span className="text-white/60 text-sm">There are no trending celebrities at this time.</span>
+        </div>
+      </section>
+
+      {/* Trending On Demand */}
+      <section className="mb-8">
+        <h2 className="text-xl font-semibold text-white mb-3">Trending On Demand</h2>
+        <div className="flex justify-center items-center min-h-[80px]">
+          <span className="text-white/60 text-sm">There are no trending on demand items at this time.</span>
+        </div>
+      </section>
+
+      {/* Trending Movies & TV Shows */}
+      <section className="mb-8">
+        <h2 className="text-xl font-semibold text-white mb-3">Trending Movies & TV Shows</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          {loading ? (
+            <div className="col-span-4 text-center text-white text-sm py-8">Loading movies...</div>
+          ) : filteredMovies.length === 0 ? (
+            <div className="col-span-4 text-center text-white text-sm py-8">No movies found.</div>
+          ) : (
+            filteredMovies.slice(8, 12).map((movie: any) => (
+              <MovieCard
+                key={movie.id || movie._id}
+                movie={movie}
+                onVote={() => {}}
+                isVoting={false}
+                isConnected={true}
+              />
+            ))
+          )}
+        </div>
+      </section>
+    </main>
+
+    {/* Bottom Navigation */}
+  
+  </div>
   );
 }
