@@ -101,7 +101,10 @@ export default function DiscoverPage() {
   );
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] pb-10 overflow-x-hidden">
+    <div className="min-h-screen relative bg-[#0A0A0A] pb-10 overflow-x-hidden">
+
+   
+ 
       {/* Top Header */}
       <Header showSearch={true} onSearch={handleSearch} />
 
