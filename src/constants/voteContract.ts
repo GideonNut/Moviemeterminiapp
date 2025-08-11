@@ -1,4 +1,6 @@
-export const VOTE_CONTRACT_ADDRESS = "0x6d83eF793A7e82BFa20B57a60907F85c06fB8828";
+import type { Abi } from 'viem';
+
+export const VOTE_CONTRACT_ADDRESS = "0x6d83eF793A7e82BFa20B57a60907F85c06fB8828" as `0x${string}`;
 export const VOTE_CONTRACT_ABI = [
   {
     "anonymous": false,
@@ -64,4 +66,4 @@ export const VOTE_CONTRACT_ABI = [
     "stateMutability": "nonpayable",
     "type": "function"
   }
-]; 
+] as const satisfies Abi;
