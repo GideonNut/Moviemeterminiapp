@@ -20,25 +20,47 @@ let client: MongoClient;
 let db: Db;
 
 export async function connectMongo() {
-  if (!client) {
-    if (!uri) {
-      throw new Error("MONGODB_URI environment variable is not set");
+  try {
+    if (!client) {
+      if (!uri) {
+        throw new Error("MONGODB_URI environment variable is not set. Please create a .env.local file with your MongoDB connection string.");
+      }
+      client = new MongoClient(uri as string);
+      await client.connect();
+      db = client.db(dbName);
+      console.log("MongoDB connected successfully to database:", dbName);
     }
-    client = new MongoClient(uri as string);
-    await client.connect();
-    db = client.db(dbName);
+    return db;
+  } catch (error) {
+    console.error("MongoDB connection error:", error);
+    throw new Error(`Failed to connect to MongoDB: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
-  return db;
 }
 
 export async function getMoviesCollection(): Promise<Collection> {
-  const database = await connectMongo();
-  return database.collection("movies");
+  try {
+    const database = await connectMongo();
+    if (!database) {
+      throw new Error("Failed to get database connection");
+    }
+    return database.collection("movies");
+  } catch (error) {
+    console.error("Error getting movies collection:", error);
+    throw new Error(`Failed to get movies collection: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 export async function getVotesCollection(): Promise<Collection> {
-  const database = await connectMongo();
-  return database.collection("votes");
+  try {
+    const database = await connectMongo();
+    if (!database) {
+      throw new Error("Failed to get database connection");
+    }
+    return database.collection("votes");
+  } catch (error) {
+    console.error("Error getting votes collection:", error);
+    throw new Error(`Failed to get votes collection: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 async function getNotificationsCollection(): Promise<Collection> {
