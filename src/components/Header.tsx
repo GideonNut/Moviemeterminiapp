@@ -25,6 +25,28 @@ export default function Header({ showSearch = false, onSearch }: HeaderProps) {
             </div>
           </Link>
           
+          {/* Navigation Menu */}
+          <nav className="flex items-center gap-6">
+            <Link 
+              href="/movies" 
+              className="text-white/70 hover:text-white transition-colors text-sm font-medium"
+            >
+              Movies
+            </Link>
+            <Link 
+              href="/vote-movies" 
+              className="text-white/70 hover:text-white transition-colors text-sm font-medium"
+            >
+              Vote
+            </Link>
+            <Link 
+              href="/admin" 
+              className="text-white/70 hover:text-white transition-colors text-sm font-medium"
+            >
+              Admin
+            </Link>
+          </nav>
+          
           {/* User Avatar on right */}
           <div className="w-10 h-10 relative">
             <Image
