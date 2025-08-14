@@ -5,7 +5,7 @@ import { useFrame } from "./providers/FrameProvider";
 import { useAccount } from "wagmi";
 import { truncateAddress } from "../lib/truncateAddress";
 import Image from "next/image";
-import { getFarcasterUser } from "../lib/farcaster";
+import { getFarcasterUser, lookupFidByCustodyAddress } from "../lib/farcaster";
 
 export default function Identity() {
   const { context } = useFrame();
@@ -13,6 +13,7 @@ export default function Identity() {
   const [movies, setMovies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [profilePic, setProfilePic] = useState<string | null>(null);
+  const [resolvedDisplayName, setResolvedDisplayName] = useState<string | null>(null);
 
   // Fetch movies
   useEffect(() => {
@@ -35,15 +36,45 @@ export default function Identity() {
   // Fetch Farcaster profile pic if not present in context
   useEffect(() => {
     async function fetchProfilePic() {
-      if (!context?.user?.pfpUrl && context?.user?.fid) {
-        const user = await getFarcasterUser(context.user.fid);
-        if (user?.pfp) setProfilePic(user.pfp);
-      } else if (context?.user?.pfpUrl) {
+      // Prefer SDK-provided values when available
+      if (context?.user?.pfpUrl) {
         setProfilePic(context.user.pfpUrl);
+        setResolvedDisplayName(context?.user?.displayName ?? null);
+        return;
+      }
+
+      // If SDK provides fid, fetch full user
+      if (context?.user?.fid) {
+        const user = await getFarcasterUser(context.user.fid);
+        if (user) {
+          if (user.pfp) setProfilePic(user.pfp);
+          if (user.displayName || user.username) {
+            setResolvedDisplayName(user.displayName || user.username);
+          }
+        }
+        return;
+      }
+
+      // Fallback: derive fid from connected custody address
+      if (address) {
+        try {
+          const fid = await lookupFidByCustodyAddress(address);
+          if (fid) {
+            const user = await getFarcasterUser(fid);
+            if (user) {
+              if (user.pfp) setProfilePic(user.pfp);
+              if (user.displayName || user.username) {
+                setResolvedDisplayName(user.displayName || user.username);
+              }
+            }
+          }
+        } catch (err) {
+          // ignore; leave defaults
+        }
       }
     }
     fetchProfilePic();
-  }, [context]);
+  }, [context, address]);
 
   // Filter movies the user has voted on (if possible)
   // This is a placeholder: if votes are not tracked per user, show all movies with votes
@@ -66,12 +97,12 @@ export default function Identity() {
           />
         ) : (
           <div className="w-14 h-14 rounded-full bg-white/10 flex items-center justify-center text-2xl font-bold">
-            {context?.user?.displayName?.[0] || "?"}
+            {(resolvedDisplayName || context?.user?.displayName || "?").slice(0, 1)}
           </div>
         )}
         <div>
           <div className="font-semibold text-lg">
-            {context?.user?.displayName || "Anonymous"}
+            {resolvedDisplayName || context?.user?.displayName || "Anonymous"}
           </div>
           {context?.user?.fid && (
             <div className="text-xs text-white/60">FID: {context.user.fid}</div>

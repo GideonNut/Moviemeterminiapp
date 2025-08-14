@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { saveMovie } from "../../../lib/kv";
+import { saveMovie } from "../../../lib/mongo";
 
 export const runtime = "nodejs";
 

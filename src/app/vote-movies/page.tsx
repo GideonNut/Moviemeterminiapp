@@ -5,7 +5,7 @@ import { Card, CardContent, CardTitle, CardDescription } from "~/components/ui/c
 import { Button } from "~/components/ui/Button";
 import Image from "next/image";
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
-import { useWalletClient } from "wagmi";
+import { useAccount, useChainId, useSwitchChain, useWalletClient } from "wagmi";
 import { writeContract } from "viem/actions";
 import { useRouter } from "next/navigation";
 import Header from "~/components/Header";
@@ -18,21 +18,34 @@ export default function VoteMoviesPage() {
   const [votes, setVotes] = useState<{ [id: string]: 'yes' | 'no' | null }>({});
   const [txStatus, setTxStatus] = useState<{ [id: string]: string }>({});
 
+  const { address, isConnected } = useAccount();
+  const currentChainId = useChainId();
+  const { switchChainAsync } = useSwitchChain();
   const { data: walletClient } = useWalletClient();
 
   const handleVote = async (id: string, vote: 'yes' | 'no') => {
     if (votes[id]) return;
-    setVotes((prev) => ({ ...prev, [id]: vote }));
     setTxStatus((prev) => ({ ...prev, [id]: 'pending' }));
     try {
-      const movieId = parseInt(id, 10);
-      if (!walletClient) throw new Error("Wallet not connected");
+      if (!isConnected || !address) throw new Error("Wallet not connected");
+
+      // Ensure we're on Celo (42220); prompt a switch if needed
+      if (currentChainId !== 42220) {
+        await switchChainAsync({ chainId: 42220 });
+      }
+
+      const movieId = BigInt(parseInt(id, 10));
+
+      if (!walletClient) throw new Error("Wallet not ready");
+
       await writeContract(walletClient, {
         address: VOTE_CONTRACT_ADDRESS,
         abi: VOTE_CONTRACT_ABI,
         functionName: "vote",
         args: [movieId, vote === 'yes'],
       });
+
+      setVotes((prev) => ({ ...prev, [id]: vote }));
       setTxStatus((prev) => ({ ...prev, [id]: 'success' }));
     } catch (err) {
       setTxStatus((prev) => ({ ...prev, [id]: 'error' }));
@@ -89,7 +102,7 @@ export default function VoteMoviesPage() {
                     <Button
                       variant={votes[movie.id] === 'yes' ? 'default' : 'ghost'}
                       onClick={() => handleVote(movie.id, 'yes')}
-                      disabled={txStatus[movie.id] === 'pending' || !!votes[movie.id]}
+                      disabled={!isConnected || txStatus[movie.id] === 'pending' || !!votes[movie.id]}
                       className="flex items-center gap-2 px-4 py-2"
                       size="sm"
                     >
@@ -100,7 +113,7 @@ export default function VoteMoviesPage() {
                     <Button
                       variant={votes[movie.id] === 'no' ? 'destructive' : 'ghost'}
                       onClick={() => handleVote(movie.id, 'no')}
-                      disabled={txStatus[movie.id] === 'pending' || !!votes[movie.id]}
+                      disabled={!isConnected || txStatus[movie.id] === 'pending' || !!votes[movie.id]}
                       className="flex items-center gap-2 px-4 py-2"
                       size="sm"
                     >

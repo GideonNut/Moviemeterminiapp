@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { saveVote } from "../../../lib/kv";
+import { saveVote } from "../../../lib/mongo";
 
 export const runtime = "nodejs";
 

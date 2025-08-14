@@ -22,7 +22,7 @@ export async function getFarcasterUser(fid: number): Promise<FarcasterUser | nul
   try {
     const response = await fetch(`${FARCASTER_API_BASE}/users/${fid}`, {
       headers: {
-        'accept': 'application/json',
+        accept: 'application/json',
       },
     });
 
@@ -32,7 +32,66 @@ export async function getFarcasterUser(fid: number): Promise<FarcasterUser | nul
     }
 
     const data = await response.json();
-    return data.user;
+
+    // The Farcaster API has had multiple response shapes across endpoints/providers.
+    // Normalize defensively so downstream UI can rely on a stable shape.
+    const rawUser =
+      data?.user ??
+      data?.result?.user ??
+      data?.result ??
+      data;
+
+    if (!rawUser) return null;
+
+    const normalized: FarcasterUser = {
+      fid: Number(
+        rawUser.fid ?? rawUser.id ?? rawUser.userId ?? rawUser.user_id ?? 0
+      ),
+      username:
+        rawUser.username ??
+        rawUser.handle ??
+        rawUser.userName ??
+        rawUser.name ??
+        '',
+      displayName:
+        rawUser.displayName ??
+        rawUser.name ??
+        rawUser.profile?.displayName ??
+        rawUser.username ??
+        '',
+      pfp:
+        rawUser.pfp?.url ??
+        rawUser.pfpUrl ??
+        rawUser.pfp ??
+        rawUser.avatar_url ??
+        rawUser.photo_url ??
+        rawUser.profile?.imageUrl ??
+        '',
+      followerCount:
+        rawUser.followerCount ??
+        rawUser.follower_count ??
+        rawUser.stats?.followerCount ??
+        0,
+      followingCount:
+        rawUser.followingCount ??
+        rawUser.following_count ??
+        rawUser.stats?.followingCount ??
+        0,
+      verifications:
+        Array.isArray(rawUser.verifications)
+          ? rawUser.verifications
+          : rawUser.verifiedAddresses?.ethAddresses ??
+            rawUser.verified_addresses?.eth_addresses ??
+            [],
+      bio: {
+        text: rawUser.bio?.text ?? rawUser.bio ?? rawUser.profile?.bio ?? '',
+        mentions: Array.isArray(rawUser.bio?.mentions)
+          ? rawUser.bio.mentions
+          : [],
+      },
+    };
+
+    return normalized;
   } catch (error) {
     console.error('Error getting Farcaster user:', error);
     return null;

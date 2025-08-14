@@ -35,3 +35,18 @@ git clone https://github.com/GideonNut/Moviemeterminiapp.git
 cd Moviemeterminiapp
 npm install
 npm run dev
+---
+
+## 🔧 Environment Variables
+
+Create a `.env.local` in the project root and add:
+
+```
+MONGODB_URI=your_mongodb_connection_string
+TMDB_API_KEY=your_tmdb_v4_read_access_token
+```
+
+Notes:
+- TMDb: use the v4 API Read Access Token (Bearer).
+- MongoDB is required now that in-memory/KV storage has been removed.
+
