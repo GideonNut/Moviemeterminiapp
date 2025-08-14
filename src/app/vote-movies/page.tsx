@@ -1,6 +1,5 @@
 "use client";
-import { useState } from "react";
-import voteMoviesData from "../../data/vote-movies.json";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardTitle, CardDescription } from "~/components/ui/card";
 import { Button } from "~/components/ui/Button";
 import Image from "next/image";
@@ -9,12 +8,27 @@ import { useAccount, useChainId, useSwitchChain, useWalletClient } from "wagmi";
 import { writeContract } from "viem/actions";
 import { useRouter } from "next/navigation";
 import Header from "~/components/Header";
-import { ArrowLeft,  ThumbsUp, ThumbsDown} from "lucide-react";
+import { ArrowLeft, ThumbsUp, ThumbsDown, RefreshCw } from "lucide-react";
 
+interface Movie {
+  id: string;
+  title: string;
+  description: string;
+  posterUrl?: string;
+  releaseYear?: string;
+  genres?: string[];
+  votes: {
+    yes: number;
+    no: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
 
 export default function VoteMoviesPage() {
   const router = useRouter();
-  const [voteMovies] = useState<typeof voteMoviesData>(voteMoviesData);
+  const [voteMovies, setVoteMovies] = useState<Movie[]>([]);
+  const [loading, setLoading] = useState(true);
   const [votes, setVotes] = useState<{ [id: string]: 'yes' | 'no' | null }>({});
   const [txStatus, setTxStatus] = useState<{ [id: string]: string }>({});
 
@@ -22,6 +36,27 @@ export default function VoteMoviesPage() {
   const currentChainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const { data: walletClient } = useWalletClient();
+
+  const fetchMovies = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/movies');
+      if (response.ok) {
+        const data = await response.json();
+        setVoteMovies(data.movies || []);
+      } else {
+        console.error('Failed to fetch movies');
+      }
+    } catch (error) {
+      console.error('Error fetching movies:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMovies();
+  }, []);
 
   const handleVote = async (id: string, vote: 'yes' | 'no') => {
     if (votes[id]) return;
@@ -47,10 +82,28 @@ export default function VoteMoviesPage() {
 
       setVotes((prev) => ({ ...prev, [id]: vote }));
       setTxStatus((prev) => ({ ...prev, [id]: 'success' }));
+      
+      // Refresh movies to get updated vote counts
+      setTimeout(() => fetchMovies(), 1000);
     } catch (err) {
+      console.error('Vote error:', err);
       setTxStatus((prev) => ({ ...prev, [id]: 'error' }));
     }
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto px-4">
+        <Header showSearch={true} />
+        <div className="flex items-center justify-center mt-20">
+          <div className="text-center">
+            <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-white/60" />
+            <p className="text-white/60">Loading movies...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4">
@@ -77,13 +130,19 @@ export default function VoteMoviesPage() {
               <div className="flex">
                 {/* Movie Poster */}
                 <div className="w-24 h-36 relative bg-neutral-900 flex-shrink-0">
-                  <Image
-                    src={movie.posterUrl}
-                    alt={movie.title}
-                    fill
-                    className="object-cover"
-                    sizes="96px"
-                  />
+                  {movie.posterUrl ? (
+                    <Image
+                      src={movie.posterUrl}
+                      alt={movie.title}
+                      fill
+                      className="object-cover"
+                      sizes="96px"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full text-white/40">
+                      <span className="text-xs">No Poster</span>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Movie Info & Voting */}
@@ -93,7 +152,7 @@ export default function VoteMoviesPage() {
                       {movie.title}
                     </CardTitle>
                     <CardDescription className="text-sm text-white/60 mb-3">
-                      {movie.genre} • {movie.year}
+                      {movie.genres && movie.genres.length > 0 ? movie.genres[0] : 'Unknown'} • {movie.releaseYear || 'Unknown Year'}
                     </CardDescription>
                   </div>
                   
