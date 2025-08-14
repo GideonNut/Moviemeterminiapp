@@ -39,12 +39,6 @@ export default function Header({ showSearch = false, onSearch }: HeaderProps) {
             >
               Vote
             </Link>
-            <Link 
-              href="/admin" 
-              className="text-white/70 hover:text-white transition-colors text-sm font-medium"
-            >
-              Admin
-            </Link>
           </nav>
           
           {/* User Avatar on right */}
