@@ -185,22 +185,33 @@ export default function DiscoverPage() {
 
       {/* Recently Added Movies */}
       <section className="mb-8">
-        <h2 className="text-xl font-semibold text-white mb-3">Recently Added Movies</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xl font-semibold text-white">Recently Added Movies</h2>
+          <Link href="/movies">
+            <Button variant="ghost" size="sm" className="text-white/70 hover:text-white hover:bg-white/10">
+              View All Movies
+            </Button>
+          </Link>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           {loading ? (
             <div className="col-span-4 text-center text-white text-sm py-8">Loading movies...</div>
           ) : filteredMovies.length === 0 ? (
             <div className="col-span-4 text-center text-white text-sm py-8">No movies found.</div>
           ) : (
-            filteredMovies.slice(4, 8).map((movie: any) => (
-              <MovieCard
-                key={movie.id || movie._id}
-                movie={movie}
-                onVote={() => {}}
-                isVoting={false}
-                isConnected={true}
-              />
-            ))
+            // Sort by creation date (newest first) and show first 4 movies
+            filteredMovies
+              .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+              .slice(0, 4)
+              .map((movie: any) => (
+                <MovieCard
+                  key={movie.id || movie._id}
+                  movie={movie}
+                  onVote={() => {}}
+                  isVoting={false}
+                  isConnected={true}
+                />
+              ))
           )}
         </div>
       </section>
@@ -231,22 +242,40 @@ export default function DiscoverPage() {
 
       {/* Trending Movies & TV Shows */}
       <section className="mb-8">
-        <h2 className="text-xl font-semibold text-white mb-3">Trending Movies & TV Shows</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xl font-semibold text-white">Trending Movies & TV Shows</h2>
+          <div className="flex gap-2">
+            <Link href="/movies">
+              <Button variant="ghost" size="sm" className="text-white/70 hover:text-white hover:bg-white/10">
+                View All Movies
+              </Button>
+            </Link>
+            <Link href="/tv-shows">
+              <Button variant="ghost" size="sm" className="text-white/70 hover:text-white hover:bg-white/10">
+                View All TV Shows
+              </Button>
+            </Link>
+          </div>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           {loading ? (
             <div className="col-span-4 text-center text-white text-sm py-8">Loading movies...</div>
           ) : filteredMovies.length === 0 ? (
             <div className="col-span-4 text-center text-white text-sm py-8">No movies found.</div>
           ) : (
-            filteredMovies.slice(8, 12).map((movie: any) => (
-              <MovieCard
-                key={movie.id || movie._id}
-                movie={movie}
-                onVote={() => {}}
-                isVoting={false}
-                isConnected={true}
-              />
-            ))
+            // Show movies from index 4-8 (next set of recently added movies)
+            filteredMovies
+              .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+              .slice(4, 8)
+              .map((movie: any) => (
+                <MovieCard
+                  key={movie.id || movie._id}
+                  movie={movie}
+                  onVote={() => {}}
+                  isVoting={false}
+                  isConnected={true}
+                />
+              ))
           )}
         </div>
       </section>
