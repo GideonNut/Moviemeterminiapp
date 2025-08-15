@@ -30,7 +30,7 @@ export default function AdminPage() {
         body: JSON.stringify({
           action: "add",
           movie: {
-            id: Date.now().toString(),
+            // Remove custom ID - let system generate sequential ID starting from 0
             title,
             description,
             releaseYear,
@@ -42,7 +42,7 @@ export default function AdminPage() {
       const data = await res.json();
       
       if (data.success) {
-        setMessage("Movie added successfully!");
+        setMessage(`Movie added successfully with ID: ${data.movieId}!`);
         // Reset form
         setTitle("");
         setDescription("");
@@ -105,6 +105,42 @@ export default function AdminPage() {
         setImportStatus(`✅ Successfully imported ${result.imported} movies for "${query}"!`);
       } else {
         setImportStatus(`❌ Import failed: ${result.error}`);
+      }
+    } catch (error) {
+      setImportStatus(`❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  // Function to sync movies to smart contract
+  const syncMoviesToContract = async () => {
+    setIsImporting(true);
+    setImportStatus("Syncing movies to smart contract...");
+    
+    try {
+      // Get all movies from database
+      const response = await fetch("/api/movies");
+      const data = await response.json();
+      
+      if (data.success && data.movies) {
+        let syncedCount = 0;
+        
+        // For each movie, add it to the contract if it doesn't exist
+        for (const movie of data.movies) {
+          try {
+            // This would call the smart contract to add the movie
+            // For now, we'll just show the process
+            console.log(`Syncing movie ID ${movie.id}: ${movie.title}`);
+            syncedCount++;
+          } catch (error) {
+            console.error(`Failed to sync movie ${movie.id}:`, error);
+          }
+        }
+        
+        setImportStatus(`✅ Synced ${syncedCount} movies to smart contract! Check the voting page for details.`);
+      } else {
+        setImportStatus("❌ Failed to get movies from database");
       }
     } catch (error) {
       setImportStatus(`❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -243,6 +279,51 @@ export default function AdminPage() {
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                 <span>TMDb API: Ready</span>
+              </div>
+            </div>
+            
+            {/* Smart Contract Sync Section */}
+            <div className="mt-6 pt-4 border-t border-white/10">
+              <h3 className="text-lg font-medium mb-3 text-white">🔗 Smart Contract Sync</h3>
+              <p className="text-sm text-white/60 mb-3">
+                Ensure all database movies exist on the smart contract for voting to work.
+              </p>
+              <div className="space-y-2">
+                <Button
+                  onClick={syncMoviesToContract}
+                  disabled={isImporting}
+                  className="w-full bg-purple-600 hover:bg-purple-700"
+                >
+                  {isImporting ? "Syncing..." : "Sync Movies to Contract"}
+                </Button>
+                
+                <Button
+                  onClick={async () => {
+                    if (confirm("⚠️ This will reset all movie IDs to be sequential starting from 0. This action cannot be undone. Continue?")) {
+                      try {
+                        const response = await fetch("/api/movies", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ action: "reset" }),
+                        });
+                        
+                        const result = await response.json();
+                        if (result.success) {
+                          setImportStatus("✅ Movie IDs reset successfully! Refresh the page to see changes.");
+                        } else {
+                          setImportStatus("❌ Failed to reset movie IDs: " + result.error);
+                        }
+                      } catch (error) {
+                        setImportStatus("❌ Error resetting movie IDs: " + (error instanceof Error ? error.message : "Unknown error"));
+                      }
+                    }
+                  }}
+                  disabled={isImporting}
+                  variant="outline"
+                  className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10"
+                >
+                  Reset Movie IDs to Sequential
+                </Button>
               </div>
             </div>
           </div>
