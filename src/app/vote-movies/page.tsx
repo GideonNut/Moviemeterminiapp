@@ -68,7 +68,7 @@ export default function VoteMoviesPage() {
     }
   }, [isConnected, currentChainId, switchChainAsync]);
 
-  const fetchMovies = async () => {
+  const fetchVoteMovies = async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/movies');
@@ -76,18 +76,48 @@ export default function VoteMoviesPage() {
         const data = await response.json();
         setVoteMovies(data.movies || []);
       } else {
-        console.error('Failed to fetch movies');
+        console.error('Failed to fetch vote movies');
       }
     } catch (error) {
-      console.error('Error fetching movies:', error);
+      console.error('Error fetching vote movies:', error);
     } finally {
       setLoading(false);
     }
   };
 
+  // Fetch user's previous votes from MongoDB
+  const fetchUserVotes = async () => {
+    if (!isConnected || !address) return;
+    
+    try {
+      const response = await fetch('/api/movies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'getUserVotes',
+          userAddress: address
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setVotes(data.userVotes || {});
+      }
+    } catch (error) {
+      console.error('Error fetching user votes:', error);
+    }
+  };
+
   useEffect(() => {
-    fetchMovies();
+    fetchVoteMovies();
   }, []);
+
+  // Fetch user votes when wallet connects
+  useEffect(() => {
+    if (isConnected && address) {
+      fetchUserVotes();
+    }
+  }, [isConnected, address]);
 
   const handleVote = async (id: string, vote: 'yes' | 'no') => {
     if (votes[id]) return;
@@ -155,13 +185,37 @@ export default function VoteMoviesPage() {
       // Update the transaction status to success
       setTxStatus((prev) => ({ ...prev, [currentVotingId]: 'success' }));
       
+      // Save vote to MongoDB
+      if (address && votes[currentVotingId]) {
+        fetch('/api/movies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'vote',
+            id: currentVotingId,
+            type: votes[currentVotingId],
+            userAddress: address
+          })
+        }).then(response => {
+          if (!response.ok) {
+            return response.json().then(errorData => {
+              throw new Error(errorData.error || 'Failed to save vote');
+            });
+          }
+        }).catch(error => {
+          console.error('Failed to save vote to MongoDB:', error);
+          // Use the error handling function
+          handleVoteSaveError(currentVotingId, votes[currentVotingId]!);
+        });
+      }
+      
       // Clear the current voting ID
       setCurrentVotingId(null);
       
       // Refresh movies to get updated vote counts
-      setTimeout(() => fetchMovies(), 1000);
+      setTimeout(() => fetchVoteMovies(), 1000);
     }
-  }, [hash, currentVotingId]);
+  }, [hash, currentVotingId, address, votes]);
 
   // Handle errors from the contract
   useEffect(() => {
@@ -192,6 +246,37 @@ export default function VoteMoviesPage() {
       alert(errorMessage);
     }
   }, [error, currentVotingId]);
+
+  // Handle MongoDB vote save errors
+  const handleVoteSaveError = async (id: string, vote: 'yes' | 'no') => {
+    try {
+      const response = await fetch('/api/movies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'vote',
+          id,
+          type: vote,
+          userAddress: address
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (errorData.error?.includes('already voted')) {
+          // User already voted, show specific message
+          alert('You have already voted on this movie. Each user can only vote once per movie.');
+          // Refresh user votes to show current state
+          fetchUserVotes();
+        } else {
+          throw new Error(errorData.error || 'Failed to save vote');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save vote to MongoDB:', error);
+      alert('Failed to save your vote. Please try again.');
+    }
+  };
 
   if (loading) {
     return (
