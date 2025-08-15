@@ -4,8 +4,7 @@ import { Card, CardContent, CardTitle, CardDescription } from "~/components/ui/c
 import { Button } from "~/components/ui/Button";
 import Image from "next/image";
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
-import { useAccount, useChainId, useSwitchChain, useWalletClient, useBalance } from "wagmi";
-import { writeContract } from "viem/actions";
+import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance } from "wagmi";
 import { useRouter } from "next/navigation";
 import Header from "~/components/Header";
 import { ArrowLeft, ThumbsUp, ThumbsDown, RefreshCw, AlertCircle } from "lucide-react";
@@ -36,7 +35,14 @@ export default function VoteMoviesPage() {
   const { address, isConnected } = useAccount();
   const currentChainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
-  const { data: walletClient } = useWalletClient();
+  
+  // Use the proper Wagmi hook for smart contract interactions
+  const { 
+    data: hash, 
+    isPending,
+    writeContract,
+    error
+  } = useWriteContract();
   
   // Get CELO balance for gas fees
   const { data: celoBalance } = useBalance({
@@ -68,6 +74,7 @@ export default function VoteMoviesPage() {
   const handleVote = async (id: string, vote: 'yes' | 'no') => {
     if (votes[id]) return;
     setTxStatus((prev) => ({ ...prev, [id]: 'pending' }));
+    
     try {
       if (!isConnected || !address) throw new Error("Wallet not connected");
 
@@ -78,25 +85,17 @@ export default function VoteMoviesPage() {
 
       const movieId = BigInt(parseInt(id, 10));
 
-      if (!walletClient) throw new Error("Wallet not ready");
-
-      // Use a reasonable gas limit for voting transactions
-      // Celo voting transactions typically use around 100,000 gas
-      const gasLimit = 150000n; // Conservative estimate with buffer
-
-      await writeContract(walletClient, {
+      // Use the proper Wagmi hook for smart contract interactions
+      writeContract({
         address: VOTE_CONTRACT_ADDRESS,
         abi: VOTE_CONTRACT_ABI,
         functionName: "vote",
         args: [movieId, vote === 'yes'],
-        gas: gasLimit,
+        gas: 150000n, // Conservative gas estimate
       });
 
-      setVotes((prev) => ({ ...prev, [id]: vote }));
-      setTxStatus((prev) => ({ ...prev, [id]: 'success' }));
+      // Note: We'll handle success/error in useEffect below
       
-      // Refresh movies to get updated vote counts
-      setTimeout(() => fetchMovies(), 1000);
     } catch (err: any) {
       console.error('Vote error:', err);
       
@@ -118,6 +117,47 @@ export default function VoteMoviesPage() {
       alert(errorMessage);
     }
   };
+
+  // Handle transaction state changes
+  useEffect(() => {
+    if (hash) {
+      // Transaction was sent successfully
+      console.log('Transaction hash:', hash);
+      // Update the vote status and refresh movies
+      setVotes((prev) => ({ ...prev, [Object.keys(votes)[0]]: votes[Object.keys(votes)[0]] }));
+      setTxStatus((prev) => ({ ...prev, [Object.keys(votes)[0]]: 'success' }));
+      
+      // Refresh movies to get updated vote counts
+      setTimeout(() => fetchMovies(), 1000);
+    }
+  }, [hash, votes]);
+
+  // Handle errors from the contract
+  useEffect(() => {
+    if (error) {
+      console.error('Contract error:', error);
+      
+      // Provide specific error messages based on the error
+      let errorMessage = 'Transaction failed';
+      if (error.message?.includes('insufficient funds') || error.message?.includes('insufficient balance')) {
+        errorMessage = 'Insufficient CELO for gas fees. Please ensure you have enough CELO to cover transaction costs.';
+      } else if (error.message?.includes('user rejected')) {
+        errorMessage = 'Transaction was cancelled';
+      } else if (error.message?.includes('execution reverted')) {
+        errorMessage = 'Smart contract execution failed';
+      } else if (error.message?.includes('gas')) {
+        errorMessage = 'Gas estimation failed. Please try again.';
+      }
+      
+      // Find which movie was being voted on and update its status
+      const movieId = Object.keys(txStatus).find(key => txStatus[key] === 'pending');
+      if (movieId) {
+        setTxStatus((prev) => ({ ...prev, [movieId]: 'error' }));
+      }
+      
+      alert(errorMessage);
+    }
+  }, [error, txStatus]);
 
   if (loading) {
     return (
@@ -217,7 +257,7 @@ export default function VoteMoviesPage() {
                     <Button
                       variant={votes[movie.id] === 'yes' ? 'default' : 'ghost'}
                       onClick={() => handleVote(movie.id, 'yes')}
-                      disabled={!isConnected || txStatus[movie.id] === 'pending' || !!votes[movie.id]}
+                      disabled={!isConnected || isPending || !!votes[movie.id]}
                       className="flex items-center gap-2 px-4 py-2"
                       size="sm"
                     >
@@ -228,7 +268,7 @@ export default function VoteMoviesPage() {
                     <Button
                       variant={votes[movie.id] === 'no' ? 'destructive' : 'ghost'}
                       onClick={() => handleVote(movie.id, 'no')}
-                      disabled={!isConnected || txStatus[movie.id] === 'pending' || !!votes[movie.id]}
+                      disabled={!isConnected || isPending || !!votes[movie.id]}
                       className="flex items-center gap-2 px-4 py-2"
                       size="sm"
                     >
@@ -238,16 +278,10 @@ export default function VoteMoviesPage() {
                     
                     {/* Status Messages */}
                     <div className="flex-1 text-right">
-                      {txStatus[movie.id] === 'pending' && (
+                      {isPending && (
                         <span className="text-yellow-400 text-xs">Confirming...</span>
                       )}
-                      {txStatus[movie.id] === 'success' && (
-                        <span className="text-green-400 text-xs">✓ Voted!</span>
-                      )}
-                      {txStatus[movie.id] === 'error' && (
-                        <span className="text-red-400 text-xs">✗ Failed</span>
-                      )}
-                      {votes[movie.id] && !txStatus[movie.id] && (
+                      {votes[movie.id] && !isPending && (
                         <span className="text-blue-400 text-xs">
                           {votes[movie.id] === 'yes' ? 'Voted Yes' : 'Voted No'}
                         </span>
