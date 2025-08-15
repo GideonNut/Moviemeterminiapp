@@ -15,6 +15,7 @@ interface IMovie extends Document {
   };
   createdAt: Date;
   updatedAt: Date;
+  isTVShow?: boolean; // Added isTVShow field
 }
 
 const movieSchema = new mongoose.Schema<IMovie>({
@@ -27,7 +28,8 @@ const movieSchema = new mongoose.Schema<IMovie>({
   votes: {
     yes: { type: Number, default: 0 },
     no: { type: Number, default: 0 }
-  }
+  },
+  isTVShow: { type: Boolean, default: false } // Added isTVShow field
 }, {
   timestamps: true
 });
@@ -178,7 +180,7 @@ export async function getNextMovieId(): Promise<number> {
   }
 }
 
-export async function saveMovie(movie: { id?: string; title: string; description: string; posterUrl?: string; releaseYear?: string; genres?: string[] }): Promise<{ id: string }> {
+export async function saveMovie(movie: { id?: string; title: string; description: string; posterUrl?: string; releaseYear?: string; genres?: string[]; isTVShow?: boolean }): Promise<{ id: string }> {
   try {
     await connectMongo();
     
@@ -201,6 +203,7 @@ export async function saveMovie(movie: { id?: string; title: string; description
           posterUrl: movie.posterUrl,
           releaseYear: movie.releaseYear,
           genres: movie.genres ?? [],
+          isTVShow: movie.isTVShow ?? false, // Add TV show flag
         },
         $setOnInsert: { votes: { yes: 0, no: 0 } },
       },
@@ -217,10 +220,20 @@ export async function saveMovie(movie: { id?: string; title: string; description
 export async function getAllMovies(): Promise<IMovie[]> {
   try {
     await connectMongo();
-    return await MovieModel.find({}).sort({ createdAt: -1 });
+    return await MovieModel.find({ isTVShow: { $ne: true } }).sort({ createdAt: -1 });
   } catch (error) {
     console.error("Error getting all movies:", error);
     throw new Error(`Failed to get movies: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+export async function getTVShows(): Promise<IMovie[]> {
+  try {
+    await connectMongo();
+    return await MovieModel.find({ isTVShow: true }).sort({ createdAt: -1 });
+  } catch (error) {
+    console.error("Error getting TV shows:", error);
+    throw new Error(`Failed to get TV shows: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
