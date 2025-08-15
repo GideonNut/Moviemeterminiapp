@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "~/components/ui/Button";
 
@@ -10,10 +10,12 @@ export default function AdminPage() {
   const [description, setDescription] = useState("");
   const [releaseYear, setReleaseYear] = useState("");
   const [posterUrl, setPosterUrl] = useState("");
+  const [isTVShow, setIsTVShow] = useState(false);
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [importStatus, setImportStatus] = useState<string>("");
   const [isImporting, setIsImporting] = useState(false);
+  const [contentCounts, setContentCounts] = useState({ movies: 0, tvShows: 0 });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,6 +37,7 @@ export default function AdminPage() {
             description,
             releaseYear,
             posterUrl,
+            isTVShow, // Include TV show flag
           }
         }),
       });
@@ -42,12 +45,14 @@ export default function AdminPage() {
       const data = await res.json();
       
       if (data.success) {
-        setMessage(`Movie added successfully with ID: ${data.movieId}!`);
+        const mediaType = isTVShow ? "TV Show" : "Movie";
+        setMessage(`${mediaType} added successfully with ID: ${data.movieId}!`);
         // Reset form
         setTitle("");
         setDescription("");
         setReleaseYear("");
         setPosterUrl("");
+        setIsTVShow(false);
         // Refresh the movies list
         router.refresh();
       } else {
@@ -113,34 +118,45 @@ export default function AdminPage() {
     }
   };
 
-  // Function to sync movies to smart contract
-  const syncMoviesToContract = async () => {
+  // Function to sync content to smart contract
+  const syncContentToContract = async () => {
     setIsImporting(true);
-    setImportStatus("Syncing movies to smart contract...");
+    setImportStatus("Syncing content to smart contract...");
     
     try {
-      // Get all movies from database
-      const response = await fetch("/api/movies");
-      const data = await response.json();
+      // Get all content from database
+      const [moviesResponse, tvShowsResponse] = await Promise.all([
+        fetch("/api/movies"),
+        fetch("/api/tv-shows")
+      ]);
       
-      if (data.success && data.movies) {
+      const moviesData = await moviesResponse.json();
+      const tvShowsData = await tvShowsResponse.json();
+      
+      if (moviesData.success && tvShowsData.success) {
+        const allContent = [
+          ...(moviesData.movies || []),
+          ...(tvShowsData.tvShows || [])
+        ];
+        
         let syncedCount = 0;
         
-        // For each movie, add it to the contract if it doesn't exist
-        for (const movie of data.movies) {
+        // For each content item, add it to the contract if it doesn't exist
+        for (const content of allContent) {
           try {
-            // This would call the smart contract to add the movie
+            // This would call the smart contract to add the content
             // For now, we'll just show the process
-            console.log(`Syncing movie ID ${movie.id}: ${movie.title}`);
+            const contentType = content.isTVShow ? 'TV Show' : 'Movie';
+            console.log(`Syncing ${contentType} ID ${content.id}: ${content.title}`);
             syncedCount++;
           } catch (error) {
-            console.error(`Failed to sync movie ${movie.id}:`, error);
+            console.error(`Failed to sync content ${content.id}:`, error);
           }
         }
         
-        setImportStatus(`✅ Synced ${syncedCount} movies to smart contract! Check the voting page for details.`);
+        setImportStatus(`✅ Synced ${syncedCount} content items to smart contract! Check the voting pages for details.`);
       } else {
-        setImportStatus("❌ Failed to get movies from database");
+        setImportStatus("❌ Failed to get content from database");
       }
     } catch (error) {
       setImportStatus(`❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -149,10 +165,37 @@ export default function AdminPage() {
     }
   };
 
+  // Function to fetch content counts
+  const fetchContentCounts = async () => {
+    try {
+      const [moviesResponse, tvShowsResponse] = await Promise.all([
+        fetch("/api/movies"),
+        fetch("/api/tv-shows")
+      ]);
+      
+      const moviesData = await moviesResponse.json();
+      const tvShowsData = await tvShowsResponse.json();
+      
+      if (moviesData.success && tvShowsData.success) {
+        setContentCounts({
+          movies: moviesData.movies?.length || 0,
+          tvShows: tvShowsData.tvShows?.length || 0
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching content counts:', error);
+    }
+  };
+
+  // Fetch counts on component mount
+  useEffect(() => {
+    fetchContentCounts();
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#0A0A0A] py-12">
       <div className="max-w-md mx-auto p-6 bg-[#18181B] rounded-lg shadow-lg">
-        <h2 className="text-2xl font-bold mb-4 text-white">Add a Movie</h2>
+        <h2 className="text-2xl font-bold mb-4 text-white">Add Content</h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-white/70 mb-1">Title</label>
@@ -198,12 +241,27 @@ export default function AdminPage() {
               className="w-full p-2 rounded bg-[#2D2D33] text-white border border-white/10 focus:border-blue-500 focus:outline-none"
             />
           </div>
+          
+          {/* TV Show Checkbox */}
+          <div className="flex items-center gap-2">
+            <input
+              id="isTVShow"
+              type="checkbox"
+              checked={isTVShow}
+              onChange={e => setIsTVShow(e.target.checked)}
+              className="w-4 h-4 text-blue-600 bg-[#2D2D33] border border-white/10 rounded focus:ring-blue-500 focus:ring-2"
+            />
+            <label htmlFor="isTVShow" className="text-sm font-medium text-white/70">
+              This is a TV Show
+            </label>
+          </div>
+          
           <button 
             type="submit" 
             className={`mt-2 bg-blue-600 text-white p-3 rounded-lg font-medium hover:bg-blue-700 transition-colors ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             disabled={isLoading}
           >
-            {isLoading ? 'Adding Movie...' : 'Add Movie'}
+            {isLoading ? 'Adding...' : `Add ${isTVShow ? 'TV Show' : 'Movie'}`}
           </button>
         </form>
         {message && (
@@ -282,24 +340,47 @@ export default function AdminPage() {
               </div>
             </div>
             
+            {/* Content Counts */}
+            <div className="mt-4 pt-4 border-t border-white/10">
+              <h3 className="text-lg font-medium mb-3 text-white">📊 Content Counts</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="text-center p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                  <div className="text-2xl font-bold text-blue-400">{contentCounts.movies}</div>
+                  <div className="text-blue-300">Movies</div>
+                </div>
+                <div className="text-center p-3 bg-purple-500/10 rounded-lg border border-purple-500/20">
+                  <div className="text-2xl font-bold text-purple-400">{contentCounts.tvShows}</div>
+                  <div className="text-purple-300">TV Shows</div>
+                </div>
+              </div>
+              <Button
+                onClick={fetchContentCounts}
+                size="sm"
+                variant="ghost"
+                className="w-full mt-3 text-white/60 hover:text-white"
+              >
+                Refresh Counts
+              </Button>
+            </div>
+            
             {/* Smart Contract Sync Section */}
             <div className="mt-6 pt-4 border-t border-white/10">
               <h3 className="text-lg font-medium mb-3 text-white">🔗 Smart Contract Sync</h3>
               <p className="text-sm text-white/60 mb-3">
-                Ensure all database movies exist on the smart contract for voting to work.
+                Ensure all database content exists on the smart contract for voting to work.
               </p>
               <div className="space-y-2">
                 <Button
-                  onClick={syncMoviesToContract}
+                  onClick={syncContentToContract}
                   disabled={isImporting}
                   className="w-full bg-purple-600 hover:bg-purple-700"
                 >
-                  {isImporting ? "Syncing..." : "Sync Movies to Contract"}
+                  {isImporting ? "Syncing..." : "Sync Content to Contract"}
                 </Button>
                 
                 <Button
                   onClick={async () => {
-                    if (confirm("⚠️ This will reset all movie IDs to be sequential starting from 0. This action cannot be undone. Continue?")) {
+                    if (confirm("⚠️ This will reset all content IDs to be sequential starting from 0. This action cannot be undone. Continue?")) {
                       try {
                         const response = await fetch("/api/movies", {
                           method: "POST",
@@ -309,12 +390,12 @@ export default function AdminPage() {
                         
                         const result = await response.json();
                         if (result.success) {
-                          setImportStatus("✅ Movie IDs reset successfully! Refresh the page to see changes.");
+                          setImportStatus("✅ Content IDs reset successfully! Refresh the page to see changes.");
                         } else {
-                          setImportStatus("❌ Failed to reset movie IDs: " + result.error);
+                          setImportStatus("❌ Failed to reset content IDs: " + result.error);
                         }
                       } catch (error) {
-                        setImportStatus("❌ Error resetting movie IDs: " + (error instanceof Error ? error.message : "Unknown error"));
+                        setImportStatus("❌ Error resetting content IDs: " + (error instanceof Error ? error.message : "Unknown error"));
                       }
                     }
                   }}
@@ -322,7 +403,7 @@ export default function AdminPage() {
                   variant="outline"
                   className="w-full border-red-500/30 text-red-400 hover:bg-red-500/10"
                 >
-                  Reset Movie IDs to Sequential
+                  Reset Content IDs to Sequential
                 </Button>
               </div>
             </div>
