@@ -4,11 +4,12 @@ import { Card, CardContent, CardTitle, CardDescription } from "~/components/ui/c
 import { Button } from "~/components/ui/Button";
 import Image from "next/image";
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
-import { useAccount, useChainId, useSwitchChain, useWalletClient } from "wagmi";
+import { useAccount, useChainId, useSwitchChain, useWalletClient, useBalance } from "wagmi";
 import { writeContract } from "viem/actions";
 import { useRouter } from "next/navigation";
 import Header from "~/components/Header";
-import { ArrowLeft, ThumbsUp, ThumbsDown, Plus, RefreshCw } from "lucide-react";
+import { ArrowLeft, ThumbsUp, ThumbsDown, Plus, RefreshCw, AlertCircle } from "lucide-react";
+import { formatCELOBalance, hasSufficientCELOForGas } from "~/lib/utils";
 
 interface Movie {
   id: string;
@@ -36,6 +37,12 @@ export default function MoviesPage() {
   const currentChainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const { data: walletClient } = useWalletClient();
+  
+  // Get CELO balance for gas fees
+  const { data: celoBalance } = useBalance({
+    address,
+    chainId: 42220,
+  });
 
   const fetchMovies = async () => {
     try {
@@ -74,11 +81,16 @@ export default function MoviesPage() {
 
       if (!walletClient) throw new Error("Wallet not ready");
 
+      // Use a reasonable gas limit for voting transactions
+      // Celo voting transactions typically use around 100,000 gas
+      const gasLimit = 150000n; // Conservative estimate with buffer
+
       await writeContract(walletClient, {
         address: VOTE_CONTRACT_ADDRESS,
         abi: VOTE_CONTRACT_ABI,
         functionName: "vote",
         args: [movieId, vote === 'yes'],
+        gas: gasLimit,
       });
 
       // Update local state
@@ -87,9 +99,25 @@ export default function MoviesPage() {
       
       // Refresh movies to get updated vote counts
       setTimeout(() => fetchMovies(), 1000);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Vote error:', err);
+      
+      // Provide more specific error messages
+      let errorMessage = 'Transaction failed';
+      if (err.message?.includes('insufficient funds') || err.message?.includes('insufficient balance')) {
+        errorMessage = 'Insufficient CELO for gas fees. Please ensure you have enough CELO to cover transaction costs.';
+      } else if (err.message?.includes('user rejected')) {
+        errorMessage = 'Transaction was cancelled';
+      } else if (err.message?.includes('execution reverted')) {
+        errorMessage = 'Smart contract execution failed';
+      } else if (err.message?.includes('gas')) {
+        errorMessage = 'Gas estimation failed. Please try again.';
+      }
+      
       setTxStatus((prev) => ({ ...prev, [id]: 'error' }));
+      
+      // Show error to user (you can add a toast notification here)
+      alert(errorMessage);
     }
   };
 
@@ -115,7 +143,35 @@ export default function MoviesPage() {
     <div className="max-w-4xl mx-auto px-4">
       <Header showSearch={true} />
       
-      {/* Page Header */}
+      {/* Balance and Gas Status */}
+      {isConnected && celoBalance && (
+        <div className="mb-6 p-4 rounded-lg border border-white/10 bg-[#18181B]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-white/60 text-sm">CELO Balance:</span>
+              <span className="text-white font-medium">{formatCELOBalance(celoBalance.value)} CELO</span>
+            </div>
+            {!hasSufficientCELOForGas(celoBalance.value) && (
+              <div className="flex items-center gap-2 text-yellow-400 text-sm">
+                <AlertCircle size={16} />
+                <span>Low balance for gas fees</span>
+              </div>
+            )}
+          </div>
+          <p className="text-white/40 text-xs mt-2">
+            Gas fees on Celo are typically 0.001-0.01 CELO per transaction
+          </p>
+          {!hasSufficientCELOForGas(celoBalance.value) && (
+            <div className="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
+              <p className="text-yellow-400 text-xs">
+                ⚠️ You need at least 0.01 CELO to vote. Please add more CELO to your wallet for gas fees.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Add Movie Button */}
       <div className="flex items-center justify-between mt-10 mb-6">
         <div className="flex items-center">
           <Button 
