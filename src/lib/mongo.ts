@@ -156,15 +156,46 @@ async function getNotificationsCollection() {
 }
 
 // Movies API with Mongoose
-export async function saveMovie(movie: { id: string; title: string; description: string; posterUrl?: string; releaseYear?: string; genres?: string[] }): Promise<void> {
+export async function getNextMovieId(): Promise<number> {
   try {
     await connectMongo();
     
+    // Get the highest existing ID
+    const lastMovie = await MovieModel.findOne({}, { id: 1 }).sort({ id: -1 });
+    
+    if (!lastMovie) {
+      // No movies exist, start from 0
+      return 0;
+    }
+    
+    // Parse the last ID and increment by 1
+    const lastId = parseInt(lastMovie.id, 10);
+    return lastId + 1;
+  } catch (error) {
+    console.error("Error getting next movie ID:", error);
+    // Fallback to 0 if there's an error
+    return 0;
+  }
+}
+
+export async function saveMovie(movie: { id?: string; title: string; description: string; posterUrl?: string; releaseYear?: string; genres?: string[] }): Promise<{ id: string }> {
+  try {
+    await connectMongo();
+    
+    // If no ID provided, generate the next sequential ID
+    let movieId: string;
+    if (!movie.id) {
+      const nextId = await getNextMovieId();
+      movieId = nextId.toString();
+    } else {
+      movieId = movie.id;
+    }
+    
     await MovieModel.findOneAndUpdate(
-      { id: movie.id },
+      { id: movieId },
       {
         $set: {
-          id: movie.id,
+          id: movieId,
           title: movie.title,
           description: movie.description,
           posterUrl: movie.posterUrl,
@@ -175,6 +206,8 @@ export async function saveMovie(movie: { id: string; title: string; description:
       },
       { upsert: true, new: true }
     );
+    
+    return { id: movieId };
   } catch (error) {
     console.error("Error saving movie:", error);
     throw new Error(`Failed to save movie: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -253,6 +286,39 @@ export async function deleteUserNotificationDetails(fid: number): Promise<void> 
   } catch (error) {
     console.error("Error deleting user notification details:", error);
     throw new Error(`Failed to delete notification details: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+export async function resetMovieIds(): Promise<void> {
+  try {
+    await connectMongo();
+    
+    // Get all movies sorted by creation date
+    const movies = await MovieModel.find({}).sort({ createdAt: 1 });
+    
+    // Reset IDs to be sequential starting from 0
+    for (let i = 0; i < movies.length; i++) {
+      const newId = i.toString();
+      await MovieModel.updateOne(
+        { _id: movies[i]._id },
+        { $set: { id: newId } }
+      );
+    }
+    
+    console.log(`Reset ${movies.length} movie IDs to be sequential starting from 0`);
+  } catch (error) {
+    console.error("Error resetting movie IDs:", error);
+    throw new Error(`Failed to reset movie IDs: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+export async function getMovieCount(): Promise<number> {
+  try {
+    await connectMongo();
+    return await MovieModel.countDocuments({});
+  } catch (error) {
+    console.error("Error getting movie count:", error);
+    return 0;
   }
 }
 
