@@ -74,13 +74,38 @@ export default function AdminPage() {
       const response = await fetch("/api/import/tmdb", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "trending", page: 1 }),
+        body: JSON.stringify({ mode: "trending", page: 1, mediaType: "movie" }),
       });
       
       const result = await response.json();
       
       if (result.success) {
         setImportStatus(`✅ Successfully imported ${result.imported} trending movies!`);
+      } else {
+        setImportStatus(`❌ Import failed: ${result.error}`);
+      }
+    } catch (error) {
+      setImportStatus(`❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const importTrendingTV = async () => {
+    setIsImporting(true);
+    setImportStatus("Importing trending TV shows...");
+    
+    try {
+      const response = await fetch("/api/import/tmdb", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "trending", page: 1, mediaType: "tv" }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setImportStatus(`✅ Successfully imported ${result.imported} trending TV shows!`);
       } else {
         setImportStatus(`❌ Import failed: ${result.error}`);
       }
@@ -101,13 +126,40 @@ export default function AdminPage() {
       const response = await fetch("/api/import/tmdb", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "search", query: query.trim(), page: 1 }),
+        body: JSON.stringify({ mode: "search", query: query.trim(), page: 1, mediaType: "movie" }),
       });
       
       const result = await response.json();
       
       if (result.success) {
         setImportStatus(`✅ Successfully imported ${result.imported} movies for "${query}"!`);
+      } else {
+        setImportStatus(`❌ Import failed: ${result.error}`);
+      }
+    } catch (error) {
+      setImportStatus(`❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const importSearchTV = async (query: string) => {
+    if (!query.trim()) return;
+    
+    setIsImporting(true);
+    setImportStatus(`Searching for TV shows "${query}"...`);
+    
+    try {
+      const response = await fetch("/api/import/tmdb", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "search", query: query.trim(), page: 1, mediaType: "tv" }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setImportStatus(`✅ Successfully imported ${result.imported} TV shows for "${query}"!`);
       } else {
         setImportStatus(`❌ Import failed: ${result.error}`);
       }
@@ -274,7 +326,7 @@ export default function AdminPage() {
       <div className="container mx-auto px-4 py-8 mt-10">
         <h1 className="text-3xl font-bold mb-8 text-white">Admin Dashboard</h1>
         
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {/* TMDb Import Section */}
           <div className="bg-[#18181B] p-6 rounded-lg shadow-md">
             <h2 className="text-xl font-semibold mb-4 text-white">🎬 TMDb Movie Import</h2>
@@ -320,6 +372,76 @@ export default function AdminPage() {
                   <p className="text-sm text-white/70">{importStatus}</p>
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* TMDb TV Show Import Section */}
+          <div className="bg-[#18181B] p-6 rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold mb-4 text-white">📺 TMDb TV Show Import</h2>
+            
+            <div className="space-y-4">
+              <Button 
+                onClick={importTrendingTV}
+                disabled={isImporting}
+                className="w-full"
+              >
+                {isImporting ? "Importing..." : "Import Trending TV Shows"}
+              </Button>
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-white/70">Search & Import TV Shows</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="e.g., Breaking Bad, Stranger Things, etc."
+                    className="flex-1 p-2 rounded bg-[#2D2D33] text-white border border-white/10 focus:border-purple-500 focus:outline-none"
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter") {
+                        const target = e.target as HTMLInputElement;
+                        importSearchTV(target.value);
+                      }
+                    }}
+                  />
+                  <Button
+                    onClick={() => {
+                      const input = document.querySelector('input[placeholder*="Breaking Bad"]') as HTMLInputElement;
+                      if (input) importSearchTV(input.value);
+                    }}
+                    disabled={isImporting}
+                    size="sm"
+                  >
+                    Search
+                  </Button>
+                </div>
+              </div>
+              
+              {importStatus && (
+                <div className="mt-4 p-3 rounded bg-[#2D2D33]">
+                  <p className="text-sm text-white/70">{importStatus}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* TMDB Test Section */}
+          <div className="bg-[#18181B] p-6 rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold mb-4 text-white">🧪 TMDB Testing</h2>
+            
+            <div className="space-y-4">
+              <p className="text-sm text-white/70">
+                Test TMDB image URL construction and verify that images are loading correctly.
+              </p>
+              
+              <Button 
+                onClick={() => window.open('/test-tmdb', '_blank')}
+                className="w-full"
+              >
+                Open TMDB Test Page
+              </Button>
+              
+              <div className="text-xs text-white/50">
+                This will open a new tab with image URL tests and sample images.
+              </div>
             </div>
           </div>
 
