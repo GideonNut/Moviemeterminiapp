@@ -45,18 +45,6 @@ export default function VoteMoviesPage() {
     error
   } = useWriteContract();
 
-  // Function to check if movie exists on contract
-  const checkMovieExists = async (movieId: string): Promise<boolean> => {
-    try {
-      // For now, we'll assume the movie exists and let the contract call fail if it doesn't
-      // This will be caught by the error handling in the vote function
-      return true;
-    } catch (error) {
-      console.error('Error checking movie existence:', error);
-      return false;
-    }
-  };
-
   // Function to add movie to smart contract
   const addMovieToContract = async (movieTitle: string) => {
     try {
@@ -84,29 +72,6 @@ export default function VoteMoviesPage() {
     }
   };
 
-  // State for contract movie count
-  const [contractMovieCount, setContractMovieCount] = useState<number | null>(null);
-
-  // Function to get movie count from contract
-  const getContractMovieCount = async () => {
-    try {
-      if (currentChainId !== 42220) return;
-      
-      // This would require a read contract call, but for now we'll show a placeholder
-      // In a real implementation, you'd use useReadContract hook
-      setContractMovieCount(null);
-    } catch (error) {
-      console.error('Error getting contract movie count:', error);
-    }
-  };
-
-  // Get contract info when on Celo network
-  useEffect(() => {
-    if (currentChainId === 42220) {
-      getContractMovieCount();
-    }
-  }, [currentChainId]);
-  
   // Get CELO balance for gas fees
   const { data: celoBalance } = useBalance({
     address,
@@ -166,12 +131,6 @@ export default function VoteMoviesPage() {
     try {
       if (!isConnected || !address) throw new Error("Wallet not connected");
 
-      // Check if movie exists on the smart contract first
-      const movieExists = await checkMovieExists(id);
-      if (!movieExists) {
-        throw new Error(`Movie ID ${id} does not exist on the smart contract. Please add it to the contract first.`);
-      }
-
       const movieId = BigInt(parseInt(id, 10));
 
       // Set the vote immediately to prevent double-clicking
@@ -196,9 +155,7 @@ export default function VoteMoviesPage() {
       
       // Provide more specific error messages
       let errorMessage = 'Transaction failed';
-      if (err.message?.includes('does not exist on the smart contract')) {
-        errorMessage = err.message;
-      } else if (err.message?.includes('insufficient funds') || err.message?.includes('insufficient balance')) {
+      if (err.message?.includes('insufficient funds') || err.message?.includes('insufficient balance')) {
         errorMessage = 'Insufficient CELO for gas fees. Please ensure you have enough CELO to cover transaction costs.';
       } else if (err.message?.includes('user rejected')) {
         errorMessage = 'Transaction was cancelled';
@@ -293,30 +250,6 @@ export default function VoteMoviesPage() {
         </Button>
         <h1 className="text-xl font-semibold text-white">Vote on Movies</h1>
       </div>
-
-      {/* Debug Information - Remove this after testing */}
-      {isConnected && (
-        <div className="mb-4 p-3 rounded-lg border border-blue-500/20 bg-blue-500/10">
-          <h3 className="text-blue-400 text-sm font-medium mb-2">Debug Info</h3>
-          <div className="text-xs text-blue-300 space-y-1">
-            <div>Wallet Address: {address?.slice(0, 6)}...{address?.slice(-4)}</div>
-            <div>Current Chain ID: {currentChainId}</div>
-            <div>Network: {currentChainId === 42220 ? 'Celo Mainnet' : 
-                           currentChainId === 44787 ? 'Celo Alfajores' : 
-                           isSwitchingNetwork ? 'Switching to Celo...' : `Unknown (${currentChainId})`}</div>
-            <div>Network Switching: {isSwitchingNetwork ? 'Yes' : 'No'}</div>
-            <div>Balance: {celoBalance ? `${formatCELOBalance(celoBalance.value)} CELO` : 'Loading...'}</div>
-            <div>Sufficient for Gas: {celoBalance ? (hasSufficientCELOForGas(celoBalance.value) ? 'Yes' : 'No') : 'Unknown'}</div>
-            <div className="mt-2 pt-2 border-t border-blue-500/20">
-              <div className="font-medium text-blue-200">Contract Info:</div>
-              <div>Contract Address: {VOTE_CONTRACT_ADDRESS.slice(0, 6)}...{VOTE_CONTRACT_ADDRESS.slice(-4)}</div>
-              <div>Available Movies: {voteMovies.length}</div>
-              <div>Movie IDs: {voteMovies.map(m => m.id).join(', ')}</div>
-              <div>Contract Movie Count: {contractMovieCount !== null ? contractMovieCount : 'Check CeloScan'}</div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Balance and Gas Status */}
       {isConnected && (
@@ -442,6 +375,18 @@ export default function VoteMoviesPage() {
                     <CardDescription className="text-sm text-white/60 mb-3">
                       {movie.genres && movie.genres.length > 0 ? movie.genres[0] : 'Unknown'} • {movie.releaseYear || 'Unknown Year'}
                     </CardDescription>
+                    
+                    {/* Vote Counts Display */}
+                    <div className="flex items-center gap-4 text-xs text-white/60 mb-3">
+                      <span className="flex items-center gap-1">
+                        <ThumbsUp size={14} className="text-green-400" />
+                        {movie.votes.yes} Yes
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <ThumbsDown size={14} className="text-red-400" />
+                        {movie.votes.no} No
+                      </span>
+                    </div>
                   </div>
                   
                   {/* Vote Buttons */}
@@ -470,7 +415,7 @@ export default function VoteMoviesPage() {
                     
                     {/* Status Messages */}
                     <div className="flex-1 text-right">
-                      {isPending && (
+                      {isPending && currentVotingId === movie.id && (
                         <span className="text-yellow-400 text-xs">Confirming...</span>
                       )}
                       {votes[movie.id] && !isPending && (
