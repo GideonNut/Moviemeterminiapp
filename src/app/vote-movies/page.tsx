@@ -45,33 +45,6 @@ export default function VoteMoviesPage() {
     error
   } = useWriteContract();
 
-  // Function to add movie to smart contract
-  const addMovieToContract = async (movieTitle: string) => {
-    try {
-      if (!isConnected || !address) throw new Error("Wallet not connected");
-      
-      // Ensure we're on Celo
-      if (currentChainId !== 42220) {
-        alert('Please switch to Celo network first');
-        return;
-      }
-
-      // Add movie to contract
-      writeContract({
-        address: VOTE_CONTRACT_ADDRESS,
-        abi: VOTE_CONTRACT_ABI,
-        functionName: "addMovie",
-        args: [movieTitle],
-        gas: 200000n, // Slightly higher gas for adding movies
-      });
-
-      alert(`Adding "${movieTitle}" to smart contract...`);
-    } catch (error) {
-      console.error('Error adding movie to contract:', error);
-      alert('Failed to add movie to contract. See console for details.');
-    }
-  };
-
   // Get CELO balance for gas fees
   const { data: celoBalance } = useBalance({
     address,
@@ -311,40 +284,6 @@ export default function VoteMoviesPage() {
 
       {/* Movies List */}
       <div className="space-y-4">
-        {/* Warning about movie ID sync */}
-        {voteMovies.length > 0 && (
-          <div className="mb-4 p-3 rounded-lg border border-orange-500/20 bg-orange-500/10">
-            <p className="text-orange-400 text-xs mb-2">
-              ⚠️ <strong>Important:</strong> Make sure these movie IDs exist on the smart contract at {VOTE_CONTRACT_ADDRESS.slice(0, 6)}...{VOTE_CONTRACT_ADDRESS.slice(-4)}. 
-              If a movie ID doesn't exist on the contract, voting will fail.
-            </p>
-            <div className="flex gap-2">
-              <Button
-                onClick={() => {
-                  const movieTitle = prompt('Enter movie title to add to contract:');
-                  if (movieTitle) {
-                    addMovieToContract(movieTitle);
-                  }
-                }}
-                size="sm"
-                className="bg-orange-600 hover:bg-orange-700 text-xs"
-              >
-                Add Movie to Contract
-              </Button>
-              <Button
-                onClick={() => {
-                  alert(`Current contract address: ${VOTE_CONTRACT_ADDRESS}\n\nTo check if movies exist:\n1. Go to CeloScan: https://celoscan.io/address/${VOTE_CONTRACT_ADDRESS}\n2. Check the "Contract" tab\n3. Call the "movies" function with different IDs (0, 1, 2, etc.)`);
-                }}
-                size="sm"
-                variant="ghost"
-                className="text-orange-400 hover:text-orange-300 text-xs"
-              >
-                How to Check Contract
-              </Button>
-            </div>
-          </div>
-        )}
-        
         {voteMovies.map((movie) => (
           <Card key={movie.id} className="bg-[#18181B] text-white border border-white/10 overflow-hidden">
             <CardContent className="p-0">
