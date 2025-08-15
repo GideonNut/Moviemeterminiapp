@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getAllMovies, saveMovie, saveVote, resetMovieIds } from "../../../lib/mongo";
+import { getAllMovies, saveMovie, saveVote, resetMovieIds, getUserVotes } from "../../../lib/mongo";
 
 export const runtime = "nodejs";
 
@@ -19,8 +19,11 @@ export async function POST(request: NextRequest) {
       const result = await saveMovie(body.movie);
       return Response.json({ success: true, movieId: result.id });
     } else if (body.action === "vote") {
-      await saveVote(body.id, body.type);
+      await saveVote(body.id, body.type, body.userAddress);
       return Response.json({ success: true });
+    } else if (body.action === "getUserVotes") {
+      const userVotes = await getUserVotes(body.userAddress);
+      return Response.json({ success: true, userVotes });
     } else if (body.action === "reset") {
       await resetMovieIds();
       return Response.json({ success: true, message: "Movie IDs reset successfully" });
