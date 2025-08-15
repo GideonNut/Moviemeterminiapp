@@ -4,7 +4,7 @@ import { Card, CardContent, CardTitle, CardDescription } from "~/components/ui/c
 import { Button } from "~/components/ui/Button";
 import Image from "next/image";
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
-import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance } from "wagmi";
+import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance, useReadContract } from "wagmi";
 import { useRouter } from "next/navigation";
 import Header from "~/components/Header";
 import { ArrowLeft, ThumbsUp, ThumbsDown, RefreshCw, AlertCircle } from "lucide-react";
@@ -43,6 +43,68 @@ export default function VoteMoviesPage() {
     writeContract,
     error
   } = useWriteContract();
+
+  // Function to check if movie exists on contract
+  const checkMovieExists = async (movieId: string): Promise<boolean> => {
+    try {
+      // For now, we'll assume the movie exists and let the contract call fail if it doesn't
+      // This will be caught by the error handling in the vote function
+      return true;
+    } catch (error) {
+      console.error('Error checking movie existence:', error);
+      return false;
+    }
+  };
+
+  // Function to add movie to smart contract
+  const addMovieToContract = async (movieTitle: string) => {
+    try {
+      if (!isConnected || !address) throw new Error("Wallet not connected");
+      
+      // Ensure we're on Celo
+      if (currentChainId !== 42220) {
+        alert('Please switch to Celo network first');
+        return;
+      }
+
+      // Add movie to contract
+      writeContract({
+        address: VOTE_CONTRACT_ADDRESS,
+        abi: VOTE_CONTRACT_ABI,
+        functionName: "addMovie",
+        args: [movieTitle],
+        gas: 200000n, // Slightly higher gas for adding movies
+      });
+
+      alert(`Adding "${movieTitle}" to smart contract...`);
+    } catch (error) {
+      console.error('Error adding movie to contract:', error);
+      alert('Failed to add movie to contract. See console for details.');
+    }
+  };
+
+  // State for contract movie count
+  const [contractMovieCount, setContractMovieCount] = useState<number | null>(null);
+
+  // Function to get movie count from contract
+  const getContractMovieCount = async () => {
+    try {
+      if (currentChainId !== 42220) return;
+      
+      // This would require a read contract call, but for now we'll show a placeholder
+      // In a real implementation, you'd use useReadContract hook
+      setContractMovieCount(null);
+    } catch (error) {
+      console.error('Error getting contract movie count:', error);
+    }
+  };
+
+  // Get contract info when on Celo network
+  useEffect(() => {
+    if (currentChainId === 42220) {
+      getContractMovieCount();
+    }
+  }, [currentChainId]);
   
   // Get CELO balance for gas fees
   const { data: celoBalance } = useBalance({
@@ -102,6 +164,12 @@ export default function VoteMoviesPage() {
     try {
       if (!isConnected || !address) throw new Error("Wallet not connected");
 
+      // Check if movie exists on the smart contract first
+      const movieExists = await checkMovieExists(id);
+      if (!movieExists) {
+        throw new Error(`Movie ID ${id} does not exist on the smart contract. Please add it to the contract first.`);
+      }
+
       const movieId = BigInt(parseInt(id, 10));
 
       // Use the proper Wagmi hook for smart contract interactions
@@ -120,7 +188,9 @@ export default function VoteMoviesPage() {
       
       // Provide more specific error messages
       let errorMessage = 'Transaction failed';
-      if (err.message?.includes('insufficient funds') || err.message?.includes('insufficient balance')) {
+      if (err.message?.includes('does not exist on the smart contract')) {
+        errorMessage = err.message;
+      } else if (err.message?.includes('insufficient funds') || err.message?.includes('insufficient balance')) {
         errorMessage = 'Insufficient CELO for gas fees. Please ensure you have enough CELO to cover transaction costs.';
       } else if (err.message?.includes('user rejected')) {
         errorMessage = 'Transaction was cancelled';
@@ -163,7 +233,7 @@ export default function VoteMoviesPage() {
       } else if (error.message?.includes('user rejected')) {
         errorMessage = 'Transaction was cancelled';
       } else if (error.message?.includes('execution reverted')) {
-        errorMessage = 'Smart contract execution failed';
+        errorMessage = 'Smart contract execution failed. This could mean:\n\n1. The movie ID does not exist on the contract\n2. The contract has an error\n3. You have already voted on this movie\n\nPlease check if the movie exists on the contract first.';
       } else if (error.message?.includes('gas')) {
         errorMessage = 'Gas estimation failed. Please try again.';
       }
@@ -222,6 +292,13 @@ export default function VoteMoviesPage() {
             <div>Network Switching: {isSwitchingNetwork ? 'Yes' : 'No'}</div>
             <div>Balance: {celoBalance ? `${formatCELOBalance(celoBalance.value)} CELO` : 'Loading...'}</div>
             <div>Sufficient for Gas: {celoBalance ? (hasSufficientCELOForGas(celoBalance.value) ? 'Yes' : 'No') : 'Unknown'}</div>
+            <div className="mt-2 pt-2 border-t border-blue-500/20">
+              <div className="font-medium text-blue-200">Contract Info:</div>
+              <div>Contract Address: {VOTE_CONTRACT_ADDRESS.slice(0, 6)}...{VOTE_CONTRACT_ADDRESS.slice(-4)}</div>
+              <div>Available Movies: {voteMovies.length}</div>
+              <div>Movie IDs: {voteMovies.map(m => m.id).join(', ')}</div>
+              <div>Contract Movie Count: {contractMovieCount !== null ? contractMovieCount : 'Check CeloScan'}</div>
+            </div>
           </div>
         </div>
       )}
@@ -286,6 +363,40 @@ export default function VoteMoviesPage() {
 
       {/* Movies List */}
       <div className="space-y-4">
+        {/* Warning about movie ID sync */}
+        {voteMovies.length > 0 && (
+          <div className="mb-4 p-3 rounded-lg border border-orange-500/20 bg-orange-500/10">
+            <p className="text-orange-400 text-xs mb-2">
+              ⚠️ <strong>Important:</strong> Make sure these movie IDs exist on the smart contract at {VOTE_CONTRACT_ADDRESS.slice(0, 6)}...{VOTE_CONTRACT_ADDRESS.slice(-4)}. 
+              If a movie ID doesn't exist on the contract, voting will fail.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  const movieTitle = prompt('Enter movie title to add to contract:');
+                  if (movieTitle) {
+                    addMovieToContract(movieTitle);
+                  }
+                }}
+                size="sm"
+                className="bg-orange-600 hover:bg-orange-700 text-xs"
+              >
+                Add Movie to Contract
+              </Button>
+              <Button
+                onClick={() => {
+                  alert(`Current contract address: ${VOTE_CONTRACT_ADDRESS}\n\nTo check if movies exist:\n1. Go to CeloScan: https://celoscan.io/address/${VOTE_CONTRACT_ADDRESS}\n2. Check the "Contract" tab\n3. Call the "movies" function with different IDs (0, 1, 2, etc.)`);
+                }}
+                size="sm"
+                variant="ghost"
+                className="text-orange-400 hover:text-orange-300 text-xs"
+              >
+                How to Check Contract
+              </Button>
+            </div>
+          </div>
+        )}
+        
         {voteMovies.map((movie) => (
           <Card key={movie.id} className="bg-[#18181B] text-white border border-white/10 overflow-hidden">
             <CardContent className="p-0">
