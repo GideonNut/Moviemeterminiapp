@@ -38,16 +38,24 @@ const movieSchema = new mongoose.Schema<IMovie>({
 interface IVote extends Document {
   movieId: string;
   type: "yes" | "no";
+  userAddress: string; // Add user address to track who voted
   fid?: number;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 const voteSchema = new mongoose.Schema<IVote>({
   movieId: { type: String, required: true },
   type: { type: String, enum: ["yes", "no"], required: true },
+  userAddress: { type: String, required: true }, // Add user address field
   fid: { type: Number },
   createdAt: { type: Date, default: Date.now }
+}, {
+  timestamps: true // This will automatically add createdAt and updatedAt
 });
+
+// Create unique compound index to prevent duplicate votes
+voteSchema.index({ movieId: 1, userAddress: 1 }, { unique: true });
 
 // Notification Schema
 interface INotification extends Document {
@@ -237,29 +245,54 @@ export async function getTVShows(): Promise<IMovie[]> {
   }
 }
 
-export async function saveVote(movieId: string, type: "yes" | "no"): Promise<void> {
+export async function saveVote(movieId: string, type: "yes" | "no", userAddress: string): Promise<void> {
   try {
     await connectMongo();
     
-    // Save the vote record
+    // Check if user already voted on this movie
+    const existingVote = await VoteModel.findOne({ movieId, userAddress });
+    
+    if (existingVote) {
+      // User already voted, throw error - no vote changes allowed
+      throw new Error(`User ${userAddress} has already voted on movie ${movieId}. Vote changes are not allowed.`);
+    }
+    
+    // New vote, create record and increment count
     await VoteModel.create({
       movieId,
       type,
+      userAddress,
       createdAt: new Date()
     });
 
     // Update the movie's vote count
-    const result = await MovieModel.updateOne(
+    await MovieModel.updateOne(
       { id: movieId },
       { $inc: { [`votes.${type}`]: 1 } }
     );
-
-    if (result.matchedCount === 0) {
-      throw new Error("Movie not found");
-    }
   } catch (error) {
     console.error("Error saving vote:", error);
     throw new Error(`Failed to save vote: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+export async function getUserVotes(userAddress: string): Promise<{ [movieId: string]: "yes" | "no" }> {
+  try {
+    await connectMongo();
+    
+    // Get all votes for this user
+    const votes = await VoteModel.find({ userAddress }).sort({ createdAt: -1 });
+    
+    // Convert to the format expected by the UI
+    const voteMap: { [movieId: string]: "yes" | "no" } = {};
+    votes.forEach(vote => {
+      voteMap[vote.movieId] = vote.type;
+    });
+    
+    return voteMap;
+  } catch (error) {
+    console.error("Error getting user votes:", error);
+    return {};
   }
 }
 
