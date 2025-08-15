@@ -76,8 +76,8 @@ export async function connectMongo(): Promise<Connection> {
       return connection;
     }
 
-    const uri = process.env.MONGODB_URI;
-    if (!uri) {
+const uri = process.env.MONGODB_URI;
+if (!uri) {
       throw new Error("MONGODB_URI environment variable is not set. Please create a .env.local file with your MongoDB connection string.");
     }
 
