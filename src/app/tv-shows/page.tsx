@@ -31,6 +31,7 @@ export default function TVShowsPage() {
   const [loading, setLoading] = useState(true);
   const [votes, setVotes] = useState<{ [id: string]: 'yes' | 'no' | null }>({});
   const [txStatus, setTxStatus] = useState<{ [id: string]: string }>({});
+  const [currentVotingId, setCurrentVotingId] = useState<string | null>(null);
 
   const { address, isConnected } = useAccount();
   const currentChainId = useChainId();
@@ -159,6 +160,7 @@ export default function TVShowsPage() {
       return;
     }
     
+    setCurrentVotingId(id);
     setTxStatus((prev) => ({ ...prev, [id]: 'pending' }));
     
     try {
@@ -171,6 +173,9 @@ export default function TVShowsPage() {
       }
 
       const tvShowId = BigInt(parseInt(id, 10));
+
+      // Set the vote immediately to prevent double-clicking
+      setVotes((prev) => ({ ...prev, [id]: vote }));
 
       // Use the proper Wagmi hook for smart contract interactions
       writeContract({
@@ -185,6 +190,9 @@ export default function TVShowsPage() {
       
     } catch (err: any) {
       console.error('Vote error:', err);
+      
+      // Revert the vote if there was an error
+      setVotes((prev) => ({ ...prev, [id]: null }));
       
       // Provide more specific error messages
       let errorMessage = 'Transaction failed';
@@ -201,6 +209,7 @@ export default function TVShowsPage() {
       }
       
       setTxStatus((prev) => ({ ...prev, [id]: 'error' }));
+      setCurrentVotingId(null);
       
       // Show error to user (you can add a toast notification here)
       alert(errorMessage);
@@ -209,22 +218,28 @@ export default function TVShowsPage() {
 
   // Handle transaction state changes
   useEffect(() => {
-    if (hash) {
+    if (hash && currentVotingId) {
       // Transaction was sent successfully
       console.log('Transaction hash:', hash);
-      // Update the vote status and refresh TV shows
-      setVotes((prev) => ({ ...prev, [Object.keys(votes)[0]]: votes[Object.keys(votes)[0]] }));
-      setTxStatus((prev) => ({ ...prev, [Object.keys(votes)[0]]: 'success' }));
+      
+      // Update the transaction status to success
+      setTxStatus((prev) => ({ ...prev, [currentVotingId]: 'success' }));
+      
+      // Clear the current voting ID
+      setCurrentVotingId(null);
       
       // Refresh TV shows to get updated vote counts
       setTimeout(() => fetchTVShows(), 1000);
     }
-  }, [hash, votes]);
+  }, [hash, currentVotingId]);
 
   // Handle errors from the contract
   useEffect(() => {
-    if (error) {
+    if (error && currentVotingId) {
       console.error('Contract error:', error);
+      
+      // Revert the vote if the contract call failed
+      setVotes((prev) => ({ ...prev, [currentVotingId]: null }));
       
       // Provide specific error messages based on the error
       let errorMessage = 'Transaction failed';
@@ -238,15 +253,15 @@ export default function TVShowsPage() {
         errorMessage = 'Gas estimation failed. Please try again.';
       }
       
-      // Find which TV show was being voted on and update its status
-      const tvShowId = Object.keys(txStatus).find(key => txStatus[key] === 'pending');
-      if (tvShowId) {
-        setTxStatus((prev) => ({ ...prev, [tvShowId]: 'error' }));
-      }
+      // Update the status for the specific TV show being voted on
+      setTxStatus((prev) => ({ ...prev, [currentVotingId]: 'error' }));
+      
+      // Clear the current voting ID
+      setCurrentVotingId(null);
       
       alert(errorMessage);
     }
-  }, [error, txStatus]);
+  }, [error, currentVotingId]);
 
   if (loading) {
     return (
