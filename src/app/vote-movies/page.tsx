@@ -50,6 +50,23 @@ export default function VoteMoviesPage() {
     chainId: 42220,
   });
 
+  // Auto-switch to Celo when wallet connects
+  const [isSwitchingNetwork, setIsSwitchingNetwork] = useState(false);
+  
+  useEffect(() => {
+    if (isConnected && currentChainId !== 42220) {
+      setIsSwitchingNetwork(true);
+      switchChainAsync({ chainId: 42220 })
+        .then(() => {
+          setIsSwitchingNetwork(false);
+        })
+        .catch((err) => {
+          console.error('Failed to switch to Celo:', err);
+          setIsSwitchingNetwork(false);
+        });
+    }
+  }, [isConnected, currentChainId, switchChainAsync]);
+
   const fetchMovies = async () => {
     try {
       setLoading(true);
@@ -73,15 +90,17 @@ export default function VoteMoviesPage() {
 
   const handleVote = async (id: string, vote: 'yes' | 'no') => {
     if (votes[id]) return;
+    
+    // Check if we're on the correct network first
+    if (currentChainId !== 42220) {
+      alert('Please switch to the Celo network before voting. Use the "Switch to Celo" button above.');
+      return;
+    }
+    
     setTxStatus((prev) => ({ ...prev, [id]: 'pending' }));
     
     try {
       if (!isConnected || !address) throw new Error("Wallet not connected");
-
-      // Ensure we're on Celo (42220); prompt a switch if needed
-      if (currentChainId !== 42220) {
-        await switchChainAsync({ chainId: 42220 });
-      }
 
       const movieId = BigInt(parseInt(id, 10));
 
@@ -190,28 +209,75 @@ export default function VoteMoviesPage() {
         <h1 className="text-xl font-semibold text-white">Vote on Movies</h1>
       </div>
 
-      {/* Balance and Gas Status */}
-      {isConnected && celoBalance && (
-        <div className="mb-6 p-4 rounded-lg border border-white/10 bg-[#18181B]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-white/60 text-sm">CELO Balance:</span>
-              <span className="text-white font-medium">{formatCELOBalance(celoBalance.value)} CELO</span>
-            </div>
-            {!hasSufficientCELOForGas(celoBalance.value) && (
-              <div className="flex items-center gap-2 text-yellow-400 text-sm">
-                <AlertCircle size={16} />
-                <span>Low balance for gas fees</span>
-              </div>
-            )}
+      {/* Debug Information - Remove this after testing */}
+      {isConnected && (
+        <div className="mb-4 p-3 rounded-lg border border-blue-500/20 bg-blue-500/10">
+          <h3 className="text-blue-400 text-sm font-medium mb-2">Debug Info</h3>
+          <div className="text-xs text-blue-300 space-y-1">
+            <div>Wallet Address: {address?.slice(0, 6)}...{address?.slice(-4)}</div>
+            <div>Current Chain ID: {currentChainId}</div>
+            <div>Network: {currentChainId === 42220 ? 'Celo Mainnet' : 
+                           currentChainId === 44787 ? 'Celo Alfajores' : 
+                           isSwitchingNetwork ? 'Switching to Celo...' : `Unknown (${currentChainId})`}</div>
+            <div>Network Switching: {isSwitchingNetwork ? 'Yes' : 'No'}</div>
+            <div>Balance: {celoBalance ? `${formatCELOBalance(celoBalance.value)} CELO` : 'Loading...'}</div>
+            <div>Sufficient for Gas: {celoBalance ? (hasSufficientCELOForGas(celoBalance.value) ? 'Yes' : 'No') : 'Unknown'}</div>
           </div>
-          <p className="text-white/40 text-xs mt-2">
-            Gas fees on Celo are typically 0.001-0.01 CELO per transaction
-          </p>
-          {!hasSufficientCELOForGas(celoBalance.value) && (
+        </div>
+      )}
+
+      {/* Balance and Gas Status */}
+      {isConnected && (
+        <div className="mb-6 p-4 rounded-lg border border-white/10 bg-[#18181B]">
+          {/* Network Status */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="text-white/60 text-sm">Network:</span>
+              <span className={`text-sm font-medium px-2 py-1 rounded ${
+                currentChainId === 42220 
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                  : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+              }`}>
+                {currentChainId === 42220 ? 'Celo Mainnet' : 
+                 currentChainId === 44787 ? 'Celo Alfajores (Testnet)' :
+                 isSwitchingNetwork ? 'Switching to Celo...' : 'Other Network'}
+              </span>
+            </div>
+          </div>
+
+          {/* CELO Balance - Only show if on Celo network */}
+          {currentChainId === 42220 && celoBalance && (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-white/60 text-sm">CELO Balance:</span>
+                  <span className="text-white font-medium">{formatCELOBalance(celoBalance.value)} CELO</span>
+                </div>
+                {!hasSufficientCELOForGas(celoBalance.value) && (
+                  <div className="flex items-center gap-2 text-yellow-400 text-sm">
+                    <AlertCircle size={16} />
+                    <span>Low balance for gas fees</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-white/40 text-xs mt-2">
+                Gas fees on Celo are typically 0.001-0.01 CELO per transaction
+              </p>
+              {!hasSufficientCELOForGas(celoBalance.value) && (
+                <div className="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
+                  <p className="text-yellow-400 text-xs">
+                    ⚠️ You need at least 0.01 CELO to vote. Please add more CELO to your wallet for gas fees.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Warning if not on Celo */}
+          {currentChainId !== 42220 && (
             <div className="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
               <p className="text-yellow-400 text-xs">
-                ⚠️ You need at least 0.01 CELO to vote. Please add more CELO to your wallet for gas fees.
+                ⚠️ Automatically switching to Celo network... Please wait a moment before voting.
               </p>
             </div>
           )}
