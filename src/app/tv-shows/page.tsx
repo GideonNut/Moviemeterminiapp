@@ -45,33 +45,6 @@ export default function TVShowsPage() {
     error
   } = useWriteContract();
 
-  // Function to add TV show to smart contract
-  const addTVShowToContract = async (tvShowTitle: string) => {
-    try {
-      if (!isConnected || !address) throw new Error("Wallet not connected");
-      
-      // Ensure we're on Celo
-      if (currentChainId !== 42220) {
-        alert('Please switch to Celo network first');
-        return;
-      }
-
-      // Add TV show to contract
-      writeContract({
-        address: VOTE_CONTRACT_ADDRESS,
-        abi: VOTE_CONTRACT_ABI,
-        functionName: "addMovie", // Using the same function for both movies and TV shows
-        args: [tvShowTitle],
-        gas: 200000n, // Slightly higher gas for adding TV shows
-      });
-
-      alert(`Adding "${tvShowTitle}" to smart contract...`);
-    } catch (error) {
-      console.error('Error adding TV show to contract:', error);
-      alert('Failed to add TV show to contract. See console for details.');
-    }
-  };
-
   // Get CELO balance for gas fees
   const { data: celoBalance } = useBalance({
     address,
@@ -310,40 +283,6 @@ export default function TVShowsPage() {
 
       {/* TV Shows List */}
       <div className="space-y-4">
-        {/* Warning about TV show ID sync */}
-        {tvShows.length > 0 && (
-          <div className="mb-4 p-3 rounded-lg border border-orange-500/20 bg-orange-500/10">
-            <p className="text-orange-400 text-xs mb-2">
-              ⚠️ <strong>Important:</strong> Make sure these TV show IDs exist on the smart contract at {VOTE_CONTRACT_ADDRESS.slice(0, 6)}...{VOTE_CONTRACT_ADDRESS.slice(-4)}. 
-              If a TV show ID doesn't exist on the contract, voting will fail.
-            </p>
-            <div className="flex gap-2">
-              <Button
-                onClick={() => {
-                  const tvShowTitle = prompt('Enter TV show title to add to contract:');
-                  if (tvShowTitle) {
-                    addTVShowToContract(tvShowTitle);
-                  }
-                }}
-                size="sm"
-                className="bg-orange-600 hover:bg-orange-700 text-xs"
-              >
-                Add TV Show to Contract
-              </Button>
-              <Button
-                onClick={() => {
-                  alert(`Current contract address: ${VOTE_CONTRACT_ADDRESS}\n\nTo check if TV shows exist:\n1. Go to CeloScan: https://celoscan.io/address/${VOTE_CONTRACT_ADDRESS}\n2. Check the "Contract" tab\n3. Call the "movies" function with different IDs (0, 1, 2, etc.)`);
-                }}
-                size="sm"
-                variant="ghost"
-                className="text-orange-400 hover:text-orange-300 text-xs"
-              >
-                How to Check Contract
-              </Button>
-            </div>
-          </div>
-        )}
-        
         {tvShows.map((tvShow) => (
           <Card key={tvShow.id} className="bg-[#18181B] text-white border border-white/10 overflow-hidden">
             <CardContent className="p-0">
