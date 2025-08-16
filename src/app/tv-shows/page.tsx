@@ -8,7 +8,7 @@ import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance } 
 import { useRouter } from "next/navigation";
 import Header from "~/components/Header";
 import { ArrowLeft, ThumbsUp, ThumbsDown, RefreshCw, AlertCircle } from "lucide-react";
-import { formatCELOBalance, hasSufficientCELOForGas } from "~/lib/utils";
+import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl } from "~/lib/utils";
 
 interface TVShow {
   id: string;
@@ -376,7 +376,7 @@ export default function TVShowsPage() {
                 <div className="w-24 h-36 relative bg-neutral-900 flex-shrink-0">
                   {tvShow.posterUrl ? (
                     <Image
-                      src={tvShow.posterUrl}
+                      src={ensureFullPosterUrl(tvShow.posterUrl) || ''}
                       alt={tvShow.title}
                       fill
                       className="object-cover"
