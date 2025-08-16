@@ -22,6 +22,10 @@ export async function POST(request: NextRequest) {
       await mongoose.connect(process.env.MONGODB_URI!);
       const db = mongoose.connection.db;
       
+      if (!db) {
+        throw new Error("Failed to get database connection");
+      }
+      
       for (const item of allContent) {
         try {
           // Check if poster URL is a relative TMDB path
@@ -32,13 +36,17 @@ export async function POST(request: NextRequest) {
             if (fullUrl) {
               // Update in database
               const collection = item.isTVShow ? 'movies' : 'movies'; // Both use movies collection
-              await db.collection(collection).updateOne(
-                { _id: item._id },
-                { $set: { posterUrl: fullUrl } }
-              );
               
-              fixedCount++;
-              console.log(`Fixed poster URL for ${item.title}: ${item.posterUrl} -> ${fullUrl}`);
+              // Ensure _id exists and is valid
+              if (item._id) {
+                await db.collection(collection).updateOne(
+                  { _id: item._id },
+                  { $set: { posterUrl: fullUrl } }
+                );
+                
+                fixedCount++;
+                console.log(`Fixed poster URL for ${item.title}: ${item.posterUrl} -> ${fullUrl}`);
+              }
             }
           }
         } catch (error) {
