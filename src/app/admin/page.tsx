@@ -239,6 +239,34 @@ export default function AdminPage() {
     }
   };
 
+  // Function to fix existing poster URLs
+  const fixPosterUrls = async () => {
+    setIsImporting(true);
+    setImportStatus("Fixing existing poster URLs...");
+    
+    try {
+      const response = await fetch("/api/fix-poster-urls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "fix" }),
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setImportStatus(`✅ Successfully fixed ${result.fixedCount} poster URLs!`);
+        // Refresh content counts
+        fetchContentCounts();
+      } else {
+        setImportStatus(`❌ Failed to fix poster URLs: ${result.error}`);
+      }
+    } catch (error) {
+      setImportStatus(`❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   // Fetch counts on component mount
   useEffect(() => {
     fetchContentCounts();
@@ -528,6 +556,26 @@ export default function AdminPage() {
                   Reset Content IDs to Sequential
                 </Button>
               </div>
+            </div>
+
+            {/* Fix Poster URLs Section */}
+            <div className="mt-6 pt-4 border-t border-white/10">
+              <h3 className="text-lg font-medium mb-3 text-white">🖼️ Fix Poster URLs</h3>
+              <p className="text-sm text-white/60 mb-3">
+                Attempt to fix poster URLs that might be broken or malformed.
+              </p>
+              <Button
+                onClick={fixPosterUrls}
+                disabled={isImporting}
+                className="w-full bg-yellow-600 hover:bg-yellow-700"
+              >
+                {isImporting ? "Fixing..." : "Fix Poster URLs"}
+              </Button>
+              {importStatus && (
+                <div className="mt-4 p-3 rounded bg-[#2D2D33]">
+                  <p className="text-sm text-white/70">{importStatus}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
