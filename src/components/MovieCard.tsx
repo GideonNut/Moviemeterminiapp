@@ -1,5 +1,6 @@
 import { Button } from "./ui/Button";
 import Image from 'next/image';
+import { ensureFullPosterUrl } from "~/lib/utils";
 
 interface Movie {
   id: string;
@@ -37,17 +38,26 @@ export function MovieCard({ movie, onVote, isVoting, isConnected }: MovieCardPro
     onVote(vote);
   };
 
+  // Ensure poster URL is a full URL
+  const fullPosterUrl = ensureFullPosterUrl(movie.posterUrl);
+
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#23232B] shadow-2xl transition-all duration-300 hover:border-white/20 flex flex-col">
       {/* Movie Poster */}
       <div className="relative aspect-[2/3] w-full overflow-hidden">
-        <Image
-          src={movie.posterUrl}
-          alt={movie.title}
-          width={300}
-          height={450}
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-        />
+        {fullPosterUrl ? (
+          <Image
+            src={fullPosterUrl}
+            alt={movie.title}
+            width={300}
+            height={450}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+            <span className="text-gray-400 text-sm">No Poster</span>
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
       </div>
 
