@@ -8,7 +8,7 @@ import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance, u
 import { useRouter } from "next/navigation";
 import Header from "~/components/Header";
 import { ArrowLeft, ThumbsUp, ThumbsDown, RefreshCw, AlertCircle } from "lucide-react";
-import { formatCELOBalance, hasSufficientCELOForGas } from "~/lib/utils";
+import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl } from "~/lib/utils";
 
 interface Movie {
   id: string;
@@ -377,7 +377,7 @@ export default function VoteMoviesPage() {
                 <div className="w-24 h-36 relative bg-neutral-900 flex-shrink-0">
                   {movie.posterUrl ? (
                     <Image
-                      src={movie.posterUrl}
+                      src={ensureFullPosterUrl(movie.posterUrl) || ''}
                       alt={movie.title}
                       fill
                       className="object-cover"
