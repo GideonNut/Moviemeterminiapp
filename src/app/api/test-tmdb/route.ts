@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
       isFullUrl: boolean;
       isTmdbUrl: boolean;
     }> = [];
+    
     if (trendingMovies && trendingMovies.length > 0) {
       const sampleMovie = trendingMovies[0];
       console.log("Sample movie data:", {
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest) {
     
     return Response.json({ 
       success: true,
+      movies: trendingMovies || [], // Return actual movie data for testing
       tmdbApiStatus: {
         hasApiKey,
         apiKeyLength,
