@@ -8,7 +8,7 @@ import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance } 
 import { useRouter } from "next/navigation";
 import Header from "~/components/Header";
 import { ArrowLeft, ThumbsUp, ThumbsDown, Plus, RefreshCw, AlertCircle } from "lucide-react";
-import { formatCELOBalance, hasSufficientCELOForGas } from "~/lib/utils";
+import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl } from "~/lib/utils";
 
 interface Movie {
   id: string;
@@ -315,7 +315,7 @@ export default function MoviesPage() {
                 <div className="w-full h-48 relative bg-neutral-900">
                   {movie.posterUrl ? (
                     <Image
-                      src={movie.posterUrl}
+                      src={ensureFullPosterUrl(movie.posterUrl) || ''}
                       alt={movie.title}
                       fill
                       className="object-cover"
