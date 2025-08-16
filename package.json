@@ -18,7 +18,8 @@
     "lint": "next lint",
     "deploy:vercel": "node scripts/deploy.js",
     "cleanup": "lsof -ti :3000 | xargs kill -9",
-    "test-db": "tsx src/lib/test-connection.ts"
+    "test-db": "tsx src/lib/test-connection.ts",
+    "test-tmdb-images": "tsx src/lib/test-tmdb-images.ts"
   },
   "dependencies": {
     "@divvi/referral-sdk": "^1.0.0",
