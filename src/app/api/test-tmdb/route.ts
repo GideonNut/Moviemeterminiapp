@@ -19,7 +19,12 @@ export async function GET(request: NextRequest) {
     }
     
     // Test 2: Test image URL construction with real data
-    let imageUrlTests = [];
+    let imageUrlTests: Array<{
+      originalPath: string | null | undefined;
+      mappedPosterUrl: string | undefined;
+      isFullUrl: boolean;
+      isTmdbUrl: boolean;
+    }> = [];
     if (trendingMovies && trendingMovies.length > 0) {
       const sampleMovie = trendingMovies[0];
       console.log("Sample movie data:", {
@@ -40,8 +45,8 @@ export async function GET(request: NextRequest) {
         {
           originalPath: sampleMovie.poster_path,
           mappedPosterUrl: mappedMovie.posterUrl,
-          isFullUrl: mappedMovie.posterUrl?.startsWith('http'),
-          isTmdbUrl: mappedMovie.posterUrl?.includes('image.tmdb.org')
+          isFullUrl: mappedMovie.posterUrl?.startsWith('http') || false,
+          isTmdbUrl: mappedMovie.posterUrl?.includes('image.tmdb.org') || false
         }
       ];
     }
