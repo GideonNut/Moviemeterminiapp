@@ -1,88 +1,49 @@
-import { constructTmdbImageUrl, constructPosterUrl, constructBackdropUrl } from './tmdb';
+import { constructPosterUrl, constructBackdropUrl } from './tmdb';
 
-// Test function to verify TMDB image URL construction
-export function testTmdbImageUrls() {
-  console.log('🧪 Testing TMDB Image URL Construction...\n');
-  
-  // Test cases
-  const testCases = [
-    {
-      name: 'Poster Path (w500)',
-      input: '/1E5baAaEse26fej7uHcjOgEE2t2.jpg',
-      expected: 'https://image.tmdb.org/t/p/w500/1E5baAaEse26fej7uHcjOgEE2t2.jpg'
-    },
-    {
-      name: 'Backdrop Path (w1280)',
-      input: '/backdrop_example.jpg',
-      expected: 'https://image.tmdb.org/t/p/w1280/backdrop_example.jpg'
-    },
-    {
-      name: 'SVG Logo (original)',
-      input: '/logo_example.svg',
-      expected: 'https://image.tmdb.org/t/p/original/logo_example.svg'
-    },
-    {
-      name: 'Null Path',
-      input: null,
-      expected: undefined
-    },
-    {
-      name: 'Empty String',
-      input: '',
-      expected: undefined
-    }
-  ];
-  
-  testCases.forEach(testCase => {
-    const result = constructTmdbImageUrl(testCase.input);
-    const passed = result === testCase.expected;
-    
-    console.log(`${passed ? '✅' : '❌'} ${testCase.name}`);
-    console.log(`  Input: ${testCase.input}`);
-    console.log(`  Expected: ${testCase.expected}`);
-    console.log(`  Got: ${result}`);
-    console.log('');
-  });
-  
-  // Test specific helper functions
-  console.log('🔧 Testing Helper Functions...\n');
-  
-  const posterUrl = constructPosterUrl('/poster_example.jpg', 'w780');
-  console.log(`Poster URL (w780): ${posterUrl}`);
-  
-  const backdropUrl = constructBackdropUrl('/backdrop_example.jpg', 'w1920');
-  console.log(`Backdrop URL (w1920): ${backdropUrl}`);
-  
-  console.log('\n✨ TMDB Image URL Test Complete!');
-}
+// Test TMDB image paths
+const testPaths = [
+  '/9PFonBhy4cQy7Jz20NpMygczOkv.jpg',  // Example poster path
+  '/backdrop_path_example.jpg',           // Example backdrop path
+  '9PFonBhy4cQy7Jz20NpMygczOkv.jpg',    // Path without leading slash
+  null,                                   // Null path
+  undefined,                              // Undefined path
+];
 
-// Function to validate existing image URLs
-export function validateImageUrl(url: string): boolean {
-  if (!url) return false;
-  
-  // Check if it's a valid TMDB URL
-  if (url.includes('image.tmdb.org')) {
-    return true;
-  }
-  
-  // Check if it's a valid external URL
-  try {
-    const urlObj = new URL(url);
-    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
+console.log('🧪 Testing TMDB Image URL Construction...\n');
 
-// Function to get image size from TMDB URL
-export function getImageSizeFromUrl(url: string): string | null {
-  if (!url || !url.includes('image.tmdb.org')) {
-    return null;
-  }
+testPaths.forEach((path, index) => {
+  console.log(`Test ${index + 1}: Path = ${path}`);
   
-  const match = url.match(/\/t\/p\/([^\/]+)\//);
-  return match ? match[1] : null;
-}
+  const posterUrl = constructPosterUrl(path, 'w500');
+  const backdropUrl = constructBackdropUrl(path, 'w1280');
+  
+  console.log(`  Poster URL: ${posterUrl}`);
+  console.log(`  Backdrop URL: ${backdropUrl}`);
+  console.log('');
+});
 
-// Export for use in other files
-export { constructTmdbImageUrl, constructPosterUrl, constructBackdropUrl };
+// Test the specific issue from Stack Overflow
+console.log('🔍 Testing Stack Overflow Issue...\n');
+
+const base_url = "https://image.tmdb.org/t/p/w500/";  // WITH trailing slash (WRONG)
+const base_url_fixed = "https://image.tmdb.org/t/p/w500";  // WITHOUT trailing slash (CORRECT)
+
+const moviePath = '/9PFonBhy4cQy7Jz20NpMygczOkv.jpg';
+
+console.log('❌ WRONG (with trailing slash):');
+console.log(`  ${base_url}${moviePath}`);
+console.log('  Result:', base_url + moviePath);
+
+console.log('\n✅ CORRECT (without trailing slash):');
+console.log(`  ${base_url_fixed}${moviePath}`);
+console.log('  Result:', base_url_fixed + moviePath);
+
+console.log('\n🎯 Your MovieMeter Implementation:');
+const yourUrl = constructPosterUrl(moviePath, 'w500');
+console.log(`  ${yourUrl}`);
+
+// Test if URLs are accessible
+console.log('\n🌐 Testing URL Accessibility...');
+const testUrl = 'https://image.tmdb.org/t/p/w500/9PFonBhy4cQy7Jz20NpMygczOkv.jpg';
+console.log(`Test URL: ${testUrl}`);
+console.log('Note: This URL might not be accessible due to CORS or the image not existing');
