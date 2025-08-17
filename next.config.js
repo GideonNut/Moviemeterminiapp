@@ -30,6 +30,13 @@ const nextConfig = {
         port: '',
         pathname: '/**',
       },
+      // TMDB images
+      {
+        protocol: 'https',
+        hostname: 'image.tmdb.org',
+        port: '',
+        pathname: '/t/p/**',
+      },
       // Farcaster avatars and common social/CDN hosts
       {
         protocol: 'https',
