@@ -1,12 +1,11 @@
 import { constructPosterUrl, constructBackdropUrl } from './tmdb';
 
 // Test TMDB image paths
-const testPaths = [
+const testPaths: (string | null)[] = [
   '/9PFonBhy4cQy7Jz20NpMygczOkv.jpg',  // Example poster path
   '/backdrop_path_example.jpg',           // Example backdrop path
   '9PFonBhy4cQy7Jz20NpMygczOkv.jpg',    // Path without leading slash
   null,                                   // Null path
-  undefined,                              // Undefined path
 ];
 
 console.log('🧪 Testing TMDB Image URL Construction...\n');
