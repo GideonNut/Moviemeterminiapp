@@ -8,7 +8,7 @@ import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance } 
 import { useRouter } from "next/navigation";
 import Header from "~/components/Header";
 import { ArrowLeft, ThumbsUp, ThumbsDown, Plus, RefreshCw, AlertCircle } from "lucide-react";
-import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl } from "~/lib/utils";
+import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl, filterMoviesWithPosters } from "~/lib/utils";
 
 interface Movie {
   id: string;
@@ -31,6 +31,7 @@ export default function MoviesPage() {
   const [loading, setLoading] = useState(true);
   const [votes, setVotes] = useState<{ [id: string]: 'yes' | 'no' | null }>({});
   const [txStatus, setTxStatus] = useState<{ [id: string]: string }>({});
+  const [showMoviesWithoutPosters, setShowMoviesWithoutPosters] = useState(false);
 
   const { address, isConnected } = useAccount();
   const currentChainId = useChainId();
@@ -47,16 +48,25 @@ export default function MoviesPage() {
   // Get CELO balance for gas fees
   const { data: celoBalance } = useBalance({
     address,
-    chainId: 42220,
+    chainId: currentChainId === 42220 ? 42220 : 44787, // Use mainnet if available, otherwise testnet
   });
 
   // Auto-switch to Celo when wallet connects
   const [isSwitchingNetwork, setIsSwitchingNetwork] = useState(false);
   
   useEffect(() => {
-    if (isConnected && currentChainId !== 42220) {
+    if (isConnected && currentChainId !== 42220 && currentChainId !== 44787) {
       setIsSwitchingNetwork(true);
+      // Try mainnet first for production use
       switchChainAsync({ chainId: 42220 })
+        .then(() => {
+          setIsSwitchingNetwork(false);
+        })
+        .catch((err) => {
+          console.error('Failed to switch to Celo mainnet, trying testnet:', err);
+          // Fallback to testnet if mainnet fails
+          return switchChainAsync({ chainId: 44787 });
+        })
         .then(() => {
           setIsSwitchingNetwork(false);
         })
@@ -84,6 +94,14 @@ export default function MoviesPage() {
     }
   };
 
+  // Filter movies based on poster availability
+  const filteredMovies = showMoviesWithoutPosters 
+    ? movies 
+    : filterMoviesWithPosters(movies);
+
+  const moviesWithPosters = filterMoviesWithPosters(movies);
+  const moviesWithoutPosters = movies.filter(movie => !filterMoviesWithPosters([movie]).length);
+
   useEffect(() => {
     fetchMovies();
   }, []);
@@ -91,9 +109,9 @@ export default function MoviesPage() {
   const handleVote = async (id: string, vote: 'yes' | 'no') => {
     if (votes[id]) return;
     
-    // Check if we're on the correct network first
-    if (currentChainId !== 42220) {
-      alert('Please switch to the Celo network before voting. Use the "Switch to Celo" button above.');
+    // Check if we're on a Celo network
+    if (currentChainId !== 42220 && currentChainId !== 44787) {
+      alert('Please switch to a Celo network (testnet or mainnet) before voting. Use the "Switch to Celo" button above.');
       return;
     }
     
@@ -110,7 +128,8 @@ export default function MoviesPage() {
         abi: VOTE_CONTRACT_ABI,
         functionName: "vote",
         args: [movieId, vote === 'yes'],
-        gas: 150000n, // Conservative gas estimate
+        // Remove fixed gas estimate to let viem estimate it automatically
+        // gas: 150000n, // Conservative gas estimate
       });
 
       // Note: We'll handle success/error in useEffect below
@@ -128,6 +147,8 @@ export default function MoviesPage() {
         errorMessage = 'Smart contract execution failed';
       } else if (err.message?.includes('gas')) {
         errorMessage = 'Gas estimation failed. Please try again.';
+      } else if (err.message?.includes('method handler crashed')) {
+        errorMessage = 'Smart contract interaction failed. This might be a network or contract issue. Please ensure you have sufficient CELO for gas fees on mainnet.';
       }
       
       setTxStatus((prev) => ({ ...prev, [id]: 'error' }));
@@ -207,9 +228,7 @@ export default function MoviesPage() {
           <div className="text-xs text-blue-300 space-y-1">
             <div>Wallet Address: {address?.slice(0, 6)}...{address?.slice(-4)}</div>
             <div>Current Chain ID: {currentChainId}</div>
-            <div>Network: {currentChainId === 42220 ? 'Celo Mainnet' : 
-                           currentChainId === 44787 ? 'Celo Alfajores' : 
-                           isSwitchingNetwork ? 'Switching to Celo...' : `Unknown (${currentChainId})`}</div>
+            <div>Network: {currentChainId === 42220 ? 'Celo Mainnet' : currentChainId === 44787 ? 'Celo Alfajores (Testnet)' : isSwitchingNetwork ? 'Switching to Celo...' : `Unknown (${currentChainId})`}</div>
             <div>Network Switching: {isSwitchingNetwork ? 'Yes' : 'No'}</div>
             <div>Balance: {celoBalance ? `${formatCELOBalance(celoBalance.value)} CELO` : 'Loading...'}</div>
             <div>Sufficient for Gas: {celoBalance ? (hasSufficientCELOForGas(celoBalance.value) ? 'Yes' : 'No') : 'Unknown'}</div>
@@ -229,15 +248,13 @@ export default function MoviesPage() {
                   ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
                   : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
               }`}>
-                {currentChainId === 42220 ? 'Celo Mainnet' : 
-                 currentChainId === 44787 ? 'Celo Alfajores (Testnet)' :
-                 isSwitchingNetwork ? 'Switching to Celo...' : 'Other Network'}
+                {currentChainId === 42220 ? 'Celo Mainnet' : currentChainId === 44787 ? 'Celo Alfajores (Testnet)' : isSwitchingNetwork ? 'Switching to Celo...' : 'Other Network'}
               </span>
             </div>
           </div>
 
           {/* CELO Balance - Only show if on Celo network */}
-          {currentChainId === 42220 && celoBalance && (
+          {(currentChainId === 42220 || currentChainId === 44787) && celoBalance && (
             <>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -265,10 +282,28 @@ export default function MoviesPage() {
           )}
 
           {/* Warning if not on Celo */}
-          {currentChainId !== 42220 && (
+          {currentChainId !== 42220 && currentChainId !== 44787 && (
             <div className="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
               <p className="text-yellow-400 text-xs">
                 ⚠️ Automatically switching to Celo network... Please wait a moment before voting.
+              </p>
+            </div>
+          )}
+
+          {/* Testnet Warning */}
+          {currentChainId === 44787 && (
+            <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-md">
+              <p className="text-blue-400 text-xs">
+                🧪 You're on Celo Testnet (Alfajores). This is safer for testing! Get testnet CELO from the <a href="https://faucet.celo.org/alfajores" target="_blank" rel="noopener noreferrer" className="underline">Celo Faucet</a>.
+              </p>
+            </div>
+          )}
+
+          {/* Mainnet Success Message */}
+          {currentChainId === 42220 && (
+            <div className="mt-3 p-3 bg-green-500/10 border border-green-500/20 rounded-md">
+              <p className="text-green-400 text-xs">
+                ✅ You're on Celo Mainnet! Ready for real voting with actual CELO.
               </p>
             </div>
           )}
@@ -307,95 +342,129 @@ export default function MoviesPage() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {movies.map((movie) => (
-            <Card key={movie.id} className="bg-[#18181B] text-white border border-white/10 overflow-hidden hover:border-white/20 transition-colors">
-              <CardContent className="p-0">
-                {/* Movie Poster */}
-                <div className="w-full h-48 relative bg-neutral-900">
-                  {movie.posterUrl ? (
-                    <Image
-                      src={ensureFullPosterUrl(movie.posterUrl) || ''}
-                      alt={movie.title}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-white/40">
-                      <span className="text-sm">No Poster</span>
-                    </div>
-                  )}
+        <>
+          {/* Filter Toggle and Stats */}
+          <div className="mb-6 p-4 bg-[#18181B] rounded-lg border border-white/10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <h3 className="text-lg font-semibold text-white">Movie Filter</h3>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="showAllMovies"
+                    checked={showMoviesWithoutPosters}
+                    onChange={(e) => setShowMoviesWithoutPosters(e.target.checked)}
+                    className="rounded border-white/20"
+                  />
+                  <label htmlFor="showAllMovies" className="text-white/70 text-sm">
+                    Show movies without posters
+                  </label>
                 </div>
-                
-                {/* Movie Info */}
-                <div className="p-4">
-                  <CardTitle className="text-lg font-semibold mb-2 line-clamp-2">
-                    {movie.title}
-                  </CardTitle>
-                  
-                  <CardDescription className="text-sm text-white/60 mb-3 line-clamp-3">
-                    {movie.description}
-                  </CardDescription>
-                  
-                  <div className="flex items-center justify-between text-xs text-white/40 mb-4">
-                    <span>{movie.releaseYear || 'Unknown Year'}</span>
-                    {movie.genres && movie.genres.length > 0 && (
-                      <span>{movie.genres[0]}</span>
+              </div>
+              <div className="text-right text-sm text-white/60">
+                <div>Showing: {filteredMovies.length} of {movies.length} movies</div>
+                <div>{moviesWithPosters.length} with posters, {moviesWithoutPosters.length} without</div>
+              </div>
+            </div>
+            
+            {!showMoviesWithoutPosters && moviesWithoutPosters.length > 0 && (
+              <div className="text-amber-400 text-sm flex items-center gap-2">
+                <AlertCircle size={16} />
+                {moviesWithoutPosters.length} movie{moviesWithoutPosters.length !== 1 ? 's' : ''} hidden (no poster)
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredMovies.map((movie) => (
+              <Card key={movie.id} className="bg-[#18181B] text-white border border-white/10 overflow-hidden hover:border-white/20 transition-colors">
+                <CardContent className="p-0">
+                  {/* Movie Poster */}
+                  <div className="w-full h-48 relative bg-neutral-900">
+                    {movie.posterUrl ? (
+                      <Image
+                        src={ensureFullPosterUrl(movie.posterUrl) || ''}
+                        alt={movie.title}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-white/40">
+                        <span className="text-sm">No Poster</span>
+                      </div>
                     )}
                   </div>
                   
-                  {/* Vote Counts */}
-                  <div className="flex items-center justify-between mb-4 text-sm">
-                    <div className="flex items-center gap-1 text-green-400">
-                      <ThumbsUp size={14} />
-                      <span>{movie.votes.yes}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-red-400">
-                      <ThumbsDown size={14} />
-                      <span>{movie.votes.no}</span>
-                    </div>
-                  </div>
-                  
-                  {/* Vote Buttons */}
-                  <div className="flex gap-2">
-                    <Button
-                      variant={votes[movie.id] === 'yes' ? 'default' : 'ghost'}
-                      onClick={() => handleVote(movie.id, 'yes')}
-                      disabled={!isConnected || isPending || !!votes[movie.id]}
-                      className="flex-1 flex items-center justify-center gap-2"
-                      size="sm"
-                    >
-                      <ThumbsUp size={16} />
-                      Yes
-                    </Button>
+                  {/* Movie Info */}
+                  <div className="p-4">
+                    <CardTitle className="text-lg font-semibold mb-2 line-clamp-2">
+                      {movie.title}
+                    </CardTitle>
                     
-                    <Button
-                      variant={votes[movie.id] === 'no' ? 'destructive' : 'ghost'}
-                      onClick={() => handleVote(movie.id, 'no')}
-                      disabled={!isConnected || isPending || !!votes[movie.id]}
-                      className="flex-1 flex items-center justify-center gap-2"
-                      size="sm"
-                    >
-                      <ThumbsDown size={16} />
-                      No
-                    </Button>
+                    <CardDescription className="text-sm text-white/60 mb-3 line-clamp-3">
+                      {movie.description}
+                    </CardDescription>
+                    
+                    <div className="flex items-center justify-between text-xs text-white/40 mb-4">
+                      <span>{movie.releaseYear || 'Unknown Year'}</span>
+                      {movie.genres && movie.genres.length > 0 && (
+                        <span>{movie.genres[0]}</span>
+                      )}
+                    </div>
+                    
+                    {/* Vote Counts */}
+                    <div className="flex items-center justify-between mb-4 text-sm">
+                      <div className="flex items-center gap-1 text-green-400">
+                        <ThumbsUp size={14} />
+                        <span>{movie.votes.yes}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-red-400">
+                        <ThumbsDown size={14} />
+                        <span>{movie.votes.no}</span>
+                      </div>
+                    </div>
+                    
+                    {/* Vote Buttons */}
+                    <div className="flex gap-2">
+                      <Button
+                        variant={votes[movie.id] === 'yes' ? 'default' : 'ghost'}
+                        onClick={() => handleVote(movie.id, 'yes')}
+                        disabled={!isConnected || isPending || !!votes[movie.id]}
+                        className="flex-1 flex items-center justify-center gap-2"
+                        size="sm"
+                      >
+                        <ThumbsUp size={16} />
+                        Yes
+                      </Button>
+                      
+                      <Button
+                        variant={votes[movie.id] === 'no' ? 'destructive' : 'ghost'}
+                        onClick={() => handleVote(movie.id, 'no')}
+                        disabled={!isConnected || isPending || !!votes[movie.id]}
+                        className="flex-1 flex items-center justify-center gap-2"
+                        size="sm"
+                      >
+                        <ThumbsDown size={16} />
+                        No
+                      </Button>
+                    </div>
+                    
+                    {/* Status Messages */}
+                    <div className="mt-2 text-center">
+                      {isPending && (
+                        <span className="text-yellow-400 text-xs">Confirming...</span>
+                      )}
+                      {votes[movie.id] && !isPending && (
+                        <span className="text-green-400 text-xs">✓ Voted!</span>
+                      )}
+                    </div>
                   </div>
-                  
-                  {/* Status Messages */}
-                  <div className="mt-2 text-center">
-                    {isPending && (
-                      <span className="text-yellow-400 text-xs">Confirming...</span>
-                    )}
-                    {votes[movie.id] && !isPending && (
-                      <span className="text-green-400 text-xs">✓ Voted!</span>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
