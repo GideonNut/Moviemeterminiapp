@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import { useConnect, useAccount } from "wagmi";
 import React from "react";
 
-// Define Celo chain
+// Define Celo chains
 const celoChain: Chain = {
   id: 42220,
   name: "Celo",
@@ -21,11 +21,28 @@ const celoChain: Chain = {
     decimals: 18,
   },
   rpcUrls: {
-    default: { http: ["https://forno.celo.org"] },
-    public: { http: ["https://forno.celo.org"] },
+    default: { http: ["https://1rpc.io/celo"] },
+    public: { http: ["https://1rpc.io/celo", "https://forno.celo.org"] },
   },
   blockExplorers: {
     default: { name: "CeloScan", url: "https://celoscan.io" },
+  },
+};
+
+const celoAlfajoresChain: Chain = {
+  id: 44787,
+  name: "Celo Alfajores",
+  nativeCurrency: {
+    name: "Celo",
+    symbol: "CELO",
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: { http: ["https://alfajores-forno.celo-testnet.org"] },
+    public: { http: ["https://alfajores-forno.celo-testnet.org"] },
+  },
+  blockExplorers: {
+    default: { name: "CeloScan", url: "https://alfajores.celoscan.io" },
   },
 };
 
@@ -33,7 +50,8 @@ const queryClient = new QueryClient();
 
 // Create transport configurations with dynamic RPC URLs
 const transports = {
-  [celoChain.id]: http(celoChain.rpcUrls.default.http[0]),
+  [celoChain.id]: http("https://1rpc.io/celo"),
+  [celoAlfajoresChain.id]: http("https://alfajores-forno.celo-testnet.org"),
   [base.id]: http(base.rpcUrls.default.http[0]),
   [optimism.id]: http(optimism.rpcUrls.default.http[0]),
   [degen.id]: http(degen.rpcUrls.default.http[0]),
@@ -41,7 +59,7 @@ const transports = {
 };
 
 export const config = createConfig({
-  chains: [celoChain, base, optimism, degen, unichain],
+  chains: [celoChain, celoAlfajoresChain, base, optimism, degen, unichain],
   transports,
   connectors: [
     farcasterFrame(),
