@@ -92,3 +92,30 @@ export async function getFarcasterMetadata() {
     }
   };
 }
+
+// Function to filter movies that have valid poster URLs
+export function filterMoviesWithPosters<T extends { posterUrl?: string | null }>(movies: T[]): T[] {
+  return movies.filter(movie => {
+    if (!movie.posterUrl) return false;
+    
+    // Check if it's a valid URL or TMDB path
+    const fullUrl = ensureFullPosterUrl(movie.posterUrl);
+    return !!fullUrl && fullUrl !== '';
+  });
+}
+
+// Function to check if a movie has a valid poster
+export function hasValidPoster(movie: { posterUrl?: string | null }): boolean {
+  if (!movie.posterUrl) return false;
+  const fullUrl = ensureFullPosterUrl(movie.posterUrl);
+  return !!fullUrl && fullUrl !== '';
+}
+
+// Function to get movies with fallback poster handling
+export function getMoviesWithPosterFallback<T extends { posterUrl?: string | null; title: string }>(movies: T[]): T[] {
+  return movies.filter(movie => {
+    // Keep movies that have any poster URL (even if it might fail to load)
+    // This allows for graceful fallback in the UI
+    return !!movie.posterUrl && movie.posterUrl.trim() !== '';
+  });
+}
