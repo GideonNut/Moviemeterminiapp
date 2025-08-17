@@ -8,7 +8,7 @@ import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance, u
 import { useRouter } from "next/navigation";
 import Header from "~/components/Header";
 import { ArrowLeft, ThumbsUp, ThumbsDown, RefreshCw, AlertCircle } from "lucide-react";
-import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl } from "~/lib/utils";
+import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl, filterMoviesWithPosters } from "~/lib/utils";
 
 interface Movie {
   id: string;
@@ -32,6 +32,7 @@ export default function VoteMoviesPage() {
   const [votes, setVotes] = useState<{ [id: string]: 'yes' | 'no' | null }>({});
   const [txStatus, setTxStatus] = useState<{ [id: string]: string }>({});
   const [currentVotingId, setCurrentVotingId] = useState<string | null>(null);
+  const [showMoviesWithoutPosters, setShowMoviesWithoutPosters] = useState(false);
 
   const { address, isConnected } = useAccount();
   const currentChainId = useChainId();
@@ -55,9 +56,18 @@ export default function VoteMoviesPage() {
   const [isSwitchingNetwork, setIsSwitchingNetwork] = useState(false);
   
   useEffect(() => {
-    if (isConnected && currentChainId !== 42220) {
+    if (isConnected && currentChainId !== 42220 && currentChainId !== 44787) {
       setIsSwitchingNetwork(true);
+      // Try mainnet first for production use
       switchChainAsync({ chainId: 42220 })
+        .then(() => {
+          setIsSwitchingNetwork(false);
+        })
+        .catch((err) => {
+          console.error('Failed to switch to Celo mainnet, trying testnet:', err);
+          // Fallback to testnet if mainnet fails
+          return switchChainAsync({ chainId: 44787 });
+        })
         .then(() => {
           setIsSwitchingNetwork(false);
         })
@@ -84,6 +94,14 @@ export default function VoteMoviesPage() {
       setLoading(false);
     }
   };
+
+  // Filter movies based on poster availability
+  const filteredVoteMovies = showMoviesWithoutPosters 
+    ? voteMovies 
+    : filterMoviesWithPosters(voteMovies);
+
+  const moviesWithPosters = filterMoviesWithPosters(voteMovies);
+  const moviesWithoutPosters = voteMovies.filter(movie => !filterMoviesWithPosters([movie]).length);
 
   // Fetch user's previous votes from MongoDB
   const fetchUserVotes = async () => {
@@ -122,9 +140,9 @@ export default function VoteMoviesPage() {
   const handleVote = async (id: string, vote: 'yes' | 'no') => {
     if (votes[id]) return;
     
-    // Check if we're on the correct network first
-    if (currentChainId !== 42220) {
-      alert('Please switch to the Celo network before voting. Use the "Switch to Celo" button above.');
+    // Check if we're on a Celo network
+    if (currentChainId !== 42220 && currentChainId !== 44787) {
+      alert('Please switch to a Celo network (testnet or mainnet) before voting. Use the "Switch to Celo" button above.');
       return;
     }
     
@@ -364,12 +382,64 @@ export default function VoteMoviesPage() {
               </p>
             </div>
           )}
+
+          {/* Testnet Warning */}
+          {currentChainId === 44787 && (
+            <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-md">
+              <p className="text-blue-400 text-xs">
+                🧪 You're on Celo Testnet (Alfajores). This is safer for testing! Get testnet CELO from the <a href="https://faucet.celo.org/alfajores" target="_blank" rel="noopener noreferrer" className="underline">Celo Faucet</a>.
+              </p>
+            </div>
+          )}
+
+          {/* Mainnet Success Message */}
+          {currentChainId === 42220 && (
+            <div className="mt-3 p-3 bg-green-500/10 border border-green-500/20 rounded-md">
+              <p className="text-green-400 text-xs">
+                ✅ You're on Celo Mainnet! Ready for real voting with actual CELO.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
       {/* Movies List */}
       <div className="space-y-4">
-        {voteMovies.map((movie) => (
+        {/* Filter Toggle and Stats */}
+        {voteMovies.length > 0 && (
+          <div className="p-4 bg-[#18181B] rounded-lg border border-white/10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-4">
+                <h3 className="text-lg font-semibold text-white">Movie Filter</h3>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="showAllVoteMovies"
+                    checked={showMoviesWithoutPosters}
+                    onChange={(e) => setShowMoviesWithoutPosters(e.target.checked)}
+                    className="rounded border-white/20"
+                  />
+                  <label htmlFor="showAllVoteMovies" className="text-white/70 text-sm">
+                    Show movies without posters
+                  </label>
+                </div>
+              </div>
+              <div className="text-right text-sm text-white/60">
+                <div>Showing: {filteredVoteMovies.length} of {voteMovies.length} movies</div>
+                <div>{moviesWithPosters.length} with posters, {moviesWithoutPosters.length} without</div>
+              </div>
+            </div>
+            
+            {!showMoviesWithoutPosters && moviesWithoutPosters.length > 0 && (
+              <div className="text-amber-400 text-sm flex items-center gap-2">
+                <AlertCircle size={16} />
+                {moviesWithoutPosters.length} movie{moviesWithoutPosters.length !== 1 ? 's' : ''} hidden (no poster)
+              </div>
+            )}
+          </div>
+        )}
+
+        {filteredVoteMovies.map((movie) => (
           <Card key={movie.id} className="bg-[#18181B] text-white border border-white/10 overflow-hidden">
             <CardContent className="p-0">
               <div className="flex">
