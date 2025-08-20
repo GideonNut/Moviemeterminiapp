@@ -208,8 +208,8 @@ export default function DiscoverPage() {
                 ))
               )}
             </CarouselContent>
-            <CarouselPrevious className="hidden md:flex -left-4" />
-            <CarouselNext className="hidden md:flex -right-4" />
+            <CarouselPrevious className="flex -left-4" />
+            <CarouselNext className="flex -right-4" />
           </Carousel>
         </div>
       </section>
