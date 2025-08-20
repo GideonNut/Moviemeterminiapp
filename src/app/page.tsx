@@ -186,22 +186,31 @@ export default function DiscoverPage() {
       {/* Recently Added Movies */}
       <section className="mb-8">
         <h2 className="text-xl font-semibold text-white mb-3">Recently Added Movies</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-          {loading ? (
-            <div className="col-span-4 text-center text-white text-sm py-8">Loading movies...</div>
-          ) : filteredMovies.length === 0 ? (
-            <div className="col-span-4 text-center text-white text-sm py-8">No movies found.</div>
-          ) : (
-            filteredMovies.slice(4, 8).map((movie: any) => (
-              <MovieCard
-                key={movie.id || movie._id}
-                movie={movie}
-                onVote={() => {}}
-                isVoting={false}
-                isConnected={true}
-              />
-            ))
-          )}
+        <div className="relative">
+          <Carousel className="w-full">
+            <CarouselContent className="-ml-2 md:-ml-4">
+              {loading ? (
+                <div className="text-center text-white w-full text-sm py-8">Loading movies...</div>
+              ) : filteredMovies.length === 0 ? (
+                <div className="text-center text-white w-full text-sm py-8">No movies found.</div>
+              ) : (
+                filteredMovies.slice(4, 8).map((movie: any) => (
+                  <CarouselItem key={movie.id || movie._id} className="pl-2 md:pl-4 basis-full">
+                    <div className="flex justify-center">
+                      <MovieCard
+                        movie={movie}
+                        onVote={() => {}}
+                        isVoting={false}
+                        isConnected={true}
+                      />
+                    </div>
+                  </CarouselItem>
+                ))
+              )}
+            </CarouselContent>
+            <CarouselPrevious className="hidden md:flex -left-4" />
+            <CarouselNext className="hidden md:flex -right-4" />
+          </Carousel>
         </div>
       </section>
 
