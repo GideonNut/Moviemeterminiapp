@@ -106,7 +106,7 @@ export default function DiscoverPage() {
    
  
       {/* Top Header */}
-      <Header showSearch={true} onSearch={handleSearch} />
+      <Header showSearch={true} onSearch={handleSearch} movies={movies} />
 
       {/* Main Content */}
       <main className="pt-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
