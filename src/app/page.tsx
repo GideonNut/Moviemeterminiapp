@@ -1,6 +1,6 @@
 "use client";
 
-import { MovieCard } from "~/components/MovieCard";
+import { MovieCard, CompactMovieCard } from "~/components/MovieCard";
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -20,6 +20,7 @@ import  Header  from "~/components/Header";
 
 export default function DiscoverPage() {
   const [isVoting, setIsVoting] = useState(false);
+  const [votingMovies, setVotingMovies] = useState<Set<string>>(new Set());
   const [isConnected, setIsConnected] = useState(false);
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -67,12 +68,14 @@ export default function DiscoverPage() {
   }, []);
 
   const handleVote = async (movieId: string, vote: 'yes' | 'no') => {
-    setIsVoting(true);
+    // Set individual movie voting state
+    setVotingMovies(prev => new Set(prev).add(movieId));
+    
     try {
       const res = await fetch("/api/movies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "vote", id: movieId, type: vote })
+        body: JSON.stringify({ action: "vote", id: movieId, type: vote, userAddress: "demo-user" })
       });
       const data = await res.json();
       if (data.success) {
@@ -86,7 +89,12 @@ export default function DiscoverPage() {
     } catch (error) {
       console.error('Error voting:', error);
     } finally {
-      setIsVoting(false);
+      // Clear individual movie voting state
+      setVotingMovies(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(movieId);
+        return newSet;
+      });
     }
   };
 
@@ -195,13 +203,13 @@ export default function DiscoverPage() {
                 <div className="text-center text-white w-full text-sm py-8">No movies found.</div>
               ) : (
                 filteredMovies.slice(4, 8).map((movie: any) => (
-                  <CarouselItem key={movie.id || movie._id} className="pl-2 md:pl-4 basis-full">
+                  <CarouselItem key={movie.id || movie._id} className="pl-2 md:pl-4 basis-[280px] md:basis-[320px] lg:basis-[360px]">
                     <div className="flex justify-center">
-                      <MovieCard
+                      <CompactMovieCard
                         movie={movie}
-                        onVote={() => {}}
-                        isVoting={false}
-                        isConnected={true}
+                        onVote={(vote) => handleVote(movie.id || movie._id, vote ? 'yes' : 'no')}
+                        isVoting={votingMovies.has(movie.id || movie._id)}
+                        isConnected={isConnected}
                       />
                     </div>
                   </CarouselItem>
@@ -251,9 +259,9 @@ export default function DiscoverPage() {
               <MovieCard
                 key={movie.id || movie._id}
                 movie={movie}
-                onVote={() => {}}
-                isVoting={false}
-                isConnected={true}
+                onVote={(vote) => handleVote(movie.id || movie._id, vote ? 'yes' : 'no')}
+                isVoting={votingMovies.has(movie.id || movie._id)}
+                isConnected={isConnected}
               />
             ))
           )}
