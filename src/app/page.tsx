@@ -34,7 +34,8 @@ export default function DiscoverPage() {
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        const connected = false;
+        // Allow voting on homepage for demo purposes
+        const connected = true;
         setIsConnected(connected);
       } catch (error) {
         console.error('Error checking connection:', error);
@@ -68,6 +69,8 @@ export default function DiscoverPage() {
   }, []);
 
   const handleVote = async (movieId: string, vote: 'yes' | 'no') => {
+    console.log('Main page: handleVote called with:', movieId, vote);
+    
     // Set individual movie voting state
     setVotingMovies(prev => new Set(prev).add(movieId));
     
@@ -78,6 +81,8 @@ export default function DiscoverPage() {
         body: JSON.stringify({ action: "vote", id: movieId, type: vote, userAddress: "demo-user" })
       });
       const data = await res.json();
+      console.log('Main page: Vote API response:', data);
+      
       if (data.success) {
         // Refresh movies after voting
         const res = await fetch("/api/movies");
@@ -207,7 +212,10 @@ export default function DiscoverPage() {
                     <div className="flex justify-center">
                       <CompactMovieCard
                         movie={movie}
-                        onVote={(vote) => handleVote(movie.id || movie._id, vote ? 'yes' : 'no')}
+                        onVote={(vote) => {
+                          console.log('CompactMovieCard onVote callback called with:', vote);
+                          handleVote(movie.id || movie._id, vote ? 'yes' : 'no');
+                        }}
                         isVoting={votingMovies.has(movie.id || movie._id)}
                         isConnected={isConnected}
                       />
