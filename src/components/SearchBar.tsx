@@ -9,8 +9,12 @@ interface Movie {
   _id?: string;
   title: string;
   genres?: string[];
-  poster_path?: string;
-  overview?: string;
+  posterUrl?: string;
+  description?: string;
+  votes?: {
+    yes: number;
+    no: number;
+  };
 }
 
 interface SearchBarProps {
@@ -94,9 +98,9 @@ export default function SearchBar({
             >
               <div className="flex items-center space-x-3">
                 <div className="w-12 h-16 relative flex-shrink-0">
-                  {movie.poster_path ? (
+                  {movie.posterUrl ? (
                     <Image
-                      src={`https://image.tmdb.org/t/p/w92${movie.poster_path}`}
+                      src={movie.posterUrl}
                       alt={movie.title}
                       fill
                       className="object-cover rounded"
@@ -116,9 +120,9 @@ export default function SearchBar({
                       {movie.genres.slice(0, 2).join(', ')}
                     </p>
                   )}
-                  {movie.overview && (
+                  {movie.description && (
                     <p className="text-white/40 text-xs mt-1 line-clamp-2">
-                      {movie.overview}
+                      {movie.description}
                     </p>
                   )}
                 </div>
