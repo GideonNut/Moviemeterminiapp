@@ -6,12 +6,22 @@ import { useSession } from 'next-auth/react';
 import SearchBar from './SearchBar';
 import { getFarcasterUser } from '~/lib/farcaster';
 
+interface Movie {
+  id?: string;
+  _id?: string;
+  title: string;
+  genres?: string[];
+  poster_path?: string;
+  overview?: string;
+}
+
 interface HeaderProps {
   showSearch?: boolean;
   onSearch?: (query: string) => void;
+  movies?: Movie[];
 }
 
-export default function Header({ showSearch = false, onSearch }: HeaderProps) {
+export default function Header({ showSearch = false, onSearch, movies = [] }: HeaderProps) {
   const { data: session } = useSession();
   const [profilePicture, setProfilePicture] = useState<string>('https://randomuser.me/api/portraits/men/32.jpg');
   const [isLoading, setIsLoading] = useState(false);
@@ -70,7 +80,7 @@ export default function Header({ showSearch = false, onSearch }: HeaderProps) {
         </div>
         
         {/* Conditional Search Bar */}
-        {showSearch && <SearchBar onSearch={onSearch} />}
+        {showSearch && <SearchBar onSearch={onSearch} movies={movies} />}
       </div>
     </header>
   );
