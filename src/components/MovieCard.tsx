@@ -32,37 +32,11 @@ interface MovieCardProps {
 // Compact version for carousel display
 export function CompactMovieCard({ movie, onVote, isVoting, isConnected }: MovieCardProps) {
   const handleVote = async (vote: boolean) => {
-    const movieId = movie.id || movie._id;
-    if (!movieId) {
-      console.error('No movie ID found:', movie);
-      return;
-    }
+    console.log('CompactMovieCard: handleVote called with:', vote);
+    console.log('CompactMovieCard: isConnected:', isConnected, 'isVoting:', isVoting);
     
-    console.log('Voting on movie:', movieId, 'with vote:', vote);
-    
-    try {
-      const response = await fetch("/api/movies", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          action: "vote", 
-          id: movieId, 
-          type: vote ? "yes" : "no",
-          userAddress: "demo-user" // Temporary demo user address
-        }),
-      });
-      
-      const result = await response.json();
-      console.log('Vote response:', result);
-      
-      if (result.success) {
-        onVote(vote);
-      } else {
-        console.error('Vote failed:', result.error);
-      }
-    } catch (error) {
-      console.error('Error voting:', error);
-    }
+    // Call the parent's onVote function instead of making our own API call
+    onVote(vote);
   };
 
   // Ensure poster URL is a full URL
@@ -127,20 +101,26 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected }: Movie
           <Button
             variant="default"
             size="sm"
-            className="flex-1 text-xs py-1.5"
-            onClick={() => handleVote(true)}
+            className="flex-1 text-xs py-1.5 hover:bg-green-600"
+            onClick={() => {
+              console.log('Yes button clicked!');
+              handleVote(true);
+            }}
             disabled={!isConnected || isVoting}
           >
-            Yes
+            {isVoting ? 'Voting...' : 'Yes'}
           </Button>
           <Button
             variant="secondary"
             size="sm"
-            className="flex-1 text-xs py-1.5"
-            onClick={() => handleVote(false)}
+            className="flex-1 text-xs py-1.5 hover:bg-red-600"
+            onClick={() => {
+              console.log('No button clicked!');
+              handleVote(false);
+            }}
             disabled={!isConnected || isVoting}
           >
-            No
+            {isVoting ? 'Voting...' : 'No'}
           </Button>
         </div>
       </div>
