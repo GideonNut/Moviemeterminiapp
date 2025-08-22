@@ -7,8 +7,8 @@ import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContra
 import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance } from "wagmi";
 import { useRouter } from "next/navigation";
 import Header from "~/components/Header";
-import { ArrowLeft, ThumbsUp, ThumbsDown, Plus, RefreshCw, AlertCircle } from "lucide-react";
-import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl, filterMoviesWithPosters } from "~/lib/utils";
+import { ArrowLeft, ThumbsUp, ThumbsDown, Plus, RefreshCw } from "lucide-react";
+import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl } from "~/lib/utils";
 
 interface Movie {
   id: string;
@@ -31,7 +31,7 @@ export default function MoviesPage() {
   const [loading, setLoading] = useState(true);
   const [votes, setVotes] = useState<{ [id: string]: 'yes' | 'no' | null }>({});
   const [txStatus, setTxStatus] = useState<{ [id: string]: string }>({});
-  const [showMoviesWithoutPosters, setShowMoviesWithoutPosters] = useState(false);
+  // Removed showMoviesWithoutPosters state since filter UI was removed
 
   const { address, isConnected } = useAccount();
   const currentChainId = useChainId();
@@ -94,13 +94,8 @@ export default function MoviesPage() {
     }
   };
 
-  // Filter movies based on poster availability
-  const filteredMovies = showMoviesWithoutPosters 
-    ? movies 
-    : filterMoviesWithPosters(movies);
-
-  const moviesWithPosters = filterMoviesWithPosters(movies);
-  const moviesWithoutPosters = movies.filter(movie => !filterMoviesWithPosters([movie]).length);
+  // Show all movies since filter was removed
+  const filteredMovies = movies;
 
   useEffect(() => {
     fetchMovies();
@@ -263,7 +258,6 @@ export default function MoviesPage() {
                 </div>
                 {!hasSufficientCELOForGas(celoBalance.value) && (
                   <div className="flex items-center gap-2 text-yellow-400 text-sm">
-                    <AlertCircle size={16} />
                     <span>Low balance for gas fees</span>
                   </div>
                 )}
@@ -343,38 +337,7 @@ export default function MoviesPage() {
         </div>
       ) : (
         <>
-          {/* Filter Toggle and Stats */}
-          <div className="mb-6 p-4 bg-[#18181B] rounded-lg border border-white/10">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-4">
-                <h3 className="text-lg font-semibold text-white">Movie Filter</h3>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="showAllMovies"
-                    checked={showMoviesWithoutPosters}
-                    onChange={(e) => setShowMoviesWithoutPosters(e.target.checked)}
-                    className="rounded border-white/20"
-                  />
-                  <label htmlFor="showAllMovies" className="text-white/70 text-sm">
-                    Show movies without posters
-                  </label>
-                </div>
-              </div>
-              <div className="text-right text-sm text-white/60">
-                <div>Showing: {filteredMovies.length} of {movies.length} movies</div>
-                <div>{moviesWithPosters.length} with posters, {moviesWithoutPosters.length} without</div>
-              </div>
-            </div>
-            
-            {!showMoviesWithoutPosters && moviesWithoutPosters.length > 0 && (
-              <div className="text-amber-400 text-sm flex items-center gap-2">
-                <AlertCircle size={16} />
-                {moviesWithoutPosters.length} movie{moviesWithoutPosters.length !== 1 ? 's' : ''} hidden (no poster)
-              </div>
-            )}
-          </div>
-
+          {/* Movies Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredMovies.map((movie) => (
               <Card key={movie.id} className="bg-[#18181B] text-white border border-white/10 overflow-hidden hover:border-white/20 transition-colors">
