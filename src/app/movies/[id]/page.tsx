@@ -12,6 +12,7 @@ import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance } 
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
 import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl } from "~/lib/utils";
 import WatchlistButton from "~/components/WatchlistButton";
+import CommentsSection from "~/components/CommentsSection";
 
 interface Movie {
   id: string;
@@ -585,9 +586,14 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
 
+        {/* Comments Section */}
+        <div className="mt-5">
+          <CommentsSection movieId={movie.id} />
+        </div>
+
         {/* Related Movies */}
         {relatedMovies.length > 0 && (
-          <div>
+          <div className="mt-5">
             <h2 className="text-2xl font-bold text-white mb-6">More Movies to Vote On</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {relatedMovies.map((relatedMovie) => (
