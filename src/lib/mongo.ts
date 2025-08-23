@@ -89,11 +89,46 @@ const watchlistSchema = new mongoose.Schema<IWatchlist>({
 // Compound index to ensure unique user-movie combinations
 watchlistSchema.index({ address: 1, movieId: 1 }, { unique: true });
 
+// Comment Schema
+interface IComment extends Document {
+  movieId: mongoose.Types.ObjectId;
+  address: string;
+  content: string;
+  timestamp: Date;
+  likes: string[];
+  replies: Array<{
+    address: string;
+    content: string;
+    timestamp: Date;
+    likes: string[];
+  }>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const commentSchema = new mongoose.Schema<IComment>({
+  movieId: { type: mongoose.Schema.Types.ObjectId, ref: "Movie", required: true },
+  address: { type: String, required: true, index: true },
+  content: { type: String, required: true, maxlength: 1000 },
+  timestamp: { type: Date, default: Date.now },
+  likes: [{ type: String }], // Array of addresses who liked the comment
+  replies: [{
+    address: { type: String, required: true },
+    content: { type: String, required: true, maxlength: 500 },
+    timestamp: { type: Date, default: Date.now },
+    likes: [{ type: String }]
+  }]
+}, { timestamps: true });
+
+// Index for efficient querying
+commentSchema.index({ movieId: 1, timestamp: -1 });
+
 // Initialize models immediately (not inside connectMongo)
 let MovieModel: Model<IMovie>;
 let VoteModel: Model<IVote>;
 let NotificationModel: Model<INotification>;
 let WatchlistModel: Model<IWatchlist>;
+let CommentModel: Model<IComment>;
 
 // Initialize models if they don't exist
 function initializeModels() {
@@ -109,6 +144,9 @@ function initializeModels() {
     }
     if (!WatchlistModel) {
       WatchlistModel = mongoose.models.Watchlist as Model<IWatchlist> || mongoose.model<IWatchlist>('Watchlist', watchlistSchema);
+    }
+    if (!CommentModel) {
+      CommentModel = mongoose.models.Comment as Model<IComment> || mongoose.model<IComment>('Comment', commentSchema);
     }
   } catch (error) {
     console.error('Error initializing models:', error);
@@ -211,7 +249,7 @@ async function ensureConnection() {
   await connectMongo();
   initializeModels();
   
-  if (!MovieModel || !VoteModel || !NotificationModel || !WatchlistModel) {
+  if (!MovieModel || !VoteModel || !NotificationModel || !WatchlistModel || !CommentModel) {
     throw new Error('Models not initialized properly');
   }
 }
@@ -507,5 +545,102 @@ export async function isInWatchlist(address: string, movieId: string): Promise<b
   } catch (error) {
     console.error("Error checking watchlist:", error);
     return false;
+  }
+}
+
+// Comment functions
+export async function addComment(movieId: string, address: string, content: string): Promise<IComment> {
+  try {
+    await ensureConnection();
+    
+    // Find the movie by id field, not _id
+    const movie = await MovieModel.findOne({ id: movieId });
+    if (!movie) {
+      throw new Error('Movie not found');
+    }
+
+    const comment = await CommentModel.create({
+      movieId: movie._id,
+      address,
+      content: content.trim(),
+      timestamp: new Date()
+    });
+
+    return comment;
+  } catch (error) {
+    console.error("Error adding comment:", error);
+    throw new Error(`Failed to add comment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+export async function getMovieComments(movieId: string): Promise<IComment[]> {
+  try {
+    await ensureConnection();
+    
+    // Find the movie by id field, not _id
+    const movie = await MovieModel.findOne({ id: movieId });
+    if (!movie) {
+      return [];
+    }
+
+    const comments = await CommentModel.find({ movieId: movie._id })
+      .sort({ timestamp: -1 })
+      .limit(50); // Limit to 50 most recent comments
+    
+    return comments;
+  } catch (error) {
+    console.error("Error getting movie comments:", error);
+    return [];
+  }
+}
+
+export async function likeComment(commentId: string, address: string): Promise<void> {
+  try {
+    await ensureConnection();
+    
+    const comment = await CommentModel.findById(commentId);
+    if (!comment) {
+      throw new Error('Comment not found');
+    }
+
+    const hasLiked = comment.likes.includes(address);
+    
+    if (hasLiked) {
+      // Remove like
+      await CommentModel.updateOne(
+        { _id: commentId },
+        { $pull: { likes: address } }
+      );
+    } else {
+      // Add like
+      await CommentModel.updateOne(
+        { _id: commentId },
+        { $addToSet: { likes: address } }
+      );
+    }
+  } catch (error) {
+    console.error("Error liking comment:", error);
+    throw new Error(`Failed to like comment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+export async function addReply(commentId: string, address: string, content: string): Promise<void> {
+  try {
+    await ensureConnection();
+    
+    const reply = {
+      address,
+      content: content.trim(),
+      timestamp: new Date(),
+      likes: []
+    };
+
+    await CommentModel.updateOne(
+      { _id: commentId },
+      { $push: { replies: reply } }
+    );
+  } catch (error) {
+    console.error("Error adding reply:", error);
+    throw new Error(`Failed to add reply: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
