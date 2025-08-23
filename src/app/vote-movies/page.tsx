@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardTitle, CardDescription } from "~/components/ui/card";
 import { Button } from "~/components/ui/Button";
 import Image from "next/image";
@@ -85,6 +86,7 @@ export default function VoteMoviesPage() {
       if (response.ok) {
         const data = await response.json();
         setVoteMovies(data.movies || []);
+        console.log('Fetched vote movies:', data.movies || []);
       } else {
         console.error('Failed to fetch vote movies');
       }
@@ -404,14 +406,14 @@ export default function VoteMoviesPage() {
             <CardContent className="p-0">
               <div className="flex">
                 {/* Movie Poster */}
-                <div className="w-24 h-36 relative bg-neutral-900 flex-shrink-0">
+                <div className="w-24  relative bg-neutral-900 flex-shrink-0">
                   {movie.posterUrl ? (
                     <Image
                       src={ensureFullPosterUrl(movie.posterUrl) || ''}
                       alt={movie.title}
                       fill
-                      className="object-cover"
-                      sizes="96px"
+                      className="object-cover w-full h-full"
+                      sizes=""
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full text-white/40">
@@ -429,7 +431,25 @@ export default function VoteMoviesPage() {
                     <CardDescription className="text-sm text-white/60 mb-3">
                       {movie.genres && movie.genres.length > 0 ? movie.genres[0] : 'Unknown'} • {movie.releaseYear || 'Unknown Year'}
                     </CardDescription>
-                    
+
+                    {/* Movie Description */}
+                    <div className="text-sm text-white/60 mb-2 line-clamp-2 ">
+                      {`${movie.description.substring(0, 100)}...` || 'No description available'}
+                    </div>
+
+                      <Link 
+                href={`/movies/${movie.id}`}
+                className="w-full"
+              >
+                <Button 
+                  variant="link" 
+                  size="sm" 
+                  className="p-0 text-left underline text-xs text-white"
+                >
+                  View More Details
+                </Button>
+              </Link>
+
                     {/* Vote Counts Display */}
                     <div className="flex items-center gap-4 text-xs text-white/60 mb-3">
                       <span className="flex items-center gap-1">
