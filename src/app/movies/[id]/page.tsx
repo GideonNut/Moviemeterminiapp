@@ -301,7 +301,7 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
   if (loading) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] pb-20">
-        <div className="max-w-4xl mx-auto px-4 pt-32">
+        <div className="max-w-4xl mx-auto px-4 pt-5">
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="text-center">
               <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-white/60" />
@@ -316,7 +316,7 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
   if (!movie) {
     return (
       <div className="min-h-screen bg-[#0A0A0A] pb-20">
-        <div className="max-w-4xl mx-auto px-4 pt-32">
+        <div className="max-w-4xl mx-auto px-4 pt-5">
           <div className="text-center py-12">
             <h1 className="text-2xl font-bold text-white mb-4">Movie Not Found</h1>
             <p className="text-white/60 mb-6">The movie you're looking for doesn't exist.</p>
@@ -335,27 +335,21 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] pb-20">
-      <div className="max-w-4xl mx-auto px-4 pt-32">
+      <div className="max-w-4xl mx-auto px-4 pt-5">
 
         <Header showSearch={true} />
         {/* Back Button */}
-        <div className="flex items-center mb-6">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => router.back()} 
-            className="mr-3 p-2 hover:bg-white/10"
-          >
-            <ArrowLeft size={18} />
-          </Button>
-          <div className="text-sm text-white/60">
-            <Link href="/" className="hover:text-white">Home</Link>
-            <span className="mx-2">/</span>
-            <Link href="/vote-movies" className="hover:text-white">Movies</Link>
-            <span className="mx-2">/</span>
-            <span className="text-white">{movie.title}</span>
-          </div>
-        </div>
+         <div className="flex items-center mt-10 mb-6">
+               <Button 
+                 variant="ghost" 
+                 size="sm"
+                 onClick={() => router.back()} 
+                 className="mr-3 p-2 bg-white hover:bg-white/10"
+               >
+                 <ArrowLeft size={18} />
+               </Button>
+               <h1 className="text-xl font-semibold text-white">Back to Movies</h1>
+             </div>
 
         {/* Balance and Gas Status */}
         {isConnected && (
