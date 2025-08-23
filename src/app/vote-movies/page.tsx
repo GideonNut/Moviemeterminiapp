@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import WatchlistButton from "~/components/WatchlistButton";
 import Link from "next/link";
 import { Card, CardContent, CardTitle, CardDescription } from "~/components/ui/card";
 import { Button } from "~/components/ui/Button";
@@ -425,9 +426,14 @@ export default function VoteMoviesPage() {
                 {/* Movie Info & Voting */}
                 <div className="flex-1 p-4 flex flex-col justify-between">
                   <div>
-                    <CardTitle className="text-base font-semibold mb-1 line-clamp-2">
-                      {movie.title}
-                    </CardTitle>
+                  <div className="flex items-start justify-between mb-1">
+                <CardTitle className="text-base font-semibold line-clamp-2 flex-1">
+                  {movie.title}
+                </CardTitle>
+                <WatchlistButton movieId={movie.id} size="sm" className="ml-2 flex-shrink-0" />
+              </div>
+              
+
                     <CardDescription className="text-sm text-white/60 mb-3">
                       {movie.genres && movie.genres.length > 0 ? movie.genres[0] : 'Unknown'} • {movie.releaseYear || 'Unknown Year'}
                     </CardDescription>
@@ -449,6 +455,8 @@ export default function VoteMoviesPage() {
                   View More Details
                 </Button>
               </Link>
+
+             
 
                     {/* Vote Counts Display */}
                     <div className="flex items-center gap-4 text-xs text-white/60 mb-3">
