@@ -71,10 +71,29 @@ const notificationSchema = new mongoose.Schema<INotification>({
   timestamps: true
 });
 
+// Watchlist Schema
+interface IWatchlist extends Document {
+  address: string;
+  movieId: mongoose.Types.ObjectId;
+  addedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const watchlistSchema = new mongoose.Schema<IWatchlist>({
+  address: { type: String, required: true, index: true },
+  movieId: { type: mongoose.Schema.Types.ObjectId, ref: "Movie", required: true },
+  addedAt: { type: Date, default: Date.now },
+}, { timestamps: true });
+
+// Compound index to ensure unique user-movie combinations
+watchlistSchema.index({ address: 1, movieId: 1 }, { unique: true });
+
 // Initialize models immediately (not inside connectMongo)
 let MovieModel: Model<IMovie>;
 let VoteModel: Model<IVote>;
 let NotificationModel: Model<INotification>;
+let WatchlistModel: Model<IWatchlist>;
 
 // Initialize models if they don't exist
 function initializeModels() {
@@ -87,6 +106,9 @@ function initializeModels() {
     }
     if (!NotificationModel) {
       NotificationModel = mongoose.models.Notification as Model<INotification> || mongoose.model<INotification>('Notification', notificationSchema);
+    }
+    if (!WatchlistModel) {
+      WatchlistModel = mongoose.models.Watchlist as Model<IWatchlist> || mongoose.model<IWatchlist>('Watchlist', watchlistSchema);
     }
   } catch (error) {
     console.error('Error initializing models:', error);
@@ -189,7 +211,7 @@ async function ensureConnection() {
   await connectMongo();
   initializeModels();
   
-  if (!MovieModel || !VoteModel || !NotificationModel) {
+  if (!MovieModel || !VoteModel || !NotificationModel || !WatchlistModel) {
     throw new Error('Models not initialized properly');
   }
 }
@@ -410,5 +432,80 @@ export async function disconnectMongo(): Promise<void> {
     }
   } catch (error) {
     console.error('Error disconnecting from MongoDB:', error);
+  }
+}
+
+// Add watchlist functions
+export async function addToWatchlist(address: string, movieId: string): Promise<void> {
+  try {
+    await ensureConnection();
+    
+    // Find the movie by id field, not _id
+    const movie = await MovieModel.findOne({ id: movieId });
+    if (!movie) {
+      throw new Error('Movie not found');
+    }
+
+    await WatchlistModel.create({
+      address,
+      movieId: movie._id,
+      addedAt: new Date()
+    });
+  } catch (error: any) {
+    if (error.code === 11000) {
+      throw new Error('Movie already in watchlist');
+    }
+    console.error("Error adding to watchlist:", error);
+    throw new Error(`Failed to add to watchlist: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+export async function removeFromWatchlist(address: string, movieId: string): Promise<void> {
+  try {
+    await ensureConnection();
+    
+    // Find the movie by id field, not _id
+    const movie = await MovieModel.findOne({ id: movieId });
+    if (!movie) {
+      throw new Error('Movie not found');
+    }
+
+    await WatchlistModel.deleteOne({ address, movieId: movie._id });
+  } catch (error) {
+    console.error("Error removing from watchlist:", error);
+    throw new Error(`Failed to remove from watchlist: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+export async function getUserWatchlist(address: string): Promise<IMovie[]> {
+  try {
+    await ensureConnection();
+    
+    const watchlistItems = await WatchlistModel.find({ address })
+      .populate('movieId')
+      .sort({ addedAt: -1 });
+    
+    return watchlistItems.map(item => item.movieId as unknown as IMovie);
+  } catch (error) {
+    console.error("Error getting user watchlist:", error);
+    return [];
+  }
+}
+
+export async function isInWatchlist(address: string, movieId: string): Promise<boolean> {
+  try {
+    await ensureConnection();
+    
+    // Find the movie by id field, not _id
+    const movie = await MovieModel.findOne({ id: movieId });
+    if (!movie) {
+      return false;
+    }
+
+    const watchlistItem = await WatchlistModel.findOne({ address, movieId: movie._id });
+    return !!watchlistItem;
+  } catch (error) {
+    console.error("Error checking watchlist:", error);
+    return false;
   }
 }
