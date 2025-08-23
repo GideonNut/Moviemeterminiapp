@@ -218,9 +218,9 @@ export default function WatchlistPage() {
                     <div className="flex items-center gap-3">
                       <Link href={`/movies/${movie.id}`} className="flex-1">
                         <Button 
-                          variant="outline" 
+                          variant="default" 
                           size="sm" 
-                          className="w-full text-xs border-white/20 hover:border-white/40 hover:bg-white/5"
+                          className="w-full text-xs bg-white text-gray-700 border-white/20 hover:border-white/40 hover:bg-white/5"
                         >
                           View Details
                         </Button>
