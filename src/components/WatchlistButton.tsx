@@ -110,13 +110,13 @@ export default function WatchlistButton({
   if (checking) {
     return (
       <Button
-        variant="outline"
+        variant="default"
         size={size}
         disabled
         className={`p-2 ${className}`}
       >
         <RefreshCw size={16} className="animate-spin" />
-        {showText && <span className="ml-2 text-xs">Loading...</span>}
+        
       </Button>
     );
   }
@@ -137,9 +137,9 @@ export default function WatchlistButton({
       {loading ? (
         <RefreshCw size={16} className="animate-spin" />
       ) : isInWatchlist ? (
-        <Eye size={16} />
+       <EyeOff size={16} />
       ) : (
-        <EyeOff size={16} />
+       <Eye size={16} />
       )}
       {showText && (
         <span className="ml-2 text-xs">
