@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { Eye } from 'lucide-react';
 import SearchBar from './SearchBar';
 import { getFarcasterUser } from '~/lib/farcaster';
 
@@ -62,20 +63,32 @@ export default function Header({ showSearch = false, onSearch, movies = [] }: He
             </div>
           </Link>
           
-          {/* User Avatar on right */}
-          <div className="w-10 h-10 relative">
-            <Image
-              src={profilePicture}
-              alt="User Profile"
-              layout="fill"
-              objectFit="cover"
-              className="rounded-full border-2 border-white/20"
-            />
-            {isLoading && (
-              <div className="absolute inset-0 bg-black/20 rounded-full flex items-center justify-center">
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-              </div>
-            )}
+          {/* Right section with Watchlist icon and Avatar */}
+          <div className="flex items-center space-x-4">
+            {/* Watchlist Icon */}
+            <Link 
+              href="/watchlist" 
+              className="text-white/70 hover:text-purple-400 transition-colors"
+              title="My Watchlist"
+            >
+              <Eye size={24} />
+            </Link>
+            
+            {/* User Avatar */}
+            <div className="w-10 h-10 relative">
+              <Image
+                src={profilePicture}
+                alt="User Profile"
+                layout="fill"
+                objectFit="cover"
+                className="rounded-full border-2 border-white/20"
+              />
+              {isLoading && (
+                <div className="absolute inset-0 bg-black/20 rounded-full flex items-center justify-center">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         
