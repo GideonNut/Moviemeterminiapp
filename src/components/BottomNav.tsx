@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Home, Film, Tv, Gift, Eye } from "lucide-react";
+import { Home, Film, Tv, Gift, Trophy } from "lucide-react";
 
 
 export default function BottomNav() {
@@ -25,11 +25,11 @@ export default function BottomNav() {
           <span className="text-xs mt-0.5 font-medium">Rewards</span>
         </Link>
         <Link 
-          href="/watchlist"
-          className={`flex flex-col items-center justify-center py-1 text-white hover:text-purple-400 transition-colors `}
+          href="/leaderboards"
+          className="flex flex-col items-center justify-center py-1 text-white hover:text-purple-400 transition-colors"
         >
-          <Eye size={20} />
-          <span className="text-xs mt-0.5 font-medium">Watchlist</span>
+          <Trophy size={20} />
+          <span className="text-xs mt-0.5 font-medium">Leaderboard</span>
         </Link>
       </div>
     </nav>
