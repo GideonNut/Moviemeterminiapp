@@ -115,10 +115,10 @@ export default function LeaderboardsPage() {
       
       // Find user's rank if connected
       if (isConnected && address) {
-        const votersRank = leaderboardData.topVoters.find((entry: TopVoter) => entry.address === address)?.rank;
-        const earnersRank = leaderboardData.topEarners.find((entry: EarnerEntry) => entry.address === address)?.rank;
-        const streaksRank = leaderboardData.longestStreaks.find((entry: StreakEntry) => entry.address === address)?.rank;
-        
+        const votersRank = leaderboardData.topVoters?.find((entry: TopVoter) => entry.address === address)?.rank;
+        const earnersRank = leaderboardData.topEarners?.find((entry: EarnerEntry) => entry.address === address)?.rank;
+        const streaksRank = leaderboardData.longestStreaks?.find((entry: StreakEntry) => entry.address === address)?.rank;
+
         setUserRank({
           voters: votersRank,
           earners: earnersRank,
@@ -141,9 +141,9 @@ export default function LeaderboardsPage() {
   useEffect(() => {
     // Update user rank when address changes
     if (data && isConnected && address) {
-      const votersRank = data.topVoters.find(entry => entry.address === address)?.rank;
-      const earnersRank = data.topEarners.find(entry => entry.address === address)?.rank;
-      const streaksRank = data.longestStreaks.find(entry => entry.address === address)?.rank;
+      const votersRank = data.topVoters?.find(entry => entry.address === address)?.rank;
+      const earnersRank = data.topEarners?.find(entry => entry.address === address)?.rank;
+      const streaksRank = data.longestStreaks?.find(entry => entry.address === address)?.rank;
       
       setUserRank({
         voters: votersRank,
@@ -240,7 +240,7 @@ export default function LeaderboardsPage() {
     );
   }
 
-  const currentLeaderboard = leaderboardTypes.find(lt => lt.id === activeTab);
+  const currentLeaderboard = leaderboardTypes?.find(lt => lt.id === activeTab);
   const currentData = getCurrentData();
 
   return (
