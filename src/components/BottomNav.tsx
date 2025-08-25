@@ -29,7 +29,7 @@ export default function BottomNav() {
           className="flex flex-col items-center justify-center py-1 text-white hover:text-purple-400 transition-colors"
         >
           <Trophy size={20} />
-          <span className="text-xs mt-0.5 font-medium">Leaderboard</span>
+          <span className="text-xs mt-0.5 font-medium">Leaderboards</span>
         </Link>
       </div>
     </nav>
