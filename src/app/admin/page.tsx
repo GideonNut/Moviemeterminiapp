@@ -528,6 +528,13 @@ export default function AdminPage() {
                   {isImporting ? "Syncing..." : "Sync Content to Contract"}
                 </Button>
                 
+                <a
+                  href="/test-contract"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors text-center block"
+                >
+                  Test Smart Contract
+                </a>
+                
                 <Button
                   onClick={async () => {
                     if (confirm("⚠️ This will reset all content IDs to be sequential starting from 0. This action cannot be undone. Continue?")) {
