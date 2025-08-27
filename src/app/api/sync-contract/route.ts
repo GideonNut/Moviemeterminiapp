@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     const contract = getContract({
       address: VOTE_CONTRACT_ADDRESS,
       abi: VOTE_CONTRACT_ABI,
-      publicClient,
+      client: publicClient,
       walletClient
     });
 
