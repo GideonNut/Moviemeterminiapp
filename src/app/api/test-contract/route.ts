@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const contract = getContract({
       address: VOTE_CONTRACT_ADDRESS,
       abi: VOTE_CONTRACT_ABI,
-      publicClient
+      client: publicClient
     });
 
     // Read the movie count from the contract
