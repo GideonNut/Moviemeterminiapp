@@ -15,7 +15,7 @@ interface IMovie extends Document {
   };
   createdAt: Date;
   updatedAt: Date;
-  isTVShow?: boolean; // Added isTVShow field
+  isTVShow?: boolean;
 }
 
 const movieSchema = new mongoose.Schema<IMovie>({
@@ -29,7 +29,7 @@ const movieSchema = new mongoose.Schema<IMovie>({
     yes: { type: Number, default: 0 },
     no: { type: Number, default: 0 }
   },
-  isTVShow: { type: Boolean, default: false } // Added isTVShow field
+  isTVShow: { type: Boolean, default: false }
 }, {
   timestamps: true
 });
@@ -38,7 +38,7 @@ const movieSchema = new mongoose.Schema<IMovie>({
 interface IVote extends Document {
   movieId: string;
   type: "yes" | "no";
-  userAddress: string; // Add user address to track who voted
+  userAddress: string;
   fid?: number;
   createdAt: Date;
   updatedAt: Date;
@@ -47,14 +47,13 @@ interface IVote extends Document {
 const voteSchema = new mongoose.Schema<IVote>({
   movieId: { type: String, required: true },
   type: { type: String, enum: ["yes", "no"], required: true },
-  userAddress: { type: String, required: true }, // Add user address field
+  userAddress: { type: String, required: true },
   fid: { type: Number },
   createdAt: { type: Date, default: Date.now }
 }, {
-  timestamps: true // This will automatically add createdAt and updatedAt
+  timestamps: true
 });
 
-// Create unique compound index to prevent duplicate votes
 voteSchema.index({ movieId: 1, userAddress: 1 }, { unique: true });
 
 // Notification Schema
@@ -72,22 +71,116 @@ const notificationSchema = new mongoose.Schema<INotification>({
   timestamps: true
 });
 
-// Models
+// Watchlist Schema
+interface IWatchlist extends Document {
+  address: string;
+  movieId: mongoose.Types.ObjectId;
+  addedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const watchlistSchema = new mongoose.Schema<IWatchlist>({
+  address: { type: String, required: true, index: true },
+  movieId: { type: mongoose.Schema.Types.ObjectId, ref: "Movie", required: true },
+  addedAt: { type: Date, default: Date.now },
+}, { timestamps: true });
+
+// Compound index to ensure unique user-movie combinations
+watchlistSchema.index({ address: 1, movieId: 1 }, { unique: true });
+
+// Comment Schema
+interface IComment extends Document {
+  movieId: mongoose.Types.ObjectId;
+  address: string;
+  content: string;
+  timestamp: Date;
+  likes: string[];
+  replies: Array<{
+    address: string;
+    content: string;
+    timestamp: Date;
+    likes: string[];
+  }>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const commentSchema = new mongoose.Schema<IComment>({
+  movieId: { type: mongoose.Schema.Types.ObjectId, ref: "Movie", required: true },
+  address: { type: String, required: true, index: true },
+  content: { type: String, required: true, maxlength: 1000 },
+  timestamp: { type: Date, default: Date.now },
+  likes: [{ type: String }], // Array of addresses who liked the comment
+  replies: [{
+    address: { type: String, required: true },
+    content: { type: String, required: true, maxlength: 500 },
+    timestamp: { type: Date, default: Date.now },
+    likes: [{ type: String }]
+  }]
+}, { timestamps: true });
+
+// Index for efficient querying
+commentSchema.index({ movieId: 1, timestamp: -1 });
+
+// Initialize models immediately (not inside connectMongo)
 let MovieModel: Model<IMovie>;
 let VoteModel: Model<IVote>;
 let NotificationModel: Model<INotification>;
+let WatchlistModel: Model<IWatchlist>;
+let CommentModel: Model<IComment>;
+
+// Initialize models if they don't exist
+function initializeModels() {
+  try {
+    if (!MovieModel) {
+      MovieModel = mongoose.models.Movie as Model<IMovie> || mongoose.model<IMovie>('Movie', movieSchema);
+    }
+    if (!VoteModel) {
+      VoteModel = mongoose.models.Vote as Model<IVote> || mongoose.model<IVote>('Vote', voteSchema);
+    }
+    if (!NotificationModel) {
+      NotificationModel = mongoose.models.Notification as Model<INotification> || mongoose.model<INotification>('Notification', notificationSchema);
+    }
+    if (!WatchlistModel) {
+      WatchlistModel = mongoose.models.Watchlist as Model<IWatchlist> || mongoose.model<IWatchlist>('Watchlist', watchlistSchema);
+    }
+    if (!CommentModel) {
+      CommentModel = mongoose.models.Comment as Model<IComment> || mongoose.model<IComment>('Comment', commentSchema);
+    }
+  } catch (error) {
+    console.error('Error initializing models:', error);
+  }
+}
 
 // Connection management
 let connection: Connection | null = null;
+let isConnecting = false;
 
 export async function connectMongo(): Promise<Connection> {
   try {
+    // Initialize models first
+    initializeModels();
+
+    // If already connected, return existing connection
     if (connection && connection.readyState === 1) {
       return connection;
     }
 
-const uri = process.env.MONGODB_URI;
-if (!uri) {
+    // If currently connecting, wait for it to complete
+    if (isConnecting) {
+      while (isConnecting) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      if (connection && connection.readyState === 1) {
+        return connection;
+      }
+    }
+
+    isConnecting = true;
+
+    const uri = process.env.MONGODB_URI;
+    if (!uri) {
       throw new Error("MONGODB_URI environment variable is not set. Please create a .env.local file with your MongoDB connection string.");
     }
 
@@ -110,89 +203,97 @@ if (!uri) {
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
-      bufferCommands: false,
     };
 
-    // Connect to MongoDB
+    // Connect to MongoDB and wait for it to complete
     await mongoose.connect(connectionUri, options);
     
     connection = mongoose.connection;
     
-    // Set up connection event handlers
-    connection.on('connected', () => {
-      console.log('MongoDB connected successfully with Mongoose');
-    });
+    // Wait for connection to be ready
+    if (connection.readyState !== 1) {
+      await new Promise((resolve, reject) => {
+        connection!.once('connected', resolve);
+        connection!.once('error', reject);
+        // Add timeout
+        setTimeout(() => reject(new Error('Connection timeout')), 10000);
+      });
+    }
 
+    console.log('MongoDB connected successfully with Mongoose');
+
+    // Set up connection event handlers
     connection.on('error', (err) => {
       console.error('MongoDB connection error:', err);
     });
 
     connection.on('disconnected', () => {
       console.log('MongoDB disconnected');
+      connection = null;
     });
 
-    // Initialize models after connection
-    if (!MovieModel) {
-      MovieModel = mongoose.model<IMovie>('Movie', movieSchema);
-    }
-    if (!VoteModel) {
-      VoteModel = mongoose.model<IVote>('Vote', voteSchema);
-    }
-    if (!NotificationModel) {
-      NotificationModel = mongoose.model<INotification>('Notification', notificationSchema);
-    }
+    // Ensure models are initialized after connection
+    initializeModels();
 
+    isConnecting = false;
     return connection;
   } catch (error) {
+    isConnecting = false;
     console.error("MongoDB connection error:", error);
     throw new Error(`Failed to connect to MongoDB: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
+// Helper function to ensure models are available
+async function ensureConnection() {
+  await connectMongo();
+  initializeModels();
+  
+  if (!MovieModel || !VoteModel || !NotificationModel || !WatchlistModel || !CommentModel) {
+    throw new Error('Models not initialized properly');
+  }
+}
+
 // Collection getters (for backward compatibility)
 export async function getMoviesCollection() {
-  await connectMongo();
+  await ensureConnection();
   return MovieModel;
 }
 
 export async function getVotesCollection() {
-  await connectMongo();
+  await ensureConnection();
   return VoteModel;
 }
 
 async function getNotificationsCollection() {
-  await connectMongo();
+  await ensureConnection();
   return NotificationModel;
 }
 
 // Movies API with Mongoose
 export async function getNextMovieId(): Promise<number> {
   try {
-    await connectMongo();
+    await ensureConnection();
     
     // Get the highest existing ID
     const lastMovie = await MovieModel.findOne({}, { id: 1 }).sort({ id: -1 });
     
     if (!lastMovie) {
-      // No movies exist, start from 0
       return 0;
     }
     
-    // Parse the last ID and increment by 1
     const lastId = parseInt(lastMovie.id, 10);
     return lastId + 1;
   } catch (error) {
     console.error("Error getting next movie ID:", error);
-    // Fallback to 0 if there's an error
     return 0;
   }
 }
 
 export async function saveMovie(movie: { id?: string; title: string; description: string; posterUrl?: string; releaseYear?: string; genres?: string[]; isTVShow?: boolean }): Promise<{ id: string }> {
   try {
-    await connectMongo();
+    await ensureConnection();
     
-    // If no ID provided, generate the next sequential ID
     let movieId: string;
     if (!movie.id) {
       const nextId = await getNextMovieId();
@@ -211,7 +312,7 @@ export async function saveMovie(movie: { id?: string; title: string; description
           posterUrl: movie.posterUrl,
           releaseYear: movie.releaseYear,
           genres: movie.genres ?? [],
-          isTVShow: movie.isTVShow ?? false, // Add TV show flag
+          isTVShow: movie.isTVShow ?? false,
         },
         $setOnInsert: { votes: { yes: 0, no: 0 } },
       },
@@ -227,7 +328,7 @@ export async function saveMovie(movie: { id?: string; title: string; description
 
 export async function getAllMovies(): Promise<IMovie[]> {
   try {
-    await connectMongo();
+    await ensureConnection();
     return await MovieModel.find({ isTVShow: { $ne: true } }).sort({ createdAt: -1 });
   } catch (error) {
     console.error("Error getting all movies:", error);
@@ -237,7 +338,7 @@ export async function getAllMovies(): Promise<IMovie[]> {
 
 export async function getTVShows(): Promise<IMovie[]> {
   try {
-    await connectMongo();
+    await ensureConnection();
     return await MovieModel.find({ isTVShow: true }).sort({ createdAt: -1 });
   } catch (error) {
     console.error("Error getting TV shows:", error);
@@ -247,17 +348,14 @@ export async function getTVShows(): Promise<IMovie[]> {
 
 export async function saveVote(movieId: string, type: "yes" | "no", userAddress: string): Promise<void> {
   try {
-    await connectMongo();
+    await ensureConnection();
     
-    // Check if user already voted on this movie
     const existingVote = await VoteModel.findOne({ movieId, userAddress });
     
     if (existingVote) {
-      // User already voted, throw error - no vote changes allowed
       throw new Error(`User ${userAddress} has already voted on movie ${movieId}. Vote changes are not allowed.`);
     }
     
-    // New vote, create record and increment count
     await VoteModel.create({
       movieId,
       type,
@@ -265,7 +363,6 @@ export async function saveVote(movieId: string, type: "yes" | "no", userAddress:
       createdAt: new Date()
     });
 
-    // Update the movie's vote count
     await MovieModel.updateOne(
       { id: movieId },
       { $inc: { [`votes.${type}`]: 1 } }
@@ -278,12 +375,10 @@ export async function saveVote(movieId: string, type: "yes" | "no", userAddress:
 
 export async function getUserVotes(userAddress: string): Promise<{ [movieId: string]: "yes" | "no" }> {
   try {
-    await connectMongo();
+    await ensureConnection();
     
-    // Get all votes for this user
     const votes = await VoteModel.find({ userAddress }).sort({ createdAt: -1 });
     
-    // Convert to the format expected by the UI
     const voteMap: { [movieId: string]: "yes" | "no" } = {};
     votes.forEach(vote => {
       voteMap[vote.movieId] = vote.type;
@@ -299,7 +394,7 @@ export async function getUserVotes(userAddress: string): Promise<{ [movieId: str
 // Notification storage with Mongoose
 export async function getUserNotificationDetails(fid: number): Promise<FrameNotificationDetails | null> {
   try {
-    await connectMongo();
+    await ensureConnection();
     const doc = await NotificationModel.findOne({ fid });
     return doc?.details || null;
   } catch (error) {
@@ -313,7 +408,7 @@ export async function setUserNotificationDetails(
   notificationDetails: FrameNotificationDetails
 ): Promise<void> {
   try {
-    await connectMongo();
+    await ensureConnection();
     await NotificationModel.findOneAndUpdate(
       { fid },
       { fid, details: notificationDetails },
@@ -327,7 +422,7 @@ export async function setUserNotificationDetails(
 
 export async function deleteUserNotificationDetails(fid: number): Promise<void> {
   try {
-    await connectMongo();
+    await ensureConnection();
     await NotificationModel.deleteOne({ fid });
   } catch (error) {
     console.error("Error deleting user notification details:", error);
@@ -337,12 +432,10 @@ export async function deleteUserNotificationDetails(fid: number): Promise<void> 
 
 export async function resetMovieIds(): Promise<void> {
   try {
-    await connectMongo();
+    await ensureConnection();
     
-    // Get all movies sorted by creation date
     const movies = await MovieModel.find({}).sort({ createdAt: 1 });
     
-    // Reset IDs to be sequential starting from 0
     for (let i = 0; i < movies.length; i++) {
       const newId = i.toString();
       await MovieModel.updateOne(
@@ -360,7 +453,7 @@ export async function resetMovieIds(): Promise<void> {
 
 export async function getMovieCount(): Promise<number> {
   try {
-    await connectMongo();
+    await ensureConnection();
     return await MovieModel.countDocuments({});
   } catch (error) {
     console.error("Error getting movie count:", error);
@@ -368,7 +461,6 @@ export async function getMovieCount(): Promise<number> {
   }
 }
 
-// Graceful shutdown
 export async function disconnectMongo(): Promise<void> {
   try {
     if (connection) {
@@ -378,5 +470,177 @@ export async function disconnectMongo(): Promise<void> {
     }
   } catch (error) {
     console.error('Error disconnecting from MongoDB:', error);
+  }
+}
+
+// Add watchlist functions
+export async function addToWatchlist(address: string, movieId: string): Promise<void> {
+  try {
+    await ensureConnection();
+    
+    // Find the movie by id field, not _id
+    const movie = await MovieModel.findOne({ id: movieId });
+    if (!movie) {
+      throw new Error('Movie not found');
+    }
+
+    await WatchlistModel.create({
+      address,
+      movieId: movie._id,
+      addedAt: new Date()
+    });
+  } catch (error: any) {
+    if (error.code === 11000) {
+      throw new Error('Movie already in watchlist');
+    }
+    console.error("Error adding to watchlist:", error);
+    throw new Error(`Failed to add to watchlist: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+export async function removeFromWatchlist(address: string, movieId: string): Promise<void> {
+  try {
+    await ensureConnection();
+    
+    // Find the movie by id field, not _id
+    const movie = await MovieModel.findOne({ id: movieId });
+    if (!movie) {
+      throw new Error('Movie not found');
+    }
+
+    await WatchlistModel.deleteOne({ address, movieId: movie._id });
+  } catch (error) {
+    console.error("Error removing from watchlist:", error);
+    throw new Error(`Failed to remove from watchlist: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+export async function getUserWatchlist(address: string): Promise<IMovie[]> {
+  try {
+    await ensureConnection();
+    
+    const watchlistItems = await WatchlistModel.find({ address })
+      .populate('movieId')
+      .sort({ addedAt: -1 });
+    
+    return watchlistItems.map(item => item.movieId as unknown as IMovie);
+  } catch (error) {
+    console.error("Error getting user watchlist:", error);
+    return [];
+  }
+}
+
+export async function isInWatchlist(address: string, movieId: string): Promise<boolean> {
+  try {
+    await ensureConnection();
+    
+    // Find the movie by id field, not _id
+    const movie = await MovieModel.findOne({ id: movieId });
+    if (!movie) {
+      return false;
+    }
+
+    const watchlistItem = await WatchlistModel.findOne({ address, movieId: movie._id });
+    return !!watchlistItem;
+  } catch (error) {
+    console.error("Error checking watchlist:", error);
+    return false;
+  }
+}
+
+// Comment functions
+export async function addComment(movieId: string, address: string, content: string): Promise<IComment> {
+  try {
+    await ensureConnection();
+    
+    // Find the movie by id field, not _id
+    const movie = await MovieModel.findOne({ id: movieId });
+    if (!movie) {
+      throw new Error('Movie not found');
+    }
+
+    const comment = await CommentModel.create({
+      movieId: movie._id,
+      address,
+      content: content.trim(),
+      timestamp: new Date()
+    });
+
+    return comment;
+  } catch (error) {
+    console.error("Error adding comment:", error);
+    throw new Error(`Failed to add comment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+export async function getMovieComments(movieId: string): Promise<IComment[]> {
+  try {
+    await ensureConnection();
+    
+    // Find the movie by id field, not _id
+    const movie = await MovieModel.findOne({ id: movieId });
+    if (!movie) {
+      return [];
+    }
+
+    const comments = await CommentModel.find({ movieId: movie._id })
+      .sort({ timestamp: -1 })
+      .limit(50); // Limit to 50 most recent comments
+    
+    return comments;
+  } catch (error) {
+    console.error("Error getting movie comments:", error);
+    return [];
+  }
+}
+
+export async function likeComment(commentId: string, address: string): Promise<void> {
+  try {
+    await ensureConnection();
+    
+    const comment = await CommentModel.findById(commentId);
+    if (!comment) {
+      throw new Error('Comment not found');
+    }
+
+    const hasLiked = comment.likes.includes(address);
+    
+    if (hasLiked) {
+      // Remove like
+      await CommentModel.updateOne(
+        { _id: commentId },
+        { $pull: { likes: address } }
+      );
+    } else {
+      // Add like
+      await CommentModel.updateOne(
+        { _id: commentId },
+        { $addToSet: { likes: address } }
+      );
+    }
+  } catch (error) {
+    console.error("Error liking comment:", error);
+    throw new Error(`Failed to like comment: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+export async function addReply(commentId: string, address: string, content: string): Promise<void> {
+  try {
+    await ensureConnection();
+    
+    const reply = {
+      address,
+      content: content.trim(),
+      timestamp: new Date(),
+      likes: []
+    };
+
+    await CommentModel.updateOne(
+      { _id: commentId },
+      { $push: { replies: reply } }
+    );
+  } catch (error) {
+    console.error("Error adding reply:", error);
+    throw new Error(`Failed to add reply: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
