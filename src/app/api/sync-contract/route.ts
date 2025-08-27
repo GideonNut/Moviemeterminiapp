@@ -36,16 +36,22 @@ export async function POST(request: NextRequest) {
       account: privateKey as `0x${string}`
     });
 
-    // Get the contract instance
-    const contract = getContract({
+    // Get the contract instance for reading
+    const readContract = getContract({
       address: VOTE_CONTRACT_ADDRESS,
       abi: VOTE_CONTRACT_ABI,
-      client: publicClient,
-      walletClient
+      client: publicClient
+    });
+
+    // Get the contract instance for writing
+    const writeContract = getContract({
+      address: VOTE_CONTRACT_ADDRESS,
+      abi: VOTE_CONTRACT_ABI,
+      client: walletClient
     });
 
     // Get current movie count on contract
-    const currentMovieCount = await contract.read.movieCount();
+    const currentMovieCount = await readContract.read.movieCount();
     console.log("Current movie count on contract:", currentMovieCount.toString());
 
     // Get all movies from database
@@ -78,7 +84,7 @@ export async function POST(request: NextRequest) {
         console.log(`Adding movie "${movie.title}" (ID: ${movie.id}) to contract...`);
         
         // Add movie to contract
-        const hash = await contract.write.addMovie([movie.title]);
+        const hash = await writeContract.write.addMovie([movie.title]);
         console.log(`Transaction hash for "${movie.title}":`, hash);
         
         // Wait for transaction to be mined
@@ -98,7 +104,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get updated movie count
-    const newMovieCount = await contract.read.movieCount();
+    const newMovieCount = await readContract.read.movieCount();
 
     return Response.json({ 
       success: true, 
