@@ -179,7 +179,7 @@ export default function AdminPage() {
       // Get all content from database
       const [moviesResponse, tvShowsResponse] = await Promise.all([
         fetch("/api/movies"),
-        fetch("/api/tv-shows")
+        fetch("/api/tv")
       ]);
       
       const moviesData = await moviesResponse.json();
@@ -222,7 +222,7 @@ export default function AdminPage() {
     try {
       const [moviesResponse, tvShowsResponse] = await Promise.all([
         fetch("/api/movies"),
-        fetch("/api/tv-shows")
+        fetch("/api/tv")
       ]);
       
       const moviesData = await moviesResponse.json();
