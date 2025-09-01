@@ -12,11 +12,11 @@ export default function BottomNav() {
           <Home size={20} />
           <span className="text-xs mt-0.5 font-medium">Home</span>
         </Link>
-        <Link href="/vote-movies" className="flex flex-col items-center justify-center py-1 text-white hover:text-purple-400 transition-colors">
+        <Link href="/movies" className="flex flex-col items-center justify-center py-1 text-white hover:text-purple-400 transition-colors">
           <Film size={20} />
           <span className="text-xs mt-0.5 font-medium">Movies</span>
         </Link>
-        <Link href="/tv-shows" className="flex flex-col items-center justify-center py-1 text-white hover:text-purple-400 transition-colors">
+        <Link href="/tv" className="flex flex-col items-center justify-center py-1 text-white hover:text-purple-400 transition-colors">
           <Tv size={20} />
           <span className="text-xs mt-0.5 font-medium">TV Shows</span>
         </Link>
