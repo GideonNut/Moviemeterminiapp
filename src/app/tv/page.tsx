@@ -367,82 +367,82 @@ export default function TVPage() {
       )}
 
       {/* TV Shows List */}
-      <div className="space-y-4">
+      <div className="space-y-6">
         {tvShows.map((tvShow) => (
           <Card key={tvShow.id} className="bg-[#18181B] text-white border border-white/10 overflow-hidden">
             <CardContent className="p-0">
               <div className="flex">
-                {/* TV Show Poster */}
-                <div className="w-24 h-36 relative bg-neutral-900 flex-shrink-0">
+                {/* TV Show Poster - Made bigger */}
+                <div className="w-32 h-48 relative bg-neutral-900 flex-shrink-0">
                   {tvShow.posterUrl ? (
                     <Image
                       src={ensureFullPosterUrl(tvShow.posterUrl) || ''}
                       alt={tvShow.title}
                       fill
                       className="object-cover"
-                      sizes="96px"
+                      sizes="128px"
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full text-white/40">
-                      <span className="text-xs">No Poster</span>
+                      <span className="text-sm">No Poster</span>
                     </div>
                   )}
                 </div>
                 
                 {/* TV Show Info & Voting */}
-                <div className="flex-1 p-4 flex flex-col justify-between">
+                <div className="flex-1 p-6 flex flex-col justify-between">
                   <div>
-                    <CardTitle className="text-base font-semibold mb-1 line-clamp-2">
+                    <CardTitle className="text-lg font-semibold mb-3 line-clamp-2">
                       {tvShow.title}
                     </CardTitle>
-                    <CardDescription className="text-sm text-white/60 mb-3">
+                    <CardDescription className="text-sm text-white/60 mb-4">
                       {tvShow.genres && tvShow.genres.length > 0 ? tvShow.genres[0] : 'Unknown'} • {tvShow.releaseYear || 'Unknown Year'}
                     </CardDescription>
                     
                     {/* Vote Counts Display */}
-                    <div className="flex items-center gap-4 text-xs text-white/60 mb-3">
-                      <span className="flex items-center gap-1">
-                        <ThumbsUp size={14} className="text-green-400" />
-                        {tvShow.votes.yes} Yes
+                    <div className="flex items-center gap-6 text-sm text-white/60 mb-4">
+                      <span className="flex items-center gap-2">
+                        <ThumbsUp size={16} className="text-green-400" />
+                        <span className="font-medium">{tvShow.votes.yes} Yes</span>
                       </span>
-                      <span className="flex items-center gap-1">
-                        <ThumbsDown size={14} className="text-red-400" />
-                        {tvShow.votes.no} No
+                      <span className="flex items-center gap-2">
+                        <ThumbsDown size={16} className="text-red-400" />
+                        <span className="font-medium">{tvShow.votes.no} No</span>
                       </span>
                     </div>
                   </div>
                   
                   {/* Vote Buttons */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-4">
                     <Button
                       variant={votes[tvShow.id] === 'yes' ? 'default' : 'ghost'}
                       onClick={() => handleVote(tvShow.id, 'yes')}
                       disabled={!isConnected || isPending || !!votes[tvShow.id]}
-                      className="flex items-center gap-2 px-4 py-2"
-                      size="sm"
+                      className="flex items-center gap-2 px-6 py-3"
+                      size="default"
                     >
-                      <ThumbsUp size={16} />
-                      <span className="text-sm">Yes</span>
+                      <ThumbsUp size={18} />
+                      <span className="text-sm font-medium">Yes</span>
                     </Button>
                     
                     <Button
                       variant={votes[tvShow.id] === 'no' ? 'destructive' : 'ghost'}
                       onClick={() => handleVote(tvShow.id, 'no')}
                       disabled={!isConnected || isPending || !!votes[tvShow.id]}
-                      className="flex items-center gap-2 px-4 py-2"
-                      size="sm"
+                      className="flex items-center gap-2 px-6 py-3"
+                      size="default"
                     >
-                      <ThumbsDown size={16} />
-                      <span className="text-sm">No</span>
+                      <ThumbsDown size={18} />
+                      <span className="text-sm font-medium">No</span>
                     </Button>
                     
                     {/* Status Messages */}
                     <div className="flex-1 text-right">
                       {isPending && currentVotingId === tvShow.id && (
-                        <span className="text-yellow-400 text-xs">Confirming...</span>
+                        <span className="text-yellow-400 text-sm">Confirming...</span>
                       )}
                       {votes[tvShow.id] && !isPending && (
-                        <span className="text-blue-400 text-xs">
+                        <span className="text-blue-400 text-sm font-medium">
                           {votes[tvShow.id] === 'yes' ? 'Voted Yes' : 'Voted No'}
                         </span>
                       )}
