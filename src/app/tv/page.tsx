@@ -369,7 +369,11 @@ export default function TVPage() {
       {/* TV Shows List */}
       <div className="space-y-6">
         {tvShows.map((tvShow) => (
-          <Card key={tvShow.id} className="bg-[#18181B] text-white border border-white/10 overflow-hidden">
+          <Card key={tvShow.id} className={`bg-[#18181B] text-white border overflow-hidden ${
+            votes[tvShow.id] 
+              ? 'border-green-500/30 bg-green-500/5' 
+              : 'border-white/10'
+          }`}>
             <CardContent className="p-0">
               <div className="flex">
                 {/* TV Show Poster - Made bigger */}
@@ -418,22 +422,44 @@ export default function TVPage() {
                       variant={votes[tvShow.id] === 'yes' ? 'default' : 'ghost'}
                       onClick={() => handleVote(tvShow.id, 'yes')}
                       disabled={!isConnected || isPending || !!votes[tvShow.id]}
-                      className="flex items-center gap-2 px-6 py-3"
+                      className={`flex items-center gap-2 px-6 py-3 ${
+                        votes[tvShow.id] === 'yes' 
+                          ? 'bg-green-600 hover:bg-green-700 text-white' 
+                          : 'hover:bg-green-600'
+                      }`}
                       size="default"
                     >
-                      <ThumbsUp size={18} />
-                      <span className="text-sm font-medium">Yes</span>
+                      <div className={`relative ${votes[tvShow.id] === 'yes' ? 'animate-pulse' : ''}`}>
+                        <ThumbsUp size={18} />
+                        {votes[tvShow.id] === 'yes' && (
+                          <div className="absolute inset-0 bg-green-400/30 rounded-full blur-sm scale-150"></div>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium">
+                        {votes[tvShow.id] === 'yes' ? 'Voted Yes ✓' : 'Yes'}
+                      </span>
                     </Button>
                     
                     <Button
                       variant={votes[tvShow.id] === 'no' ? 'destructive' : 'ghost'}
                       onClick={() => handleVote(tvShow.id, 'no')}
                       disabled={!isConnected || isPending || !!votes[tvShow.id]}
-                      className="flex items-center gap-2 px-6 py-3"
+                      className={`flex items-center gap-2 px-6 py-3 ${
+                        votes[tvShow.id] === 'no' 
+                          ? 'bg-red-600 hover:bg-red-700 text-white' 
+                          : 'hover:bg-red-600'
+                      }`}
                       size="default"
                     >
-                      <ThumbsDown size={18} />
-                      <span className="text-sm font-medium">No</span>
+                      <div className={`relative ${votes[tvShow.id] === 'no' ? 'animate-pulse' : ''}`}>
+                        <ThumbsDown size={18} />
+                        {votes[tvShow.id] === 'no' && (
+                          <div className="absolute inset-0 bg-red-400/30 rounded-full blur-sm scale-150"></div>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium">
+                        {votes[tvShow.id] === 'no' ? 'Voted No ✓' : 'No'}
+                      </span>
                     </Button>
                     
                     {/* Status Messages */}
@@ -442,12 +468,21 @@ export default function TVPage() {
                         <span className="text-yellow-400 text-sm">Confirming...</span>
                       )}
                       {votes[tvShow.id] && !isPending && (
-                        <span className="text-blue-400 text-sm font-medium">
+                        <span className="text-green-400 text-sm font-medium">
                           {votes[tvShow.id] === 'yes' ? 'Voted Yes' : 'Voted No'}
                         </span>
                       )}
                     </div>
                   </div>
+                  
+                  {/* Voted Already Message */}
+                  {votes[tvShow.id] && (
+                    <div className="mt-3 text-center">
+                      <span className="text-sm text-green-400 font-medium bg-green-400/10 px-3 py-1 rounded-full">
+                        ✓ You've voted already on this TV show
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>
