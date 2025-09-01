@@ -47,7 +47,7 @@ export default function MoviesPage() {
     writeContract,
     error
   } = useWriteContract();
-
+  
   // Get CELO balance for gas fees
   const { data: celoBalance } = useBalance({
     address,
@@ -323,8 +323,8 @@ export default function MoviesPage() {
           <ArrowLeft size={18} />
         </Button>
         <h1 className="text-xl font-semibold text-white">Vote on Movies</h1>
-      </div>
-
+        </div>
+      
       {/* Balance and Gas Status */}
       {isConnected && (
         <div className="mb-6 p-4 rounded-lg border border-white/10 bg-[#18181B]">
@@ -402,46 +402,46 @@ export default function MoviesPage() {
 
       {/* Movies List */}
       <div className="space-y-6">
-        {filteredMovies.map((movie) => (
+            {filteredMovies.map((movie) => (
           <Card key={movie.id} className="bg-[#18181B] text-white border border-white/10 overflow-hidden">
-            <CardContent className="p-0">
+                <CardContent className="p-0">
               <div className="flex">
                 {/* Movie Poster - Made bigger */}
                 <div className="w-32 h-48 relative bg-neutral-900 flex-shrink-0">
-                  {movie.posterUrl ? (
-                    <Image
-                      src={ensureFullPosterUrl(movie.posterUrl) || ''}
-                      alt={movie.title}
-                      fill
+                    {movie.posterUrl ? (
+                      <Image
+                        src={ensureFullPosterUrl(movie.posterUrl) || ''}
+                        alt={movie.title}
+                        fill
                       className="object-cover w-full h-full"
                       sizes="128px"
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-white/40">
-                      <span className="text-sm">No Poster</span>
-                    </div>
-                  )}
-                </div>
-                
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-white/40">
+                        <span className="text-sm">No Poster</span>
+                      </div>
+                    )}
+                  </div>
+                  
                 {/* Movie Info & Voting */}
                 <div className="flex-1 p-6 flex flex-col justify-between">
                   <div>
                     <div className="flex items-start justify-between mb-3">
                       <CardTitle className="text-lg font-semibold line-clamp-2 flex-1">
-                        {movie.title}
-                      </CardTitle>
+                      {movie.title}
+                    </CardTitle>
                       <WatchlistButton movieId={movie.id} size="sm" className="ml-3 flex-shrink-0" />
                     </div>
                     
                     <CardDescription className="text-sm text-white/60 mb-4">
                       {movie.genres && movie.genres.length > 0 ? movie.genres[0] : 'Unknown'} • {movie.releaseYear || 'Unknown Year'}
                     </CardDescription>
-
+                    
                     {/* Movie Description */}
                     <div className="text-sm text-white/70 mb-4 line-clamp-3">
                       {movie.description || 'No description available'}
                     </div>
-
+                    
                     <Link 
                       href={`/movies/${movie.id}`}
                       className="inline-block mb-4"
@@ -465,32 +465,32 @@ export default function MoviesPage() {
                         <ThumbsDown size={16} className="text-red-400" />
                         <span className="font-medium">{movie.votes.no} No</span>
                       </span>
+                      </div>
                     </div>
-                  </div>
-                  
-                  {/* Vote Buttons */}
+                    
+                    {/* Vote Buttons */}
                   <div className="flex items-center gap-4">
-                    <Button
-                      variant={votes[movie.id] === 'yes' ? 'default' : 'ghost'}
-                      onClick={() => handleVote(movie.id, 'yes')}
-                      disabled={!isConnected || isPending || !!votes[movie.id]}
+                      <Button
+                        variant={votes[movie.id] === 'yes' ? 'default' : 'ghost'}
+                        onClick={() => handleVote(movie.id, 'yes')}
+                        disabled={!isConnected || isPending || !!votes[movie.id]}
                       className="flex items-center gap-2 px-6 py-3"
                       size="default"
-                    >
+                      >
                       <ThumbsUp size={18} />
                       <span className="text-sm font-medium">Yes</span>
-                    </Button>
-                    
-                    <Button
-                      variant={votes[movie.id] === 'no' ? 'destructive' : 'ghost'}
-                      onClick={() => handleVote(movie.id, 'no')}
-                      disabled={!isConnected || isPending || !!votes[movie.id]}
+                      </Button>
+                      
+                      <Button
+                        variant={votes[movie.id] === 'no' ? 'destructive' : 'ghost'}
+                        onClick={() => handleVote(movie.id, 'no')}
+                        disabled={!isConnected || isPending || !!votes[movie.id]}
                       className="flex items-center gap-2 px-6 py-3"
                       size="default"
-                    >
+                      >
                       <ThumbsDown size={18} />
                       <span className="text-sm font-medium">No</span>
-                    </Button>
+                      </Button>
                     
                     {/* Status Messages */}
                     <div className="flex-1 text-right">
@@ -504,12 +504,12 @@ export default function MoviesPage() {
                       )}
                     </div>
                   </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
     </div>
   );
 }
