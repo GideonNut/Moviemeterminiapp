@@ -401,107 +401,104 @@ export default function MoviesPage() {
       )}
 
       {/* Movies List */}
-      <div className="space-y-4">
+      <div className="space-y-6">
         {filteredMovies.map((movie) => (
           <Card key={movie.id} className="bg-[#18181B] text-white border border-white/10 overflow-hidden">
             <CardContent className="p-0">
               <div className="flex">
-                {/* Movie Poster */}
-                <div className="w-24  relative bg-neutral-900 flex-shrink-0">
+                {/* Movie Poster - Made bigger */}
+                <div className="w-32 h-48 relative bg-neutral-900 flex-shrink-0">
                   {movie.posterUrl ? (
                     <Image
                       src={ensureFullPosterUrl(movie.posterUrl) || ''}
                       alt={movie.title}
                       fill
                       className="object-cover w-full h-full"
-                      sizes=""
+                      sizes="128px"
                     />
                   ) : (
                     <div className="flex items-center justify-center h-full text-white/40">
-                      <span className="text-xs">No Poster</span>
+                      <span className="text-sm">No Poster</span>
                     </div>
                   )}
                 </div>
                 
                 {/* Movie Info & Voting */}
-                <div className="flex-1 p-4 flex flex-col justify-between">
+                <div className="flex-1 p-6 flex flex-col justify-between">
                   <div>
-                  <div className="flex items-start justify-between mb-1">
-                <CardTitle className="text-base font-semibold line-clamp-2 flex-1">
-                  {movie.title}
-                </CardTitle>
-                <WatchlistButton movieId={movie.id} size="sm" className="ml-2 flex-shrink-0" />
-              </div>
-              
-
-                    <CardDescription className="text-sm text-white/60 mb-3">
+                    <div className="flex items-start justify-between mb-3">
+                      <CardTitle className="text-lg font-semibold line-clamp-2 flex-1">
+                        {movie.title}
+                      </CardTitle>
+                      <WatchlistButton movieId={movie.id} size="sm" className="ml-3 flex-shrink-0" />
+                    </div>
+                    
+                    <CardDescription className="text-sm text-white/60 mb-4">
                       {movie.genres && movie.genres.length > 0 ? movie.genres[0] : 'Unknown'} • {movie.releaseYear || 'Unknown Year'}
                     </CardDescription>
 
                     {/* Movie Description */}
-                    <div className="text-sm text-white/60 mb-2 line-clamp-2 ">
-                      {`${movie.description.substring(0, 100)}...` || 'No description available'}
+                    <div className="text-sm text-white/70 mb-4 line-clamp-3">
+                      {movie.description || 'No description available'}
                     </div>
 
-                      <Link 
-                href={`/movies/${movie.id}`}
-                className="w-full"
-              >
-                <Button 
-                  variant="link" 
-                  size="sm" 
-                  className="p-0 text-left underline text-xs text-white"
-                >
-                  View More Details
-                </Button>
-              </Link>
-
-             
+                    <Link 
+                      href={`/movies/${movie.id}`}
+                      className="inline-block mb-4"
+                    >
+                      <Button 
+                        variant="link" 
+                        size="sm" 
+                        className="p-0 text-left underline text-sm text-blue-400 hover:text-blue-300"
+                      >
+                        View More Details
+                      </Button>
+                    </Link>
 
                     {/* Vote Counts Display */}
-                    <div className="flex items-center gap-4 text-xs text-white/60 mb-3">
-                      <span className="flex items-center gap-1">
-                        <ThumbsUp size={14} className="text-green-400" />
-                        {movie.votes.yes} Yes
+                    <div className="flex items-center gap-6 text-sm text-white/60 mb-4">
+                      <span className="flex items-center gap-2">
+                        <ThumbsUp size={16} className="text-green-400" />
+                        <span className="font-medium">{movie.votes.yes} Yes</span>
                       </span>
-                      <span className="flex items-center gap-1">
-                        <ThumbsDown size={14} className="text-red-400" />
-                        {movie.votes.no} No
+                      <span className="flex items-center gap-2">
+                        <ThumbsDown size={16} className="text-red-400" />
+                        <span className="font-medium">{movie.votes.no} No</span>
                       </span>
                     </div>
                   </div>
                   
                   {/* Vote Buttons */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-4">
                     <Button
                       variant={votes[movie.id] === 'yes' ? 'default' : 'ghost'}
                       onClick={() => handleVote(movie.id, 'yes')}
                       disabled={!isConnected || isPending || !!votes[movie.id]}
-                      className="flex items-center gap-2 px-4 py-2"
-                      size="sm"
+                      className="flex items-center gap-2 px-6 py-3"
+                      size="default"
                     >
-                      <ThumbsUp size={16} />
-                      <span className="text-sm">Yes</span>
+                      <ThumbsUp size={18} />
+                      <span className="text-sm font-medium">Yes</span>
                     </Button>
                     
                     <Button
                       variant={votes[movie.id] === 'no' ? 'destructive' : 'ghost'}
                       onClick={() => handleVote(movie.id, 'no')}
                       disabled={!isConnected || isPending || !!votes[movie.id]}
-                      className="flex items-center gap-2 px-4 py-2"
-                      size="sm"
+                      className="flex items-center gap-2 px-6 py-3"
+                      size="default"
                     >
-                      <ThumbsDown size={16} />
-                      <span className="text-sm">No</span>
+                      <ThumbsDown size={18} />
+                      <span className="text-sm font-medium">No</span>
                     </Button>
                     
                     {/* Status Messages */}
                     <div className="flex-1 text-right">
                       {isPending && currentVotingId === movie.id && (
-                        <span className="text-yellow-400 text-xs">Confirming...</span>
+                        <span className="text-yellow-400 text-sm">Confirming...</span>
                       )}
                       {votes[movie.id] && !isPending && (
-                        <span className="text-blue-400 text-xs">
+                        <span className="text-blue-400 text-sm font-medium">
                           {votes[movie.id] === 'yes' ? 'Voted Yes' : 'Voted No'}
                         </span>
                       )}
