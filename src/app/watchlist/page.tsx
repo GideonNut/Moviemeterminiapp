@@ -168,7 +168,7 @@ export default function WatchlistPage() {
             <CardDescription className="text-sm text-white/60 mb-4">
               Add movies to your watchlist by clicking the eye icon on any movie card
             </CardDescription>
-            <Link href="/vote-movies">
+                            <Link href="/movies">
               <Button variant="outline" size="sm">
                 Browse Movies
               </Button>
