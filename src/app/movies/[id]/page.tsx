@@ -322,7 +322,7 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
           <div className="text-center py-12">
             <h1 className="text-2xl font-bold text-white mb-4">Movie Not Found</h1>
             <p className="text-white/60 mb-6">The movie you're looking for doesn't exist.</p>
-            <Link href="/vote-movies">
+                            <Link href="/movies">
               <Button variant="outline">← Back to Movies</Button>
             </Link>
           </div>
