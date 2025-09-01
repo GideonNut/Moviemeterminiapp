@@ -27,10 +27,11 @@ interface MovieCardProps {
   onVote: (vote: boolean) => void;
   isVoting: boolean;
   isConnected: boolean;
+  userVotes?: { [id: string]: 'yes' | 'no' | null };
 }
 
 // Compact version for carousel display
-export function CompactMovieCard({ movie, onVote, isVoting, isConnected }: MovieCardProps) {
+export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVotes }: MovieCardProps) {
   const handleVote = async (vote: boolean) => {
     console.log('CompactMovieCard: handleVote called with:', vote);
     console.log('CompactMovieCard: isConnected:', isConnected, 'isVoting:', isVoting);
@@ -38,6 +39,11 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected }: Movie
     // Call the parent's onVote function instead of making our own API call
     onVote(vote);
   };
+
+  // Check if user has voted on this movie
+  const movieId = movie.id || movie._id;
+  const userVote = movieId ? userVotes?.[movieId] : null;
+  const hasVoted = !!userVote;
 
   // Ensure poster URL is a full URL
   const fullPosterUrl = movie.posterUrl ? ensureFullPosterUrl(movie.posterUrl) : null;
@@ -99,36 +105,49 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected }: Movie
         {/* Vote Buttons */}
         <div className="flex gap-2 mt-2">
           <Button
-            variant="default"
+            variant={userVote === 'yes' ? 'default' : 'ghost'}
             size="sm"
-            className="flex-1 text-xs py-1.5 hover:bg-green-600"
+            className={`flex-1 text-xs py-1.5 ${
+              userVote === 'yes' 
+                ? 'bg-green-600 hover:bg-green-700 text-white' 
+                : 'hover:bg-green-600'
+            }`}
             onClick={() => {
               console.log('Yes button clicked!');
               handleVote(true);
             }}
-            disabled={!isConnected || isVoting}
+            disabled={!isConnected || isVoting || hasVoted}
           >
-            {isVoting ? 'Voting...' : 'Yes'}
+            {isVoting ? 'Voting...' : userVote === 'yes' ? 'Voted Yes ✓' : 'Yes'}
           </Button>
           <Button
-            variant="secondary"
+            variant={userVote === 'no' ? 'destructive' : 'ghost'}
             size="sm"
-            className="flex-1 text-xs py-1.5 hover:bg-red-600"
+            className={`flex-1 text-xs py-1.5 ${
+              userVote === 'no' 
+                ? 'bg-red-600 hover:bg-red-700 text-white' 
+                : 'hover:bg-red-600'
+            }`}
             onClick={() => {
               console.log('No button clicked!');
               handleVote(false);
             }}
-            disabled={!isConnected || isVoting}
+            disabled={!isConnected || isVoting || hasVoted}
           >
-            {isVoting ? 'Voting...' : 'No'}
+            {isVoting ? 'Voting...' : userVote === 'no' ? 'Voted No ✓' : 'No'}
           </Button>
         </div>
+        {hasVoted && (
+          <div className="text-center mt-2">
+            <span className="text-xs text-green-400 font-medium">You've voted already on this movie</span>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-export function MovieCard({ movie, onVote, isVoting, isConnected }: MovieCardProps) {
+export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: MovieCardProps) {
   const handleVote = async (vote: boolean) => {
     const movieId = movie.id || movie._id;
     if (!movieId) {
@@ -162,6 +181,11 @@ export function MovieCard({ movie, onVote, isVoting, isConnected }: MovieCardPro
       console.error('Error voting:', error);
     }
   };
+
+  // Check if user has voted on this movie
+  const movieId = movie.id || movie._id;
+  const userVote = movieId ? userVotes?.[movieId] : null;
+  const hasVoted = !!userVote;
 
   // Ensure poster URL is a full URL
   const fullPosterUrl = movie.posterUrl ? ensureFullPosterUrl(movie.posterUrl) : null;
@@ -223,22 +247,35 @@ export function MovieCard({ movie, onVote, isVoting, isConnected }: MovieCardPro
         {/* Vote Buttons */}
         <div className="flex gap-3 mt-2">
           <Button
-            variant="default"
-            className="flex-1"
+            variant={userVote === 'yes' ? 'default' : 'ghost'}
+            className={`flex-1 ${
+              userVote === 'yes' 
+                ? 'bg-green-600 hover:bg-green-700 text-white' 
+                : 'hover:bg-green-600'
+            }`}
             onClick={() => handleVote(true)}
-            disabled={!isConnected || isVoting}
+            disabled={!isConnected || isVoting || hasVoted}
           >
-            Yes
+            {userVote === 'yes' ? 'Voted Yes ✓' : 'Yes'}
           </Button>
           <Button
-            variant="secondary"
-            className="flex-1"
+            variant={userVote === 'no' ? 'destructive' : 'ghost'}
+            className={`flex-1 ${
+              userVote === 'no' 
+                ? 'bg-red-600 hover:bg-red-700 text-white' 
+                : 'hover:bg-red-600'
+            }`}
             onClick={() => handleVote(false)}
-            disabled={!isConnected || isVoting}
+            disabled={!isConnected || isVoting || hasVoted}
           >
-            No
+            {userVote === 'no' ? 'Voted No ✓' : 'No'}
           </Button>
         </div>
+        {hasVoted && (
+          <div className="text-center mt-3">
+            <span className="text-sm text-green-400 font-medium">You've voted already on this movie</span>
+          </div>
+        )}
       </div>
     </div>
   );
