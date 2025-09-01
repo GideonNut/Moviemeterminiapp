@@ -29,6 +29,7 @@ export default function DiscoverPage() {
   const [search, setSearch] = useState("");
   const [currentVotingId, setCurrentVotingId] = useState<string | null>(null);
   const [currentVoteType, setCurrentVoteType] = useState<'yes' | 'no' | null>(null);
+  const [votes, setVotes] = useState<{ [id: string]: 'yes' | 'no' | null }>({});
   
   // Add state for trailers
   type Trailer = { id: string; title: string; genre: string; year: string; youtubeId: string };
@@ -117,6 +118,36 @@ export default function DiscoverPage() {
     setTrailers(trailersData);
   }, []);
 
+  // Fetch user's previous votes from MongoDB
+  const fetchUserVotes = async () => {
+    if (!wagmiConnected || !address) return;
+    
+    try {
+      const response = await fetch('/api/movies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'getUserVotes',
+          userAddress: address
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setVotes(data.userVotes || {});
+      }
+    } catch (error) {
+      console.error('Error fetching user votes:', error);
+    }
+  };
+
+  // Fetch user votes when wallet connects
+  useEffect(() => {
+    if (wagmiConnected && address) {
+      fetchUserVotes();
+    }
+  }, [wagmiConnected, address]);
+
   // Handle transaction state changes
   useEffect(() => {
     if (hash && currentVotingId) {
@@ -165,8 +196,12 @@ export default function DiscoverPage() {
     if (error && currentVotingId) {
       console.error('Contract error:', error);
       
+      // Revert the vote if the contract call failed
+      setVotes((prev) => ({ ...prev, [currentVotingId]: null }));
+      
       // Clear the current voting ID
       setCurrentVotingId(null);
+      setCurrentVoteType(null);
       
       // Provide specific error messages based on the error
       let errorMessage = 'Transaction failed';
@@ -187,6 +222,8 @@ export default function DiscoverPage() {
   const handleVote = async (movieId: string, vote: 'yes' | 'no') => {
     console.log('Main page: handleVote called with:', movieId, vote);
     
+    if (votes[movieId]) return;
+    
     if (!wagmiConnected || !address) {
       alert('Please connect your wallet to vote');
       return;
@@ -202,6 +239,9 @@ export default function DiscoverPage() {
     setVotingMovies(prev => new Set(prev).add(movieId));
     setCurrentVotingId(movieId);
     setCurrentVoteType(vote);
+    
+    // Set the vote immediately to prevent double-clicking
+    setVotes((prev) => ({ ...prev, [movieId]: vote }));
     
     try {
       const movieIdBigInt = BigInt(parseInt(movieId, 10));
@@ -219,6 +259,9 @@ export default function DiscoverPage() {
       
     } catch (err: any) {
       console.error('Vote error:', err);
+      
+      // Revert the vote if there was an error
+      setVotes((prev) => ({ ...prev, [movieId]: null }));
       
       // Provide more specific error messages
       let errorMessage = 'Transaction failed';
@@ -360,6 +403,7 @@ export default function DiscoverPage() {
                         }}
                         isVoting={currentVotingId === (movie.id || movie._id) || isPending}
                         isConnected={wagmiConnected}
+                        userVotes={votes}
                       />
                     </div>
                   </CarouselItem>
@@ -412,6 +456,7 @@ export default function DiscoverPage() {
                 onVote={(vote) => handleVote(movie.id || movie._id, vote ? 'yes' : 'no')}
                 isVoting={currentVotingId === (movie.id || movie._id) || isPending}
                 isConnected={wagmiConnected}
+                userVotes={votes}
               />
             ))
           )}
