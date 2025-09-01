@@ -16,7 +16,9 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "~/components/ui/carousel";
-import  Header  from "~/components/Header";
+import Header from "~/components/Header";
+import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
+import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance } from "wagmi";
 
 export default function DiscoverPage() {
   const [isVoting, setIsVoting] = useState(false);
@@ -25,25 +27,72 @@ export default function DiscoverPage() {
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [currentVotingId, setCurrentVotingId] = useState<string | null>(null);
+  const [currentVoteType, setCurrentVoteType] = useState<'yes' | 'no' | null>(null);
+  
   // Add state for trailers
   type Trailer = { id: string; title: string; genre: string; year: string; youtubeId: string };
   const [trailers, setTrailers] = useState<Trailer[]>([]);
   // Add state for modal
   const [openTrailer, setOpenTrailer] = useState<null | { title: string; youtubeId: string }>(null);
 
+  // Wagmi hooks for blockchain interaction
+  const { address, isConnected: wagmiConnected } = useAccount();
+  const currentChainId = useChainId();
+  const { switchChainAsync } = useSwitchChain();
+  
+  // Use the proper Wagmi hook for smart contract interactions
+  const { 
+    data: hash, 
+    isPending,
+    writeContract,
+    error
+  } = useWriteContract();
+
+  // Get CELO balance for gas fees
+  const { data: celoBalance } = useBalance({
+    address,
+    chainId: 42220,
+  });
+
+  // Auto-switch to Celo when wallet connects
+  const [isSwitchingNetwork, setIsSwitchingNetwork] = useState(false);
+  
+  useEffect(() => {
+    if (wagmiConnected && currentChainId !== 42220 && currentChainId !== 44787) {
+      setIsSwitchingNetwork(true);
+      // Try mainnet first for production use
+      switchChainAsync({ chainId: 42220 })
+        .then(() => {
+          setIsSwitchingNetwork(false);
+        })
+        .catch((err) => {
+          console.error('Failed to switch to Celo mainnet, trying testnet:', err);
+          // Fallback to testnet if mainnet fails
+          return switchChainAsync({ chainId: 44787 });
+        })
+        .then(() => {
+          setIsSwitchingNetwork(false);
+        })
+        .catch((err) => {
+          console.error('Failed to switch to Celo:', err);
+          setIsSwitchingNetwork(false);
+        });
+    }
+  }, [wagmiConnected, currentChainId, switchChainAsync]);
+
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        // Allow voting on homepage for demo purposes
-        const connected = true;
-        setIsConnected(connected);
+        // Use Wagmi connection status
+        setIsConnected(wagmiConnected);
       } catch (error) {
         console.error('Error checking connection:', error);
         setIsConnected(false);
       }
     };
     checkConnection();
-  }, []);
+  }, [wagmiConnected]);
 
   useEffect(() => {
     const fetchMovies = async () => {
@@ -68,31 +117,124 @@ export default function DiscoverPage() {
     setTrailers(trailersData);
   }, []);
 
+  // Handle transaction state changes
+  useEffect(() => {
+    if (hash && currentVotingId) {
+      // Transaction was sent successfully
+      console.log('Transaction hash:', hash);
+      
+      // Save vote to MongoDB
+      if (address && currentVotingId && currentVoteType) {
+        fetch('/api/movies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'vote',
+            id: currentVotingId,
+            type: currentVoteType,
+            userAddress: address
+          })
+        }).then(response => {
+          if (!response.ok) {
+            return response.json().then(errorData => {
+              throw new Error(errorData.error || 'Failed to save vote');
+            });
+          }
+        }).catch(error => {
+          console.error('Failed to save vote to MongoDB:', error);
+        });
+      }
+      
+      // Clear the current voting ID and vote type
+      setCurrentVotingId(null);
+      setCurrentVoteType(null);
+      
+      // Refresh movies to get updated vote counts
+      setTimeout(() => {
+        fetch("/api/movies").then(res => res.json()).then(data => {
+          if (data.success && Array.isArray(data.movies)) {
+            setMovies(data.movies);
+          }
+        });
+      }, 1000);
+    }
+  }, [hash, currentVotingId, currentVoteType, address]);
+
+  // Handle errors from the contract
+  useEffect(() => {
+    if (error && currentVotingId) {
+      console.error('Contract error:', error);
+      
+      // Clear the current voting ID
+      setCurrentVotingId(null);
+      
+      // Provide specific error messages based on the error
+      let errorMessage = 'Transaction failed';
+      if (error.message?.includes('insufficient funds') || error.message?.includes('insufficient balance')) {
+        errorMessage = 'Insufficient CELO for gas fees. Please ensure you have enough CELO to cover transaction costs.';
+      } else if (error.message?.includes('user rejected')) {
+        errorMessage = 'Transaction was cancelled';
+      } else if (error.message?.includes('execution reverted')) {
+        errorMessage = 'Smart contract execution failed. This could mean:\n\n1. The movie ID does not exist on the contract\n2. The contract has an error\n3. You have already voted on this movie\n\nPlease check if the movie exists on the contract first.';
+      } else if (error.message?.includes('gas')) {
+        errorMessage = 'Gas estimation failed. Please try again.';
+      }
+      
+      alert(errorMessage);
+    }
+  }, [error, currentVotingId]);
+
   const handleVote = async (movieId: string, vote: 'yes' | 'no') => {
     console.log('Main page: handleVote called with:', movieId, vote);
     
+    if (!wagmiConnected || !address) {
+      alert('Please connect your wallet to vote');
+      return;
+    }
+    
+    // Check if we're on a Celo network
+    if (currentChainId !== 42220 && currentChainId !== 44787) {
+      alert('Please switch to a Celo network (testnet or mainnet) before voting.');
+      return;
+    }
+    
     // Set individual movie voting state
     setVotingMovies(prev => new Set(prev).add(movieId));
+    setCurrentVotingId(movieId);
+    setCurrentVoteType(vote);
     
     try {
-      const res = await fetch("/api/movies", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "vote", id: movieId, type: vote, userAddress: "demo-user" })
+      const movieIdBigInt = BigInt(parseInt(movieId, 10));
+
+      // Use the proper Wagmi hook for smart contract interactions
+      writeContract({
+        address: VOTE_CONTRACT_ADDRESS,
+        abi: VOTE_CONTRACT_ABI,
+        functionName: "vote",
+        args: [movieIdBigInt, vote === 'yes'],
+        gas: 150000n, // Conservative gas estimate
       });
-      const data = await res.json();
-      console.log('Main page: Vote API response:', data);
+
+      // Note: We'll handle success/error in useEffect above
       
-      if (data.success) {
-        // Refresh movies after voting
-        const res = await fetch("/api/movies");
-        const updated = await res.json();
-        if (updated.success && Array.isArray(updated.movies)) {
-          setMovies(updated.movies);
-        }
+    } catch (err: any) {
+      console.error('Vote error:', err);
+      
+      // Provide more specific error messages
+      let errorMessage = 'Transaction failed';
+      if (err.message?.includes('insufficient funds') || err.message?.includes('insufficient balance')) {
+        errorMessage = 'Insufficient CELO for gas fees. Please ensure you have enough CELO to cover transaction costs.';
+      } else if (err.message?.includes('user rejected')) {
+        errorMessage = 'Transaction was cancelled';
+      } else if (err.message?.includes('execution reverted')) {
+        errorMessage = 'Smart contract execution failed. This could mean:\n\n1. The movie ID does not exist on the contract\n2. The contract has an error\n3. You have already voted on this movie\n\nPlease check if the movie exists on the contract first.';
+      } else if (err.message?.includes('gas')) {
+        errorMessage = 'Gas estimation failed. Please try again.';
       }
-    } catch (error) {
-      console.error('Error voting:', error);
+      
+      setCurrentVotingId(null);
+      setCurrentVoteType(null);
+      alert(errorMessage);
     } finally {
       // Clear individual movie voting state
       setVotingMovies(prev => {
@@ -216,8 +358,8 @@ export default function DiscoverPage() {
                           console.log('CompactMovieCard onVote callback called with:', vote);
                           handleVote(movie.id || movie._id, vote ? 'yes' : 'no');
                         }}
-                        isVoting={votingMovies.has(movie.id || movie._id)}
-                        isConnected={isConnected}
+                        isVoting={currentVotingId === (movie.id || movie._id) || isPending}
+                        isConnected={wagmiConnected}
                       />
                     </div>
                   </CarouselItem>
@@ -268,8 +410,8 @@ export default function DiscoverPage() {
                 key={movie.id || movie._id}
                 movie={movie}
                 onVote={(vote) => handleVote(movie.id || movie._id, vote ? 'yes' : 'no')}
-                isVoting={votingMovies.has(movie.id || movie._id)}
-                isConnected={isConnected}
+                isVoting={currentVotingId === (movie.id || movie._id) || isPending}
+                isConnected={wagmiConnected}
               />
             ))
           )}
