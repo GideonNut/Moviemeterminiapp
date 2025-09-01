@@ -118,7 +118,18 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
             }}
             disabled={!isConnected || isVoting || hasVoted}
           >
-            {isVoting ? 'Voting...' : userVote === 'yes' ? 'Voted Yes ✓' : 'Yes'}
+            <div className={`relative flex items-center gap-1 ${userVote === 'yes' ? 'animate-pulse' : ''}`}>
+              <div className="relative">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7 10v12"/>
+                  <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a2 2 0 0 1 3 3.88Z"/>
+                </svg>
+                {userVote === 'yes' && (
+                  <div className="absolute inset-0 bg-green-400/30 rounded-full blur-sm scale-150"></div>
+                )}
+              </div>
+              <span>{isVoting ? 'Voting...' : userVote === 'yes' ? 'Voted Yes ✓' : 'Yes'}</span>
+            </div>
           </Button>
           <Button
             variant={userVote === 'no' ? 'destructive' : 'ghost'}
@@ -134,7 +145,19 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
             }}
             disabled={!isConnected || isVoting || hasVoted}
           >
-            {isVoting ? 'Voting...' : userVote === 'no' ? 'Voted No ✓' : 'No'}
+            <div className={`relative flex items-center gap-1 ${userVote === 'no' ? 'animate-pulse' : ''}`}>
+              <div className="relative">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 15v4a3 3 0 0 0 6 0v-1a3 3 0 0 0-6 0Z"/>
+                  <path d="M18 8a6 6 0 0 0-12 0c0 1.887.892 3.54 2.25 4.5"/>
+                  <path d="M6 15a6 6 0 0 0 12 0c0-1.887-.892-3.54-2.25-4.5"/>
+                </svg>
+                {userVote === 'no' && (
+                  <div className="absolute inset-0 bg-red-400/30 rounded-full blur-sm scale-150"></div>
+                )}
+              </div>
+              <span>{isVoting ? 'Voting...' : userVote === 'no' ? 'Voted No ✓' : 'No'}</span>
+            </div>
           </Button>
         </div>
         {hasVoted && (
@@ -256,7 +279,18 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
             onClick={() => handleVote(true)}
             disabled={!isConnected || isVoting || hasVoted}
           >
-            {userVote === 'yes' ? 'Voted Yes ✓' : 'Yes'}
+            <div className={`relative flex items-center gap-2 ${userVote === 'yes' ? 'animate-pulse' : ''}`}>
+              <div className="relative">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7 10v12"/>
+                  <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a2 2 0 0 1 3 3.88Z"/>
+                </svg>
+                {userVote === 'yes' && (
+                  <div className="absolute inset-0 bg-green-400/30 rounded-full blur-sm scale-150"></div>
+                )}
+              </div>
+              <span>{userVote === 'yes' ? 'Voted Yes ✓' : 'Yes'}</span>
+            </div>
           </Button>
           <Button
             variant={userVote === 'no' ? 'destructive' : 'ghost'}
@@ -268,7 +302,19 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
             onClick={() => handleVote(false)}
             disabled={!isConnected || isVoting || hasVoted}
           >
-            {userVote === 'no' ? 'Voted No ✓' : 'No'}
+            <div className={`relative flex items-center gap-2 ${userVote === 'no' ? 'animate-pulse' : ''}`}>
+              <div className="relative">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M10 15v4a3 3 0 0 0 6 0v-1a3 3 0 0 0-6 0Z"/>
+                  <path d="M18 8a6 6 0 0 0-12 0c0 1.887.892 3.54 2.25 4.5"/>
+                  <path d="M6 15a6 6 0 0 0 12 0c0-1.887-.892-3.54-2.25-4.5"/>
+                </svg>
+                {userVote === 'no' && (
+                  <div className="absolute inset-0 bg-red-400/30 rounded-full blur-sm scale-150"></div>
+                )}
+              </div>
+              <span>{userVote === 'no' ? 'Voted No ✓' : 'No'}</span>
+            </div>
           </Button>
         </div>
         {hasVoted && (
