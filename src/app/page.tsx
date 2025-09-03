@@ -18,7 +18,9 @@ import {
 } from "~/components/ui/carousel";
 import Header from "~/components/Header";
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
-import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance } from "wagmi";
+import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance, useWalletClient } from "wagmi";
+import { encodeFunctionData } from "viem";
+import { getDataSuffix, submitReferral } from "@divvi/referral-sdk";
 
 export default function DiscoverPage() {
   const [isVoting, setIsVoting] = useState(false);
@@ -30,6 +32,7 @@ export default function DiscoverPage() {
   const [currentVotingId, setCurrentVotingId] = useState<string | null>(null);
   const [currentVoteType, setCurrentVoteType] = useState<'yes' | 'no' | null>(null);
   const [votes, setVotes] = useState<{ [id: string]: 'yes' | 'no' | null }>({});
+  const [referralTag, setReferralTag] = useState<string | null>(null);
   
   // Add state for trailers
   type Trailer = { id: string; title: string; genre: string; year: string; youtubeId: string };
@@ -41,6 +44,7 @@ export default function DiscoverPage() {
   const { address, isConnected: wagmiConnected } = useAccount();
   const currentChainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
+  const { data: walletClient } = useWalletClient();
   
   // Use the proper Wagmi hook for smart contract interactions
   const { 
@@ -94,6 +98,21 @@ export default function DiscoverPage() {
     };
     checkConnection();
   }, [wagmiConnected]);
+
+  // Prepare Divvi referral tag once wallet is connected
+  useEffect(() => {
+    if (wagmiConnected && address) {
+      try {
+        const tag = getDataSuffix({ consumer: '0xc49b8e093600f684b69ed6ba1e36b7dfad42f982' });
+        setReferralTag(tag);
+      } catch (e) {
+        console.error('Failed to create Divvi referral tag:', e);
+        setReferralTag(null);
+      }
+    } else {
+      setReferralTag(null);
+    }
+  }, [wagmiConnected, address]);
 
   useEffect(() => {
     const fetchMovies = async () => {
@@ -245,18 +264,49 @@ export default function DiscoverPage() {
     
     try {
       const movieIdBigInt = BigInt(parseInt(movieId, 10));
-
-      // Use the proper Wagmi hook for smart contract interactions
-      writeContract({
-        address: VOTE_CONTRACT_ADDRESS,
+      const calldata = encodeFunctionData({
         abi: VOTE_CONTRACT_ABI,
-        functionName: "vote",
-        args: [movieIdBigInt, vote === 'yes'],
-        gas: 150000n, // Conservative gas estimate
+        functionName: 'vote',
+        args: [movieIdBigInt, vote === 'yes']
+      });
+      const dataWithTag = referralTag ? (calldata + referralTag.slice(2)) : calldata;
+      if (!walletClient) throw new Error('Wallet client unavailable');
+      const txHash = await walletClient.sendTransaction({
+        account: address!,
+        to: VOTE_CONTRACT_ADDRESS,
+        data: dataWithTag as `0x${string}`,
+        value: 0n
       });
 
-      // Note: We'll handle success/error in useEffect above
-      
+      // Submit referral to Divvi
+      const chainId = await walletClient.getChainId();
+      submitReferral({ txHash, chainId }).catch((e) => console.error('Divvi submitReferral failed:', e));
+
+      // Persist vote to MongoDB like before
+      fetch('/api/movies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'vote',
+          id: movieId,
+          type: vote,
+          userAddress: address
+        })
+      }).catch(error => {
+        console.error('Failed to save vote to MongoDB:', error);
+      });
+
+      // Clear voting flags and refresh movies
+      setCurrentVotingId(null);
+      setCurrentVoteType(null);
+      setTimeout(() => {
+        fetch("/api/movies").then(res => res.json()).then(data => {
+          if (data.success && Array.isArray(data.movies)) {
+            setMovies(data.movies);
+          }
+        });
+      }, 1000);
+
     } catch (err: any) {
       console.error('Vote error:', err);
       
