@@ -369,11 +369,11 @@ export default function TVPage() {
       {/* TV Shows List */}
       <div className="space-y-6">
         {tvShows.map((tvShow) => (
-          <Card key={tvShow.id} className={`bg-[#18181B] text-white border overflow-hidden ${
+          <Card key={tvShow.id} className={`bg-[#18181B] text-white border overflow-hidden cursor-pointer ${
             votes[tvShow.id] 
               ? 'border-green-500/30 bg-green-500/5' 
               : 'border-white/10'
-          }`}>
+          }`} onClick={() => router.push(`/tv/${tvShow.id}`)}>
             <CardContent className="p-0">
               <div className="flex">
                 {/* TV Show Poster - Made bigger */}
@@ -420,7 +420,7 @@ export default function TVPage() {
                   <div className="flex items-center gap-4">
                     <Button
                       variant={votes[tvShow.id] === 'yes' ? 'default' : 'ghost'}
-                      onClick={() => handleVote(tvShow.id, 'yes')}
+                      onClick={(e) => { e.stopPropagation(); handleVote(tvShow.id, 'yes'); }}
                       disabled={!isConnected || isPending || !!votes[tvShow.id]}
                       className={`flex items-center gap-2 px-6 py-3 ${
                         votes[tvShow.id] === 'yes' 
@@ -442,7 +442,7 @@ export default function TVPage() {
                     
                     <Button
                       variant={votes[tvShow.id] === 'no' ? 'destructive' : 'ghost'}
-                      onClick={() => handleVote(tvShow.id, 'no')}
+                      onClick={(e) => { e.stopPropagation(); handleVote(tvShow.id, 'no'); }}
                       disabled={!isConnected || isPending || !!votes[tvShow.id]}
                       className={`flex items-center gap-2 px-6 py-3 ${
                         votes[tvShow.id] === 'no' 
