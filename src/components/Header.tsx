@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Eye } from 'lucide-react';
+import { Eye, Trophy } from 'lucide-react';
 import SearchBar from './SearchBar';
 import { getFarcasterUser } from '~/lib/farcaster';
 
@@ -63,12 +63,20 @@ export default function Header({ showSearch = false, onSearch, movies = [] }: He
             </div>
           </Link>
           
-          {/* Right section with Watchlist icon and Avatar */}
+          {/* Right section with Leaderboard, Watchlist icon and Avatar */}
           <div className="flex items-center space-x-4">
+            {/* Leaderboard Icon */}
+            <Link 
+              href="/leaderboards" 
+              className="text-white/70 hover:text-red-400 transition-colors"
+              title="Leaderboard"
+            >
+              <Trophy size={24} />
+            </Link>
             {/* Watchlist Icon */}
             <Link 
               href="/watchlist" 
-              className="text-white/70 hover:text-purple-400 transition-colors"
+              className="text-white/70 hover:text-red-400 transition-colors"
               title="My Watchlist"
             >
               <Eye size={24} />
