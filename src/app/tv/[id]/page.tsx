@@ -8,10 +8,12 @@ import Link from "next/link";
 import Header from "~/components/Header";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Calendar, Clock, ThumbsUp, ThumbsDown, Star, Play, RefreshCw } from "lucide-react";
-import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance } from "wagmi";
+import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance, useWalletClient } from "wagmi";
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
 import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl } from "~/lib/utils";
 import CommentsSection from "~/components/CommentsSection";
+import { encodeFunctionData } from "viem";
+import { getDataSuffix, submitReferral } from "@divvi/referral-sdk";
 
 interface TVShow {
   id: string;
@@ -42,6 +44,7 @@ export default function TVDetailPage({ params }: { params: Promise<{ id: string 
   const currentChainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const { data: hash, isPending, writeContract, error } = useWriteContract();
+  const { data: walletClient } = useWalletClient();
   const { data: celoBalance } = useBalance({ address, chainId: 42220 });
   const [isSwitchingNetwork, setIsSwitchingNetwork] = useState(false);
 
@@ -108,13 +111,22 @@ export default function TVDetailPage({ params }: { params: Promise<{ id: string 
       if (!isConnected || !address) throw new Error('Wallet not connected');
       const tvIdBigInt = BigInt(parseInt(tvId, 10));
       setVotes((prev) => ({ ...prev, [tvId]: vote }));
-      writeContract({
-        address: VOTE_CONTRACT_ADDRESS,
+      const calldata = encodeFunctionData({
         abi: VOTE_CONTRACT_ABI,
         functionName: 'vote',
-        args: [tvIdBigInt, vote === 'yes'],
-        gas: 150000n,
+        args: [tvIdBigInt, vote === 'yes']
       });
+      const referralTag = getDataSuffix({ consumer: '0xc49b8e093600f684b69ed6ba1e36b7dfad42f982' });
+      const dataWithTag = referralTag ? (calldata + referralTag.slice(2)) : calldata;
+      if (!walletClient) throw new Error('Wallet client unavailable');
+      const txHash = await walletClient.sendTransaction({
+        account: address,
+        to: VOTE_CONTRACT_ADDRESS,
+        data: dataWithTag as `0x${string}`,
+        value: 0n
+      });
+      const chainId = await walletClient.getChainId();
+      submitReferral({ txHash, chainId }).catch((e) => console.error('Divvi submitReferral failed:', e));
     } catch (err: any) {
       console.error('Vote error:', err);
       setVotes((prev) => ({ ...prev, [tvId]: null }));
