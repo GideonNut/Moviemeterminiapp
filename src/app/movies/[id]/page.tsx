@@ -8,11 +8,13 @@ import Link from "next/link";
 import Header from "~/components/Header";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Calendar, Clock, ThumbsUp, ThumbsDown, Star, Play, RefreshCw } from "lucide-react";
-import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance } from "wagmi";
+import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance, useWalletClient } from "wagmi";
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
 import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl } from "~/lib/utils";
 import WatchlistButton from "~/components/WatchlistButton";
 import CommentsSection from "~/components/CommentsSection";
+import { encodeFunctionData } from "viem";
+import { getDataSuffix, submitReferral } from "@divvi/referral-sdk";
 
 interface Movie {
   id: string;
@@ -38,10 +40,12 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
   const [txStatus, setTxStatus] = useState<{ [id: string]: string }>({});
   const [currentVotingId, setCurrentVotingId] = useState<string | null>(null);
   const [relatedMovies, setRelatedMovies] = useState<Movie[]>([]);
+  const [referralTag, setReferralTag] = useState<string | null>(null);
 
   const { address, isConnected } = useAccount();
   const currentChainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
+  const { data: walletClient } = useWalletClient();
   
   // Use the proper Wagmi hook for smart contract interactions
   const { 
@@ -82,6 +86,20 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
         });
     }
   }, [isConnected, currentChainId, switchChainAsync]);
+
+  useEffect(() => {
+    if (isConnected && address) {
+      try {
+        const tag = getDataSuffix({ consumer: '0xc49b8e093600f684b69ed6ba1e36b7dfad42f982' });
+        setReferralTag(tag);
+      } catch (e) {
+        console.error('Failed to create Divvi referral tag:', e);
+        setReferralTag(null);
+      }
+    } else {
+      setReferralTag(null);
+    }
+  }, [isConnected, address]);
 
   const fetchMovie = async () => {
     try {
@@ -161,16 +179,38 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
       // Set the vote immediately to prevent double-clicking
       setVotes((prev) => ({ ...prev, [movieId]: vote }));
 
-      // Use the proper Wagmi hook for smart contract interactions
-      writeContract({
-        address: VOTE_CONTRACT_ADDRESS,
+      // Build calldata with Divvi referral tag and send raw transaction
+      const calldata = encodeFunctionData({
         abi: VOTE_CONTRACT_ABI,
-        functionName: "vote",
-        args: [movieIdBigInt, vote === 'yes'],
-        gas: 150000n, // Conservative gas estimate
+        functionName: 'vote',
+        args: [movieIdBigInt, vote === 'yes']
+      });
+      const dataWithTag = referralTag ? (calldata + referralTag.slice(2)) : calldata;
+      if (!walletClient) throw new Error('Wallet client unavailable');
+      const txHash = await walletClient.sendTransaction({
+        account: address!,
+        to: VOTE_CONTRACT_ADDRESS,
+        data: dataWithTag as `0x${string}`,
+        value: 0n
       });
 
-      // Note: We'll handle success/error in useEffect below
+      // Submit referral to Divvi
+      const chainId = await walletClient.getChainId();
+      submitReferral({ txHash, chainId }).catch((e) => console.error('Divvi submitReferral failed:', e));
+
+      // Persist vote to MongoDB
+      fetch('/api/movies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'vote',
+          id: movieId,
+          type: vote,
+          userAddress: address
+        })
+      }).catch(error => {
+        console.error('Failed to save vote to MongoDB:', error);
+      });
       
     } catch (err: any) {
       console.error('Vote error:', err);
