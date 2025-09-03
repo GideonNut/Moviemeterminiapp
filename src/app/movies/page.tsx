@@ -438,7 +438,7 @@ export default function MoviesPage() {
                     </div>
                     
                     <CardDescription className="text-sm text-white/60 mb-4">
-                      {movie.genres && movie.genres.length > 0 ? movie.genres[0] : 'Unknown'} • {movie.releaseYear || 'Unknown Year'}
+                      {movie.genres && movie.genres.length > 0 ? movie.genres[0] : ''} {movie.releaseYear ? `• ${movie.releaseYear}` : ''}
                     </CardDescription>
                     
                     {/* Movie Description */}
