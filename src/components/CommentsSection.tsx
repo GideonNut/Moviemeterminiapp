@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "~/components/ui/card";
 import { Button } from "~/components/ui/Button";
+import { Textarea } from "~/components/ui/textarea";
 import { MessageCircle, Heart, Reply, Send, RefreshCw } from "lucide-react";
 import { useAccount } from "wagmi";
 
@@ -190,13 +191,12 @@ export default function CommentsSection({ movieId }: CommentsSectionProps) {
                   {formatAddress(address!)[0].toUpperCase()}
                 </div>
                 <div className="flex-1">
-                  <textarea
+                  <Textarea
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                     placeholder="Share your thoughts about this movie..."
                     rows={3}
                     maxLength={1000}
-                    className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-3 py-2 text-white placeholder-white/50 resize-none focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
                   />
                   <div className="flex items-center justify-between mt-2">
                     <span className="text-xs text-white/40">
@@ -313,13 +313,13 @@ export default function CommentsSection({ movieId }: CommentsSectionProps) {
                           {formatAddress(address!)[0].toUpperCase()}
                         </div>
                         <div className="flex-1">
-                          <textarea
+                          <Textarea
                             value={replyContent}
                             onChange={(e) => setReplyContent(e.target.value)}
                             placeholder="Write a reply..."
                             rows={2}
                             maxLength={500}
-                            className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-2 py-1 text-sm text-white placeholder-white/50 resize-none focus:outline-none focus:border-purple-500"
+                            className="text-sm"
                           />
                           <div className="flex items-center justify-between mt-2">
                             <span className="text-xs text-white/40">
