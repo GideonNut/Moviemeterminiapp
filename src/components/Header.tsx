@@ -24,7 +24,7 @@ interface HeaderProps {
 
 export default function Header({ showSearch = false, onSearch, movies = [] }: HeaderProps) {
   const { data: session } = useSession();
-  const [profilePicture, setProfilePicture] = useState<string>('https://randomuser.me/api/portraits/men/32.jpg');
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -35,12 +35,17 @@ export default function Header({ showSearch = false, onSearch, movies = [] }: He
           const user = await getFarcasterUser(session.user.fid);
           if (user?.pfp) {
             setProfilePicture(user.pfp);
+          } else {
+            setProfilePicture(null);
           }
         } catch (error) {
           console.error('Error fetching user profile:', error);
+          setProfilePicture(null);
         } finally {
           setIsLoading(false);
         }
+      } else {
+        setProfilePicture(null);
       }
     };
 
@@ -82,21 +87,23 @@ export default function Header({ showSearch = false, onSearch, movies = [] }: He
               <Eye size={24} />
             </Link>
             
-            {/* User Avatar */}
-            <div className="w-10 h-10 relative">
-              <Image
-                src={profilePicture}
-                alt="User Profile"
-                layout="fill"
-                objectFit="cover"
-                className="rounded-full border-2 border-white/20"
-              />
-              {isLoading && (
-                <div className="absolute inset-0 bg-black/20 rounded-full flex items-center justify-center">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                </div>
-              )}
-            </div>
+            {/* User Avatar - Only show if we have a valid profile picture */}
+            {profilePicture && (
+              <div className="w-10 h-10 relative">
+                <Image
+                  src={profilePicture}
+                  alt="User Profile"
+                  layout="fill"
+                  objectFit="cover"
+                  className="rounded-full border-2 border-white/20"
+                />
+                {isLoading && (
+                  <div className="absolute inset-0 bg-black/20 rounded-full flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
         
