@@ -416,30 +416,6 @@ export default function DiscoverPage() {
         </div>
       </section>
 
-      {/* Newest Reviews */}
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-white mb-3">Newest Reviews</h2>
-        <div className="flex justify-center items-center min-h-[80px]">
-          <span className="text-white/60 text-sm">There are no reviews at this time.</span>
-        </div>
-      </section>
-
-      {/* Trending Celebrities */}
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-white mb-3">Trending Celebrities</h2>
-        <div className="flex justify-center items-center min-h-[80px]">
-          <span className="text-white/60 text-sm">There are no trending celebrities at this time.</span>
-        </div>
-      </section>
-
-      {/* Trending On Demand */}
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-white mb-3">Trending On Demand</h2>
-        <div className="flex justify-center items-center min-h-[80px]">
-          <span className="text-white/60 text-sm">There are no trending on demand items at this time.</span>
-        </div>
-      </section>
-
       {/* Trending Movies & TV Shows */}
       <section className="mb-8">
         <h2 className="text-xl font-semibold text-white mb-3">Trending Movies & TV Shows</h2>
@@ -460,6 +436,22 @@ export default function DiscoverPage() {
               />
             ))
           )}
+        </div>
+      </section>
+
+      {/* Newest Reviews */}
+      <section className="mb-8">
+        <h2 className="text-xl font-semibold text-white mb-3">Newest Reviews</h2>
+        <div className="flex justify-center items-center min-h-[80px]">
+          <span className="text-white/60 text-sm">There are no reviews at this time.</span>
+        </div>
+      </section>
+
+      {/* Trending Celebrities */}
+      <section className="mb-8">
+        <h2 className="text-xl font-semibold text-white mb-3">Trending Celebrities</h2>
+        <div className="flex justify-center items-center min-h-[80px]">
+          <span className="text-white/60 text-sm">There are no trending celebrities at this time.</span>
         </div>
       </section>
     </main>
