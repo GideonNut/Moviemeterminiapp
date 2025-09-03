@@ -400,25 +400,25 @@ export default function MoviesPage() {
         </div>
       )}
 
-      {/* Movies List */}
+            {/* Movies List */}
       <div className="space-y-6">
             {filteredMovies.map((movie) => (
-          <Card key={movie.id} className={`bg-[#18181B] text-white border overflow-hidden ${
+          <Card key={movie.id} className={`bg-[#18181B] text-white border overflow-hidden cursor-pointer ${
             votes[movie.id] 
               ? 'border-green-500/30 bg-green-500/5' 
               : 'border-white/10'
-          }`}>
+          }`} onClick={() => router.push(`/movies/${movie.id}`)}>
                 <CardContent className="p-0">
               <div className="flex">
                 {/* Movie Poster - Made bigger */}
-                <div className="w-32 h-48 relative bg-neutral-900 flex-shrink-0">
+                <div className="w-40 h-60 relative bg-neutral-900 flex-shrink-0">
                     {movie.posterUrl ? (
                       <Image
                         src={ensureFullPosterUrl(movie.posterUrl) || ''}
                         alt={movie.title}
                         fill
                       className="object-cover w-full h-full"
-                      sizes="128px"
+                      sizes="160px"
                       />
                     ) : (
                       <div className="flex items-center justify-center h-full text-white/40">
@@ -449,6 +449,7 @@ export default function MoviesPage() {
                     <Link 
                       href={`/movies/${movie.id}`}
                       className="inline-block mb-4"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <Button 
                         variant="link" 
@@ -476,7 +477,7 @@ export default function MoviesPage() {
                   <div className="flex items-center gap-4">
                                              <Button
                          variant={votes[movie.id] === 'yes' ? 'default' : 'ghost'}
-                         onClick={() => handleVote(movie.id, 'yes')}
+                         onClick={(e) => { e.stopPropagation(); handleVote(movie.id, 'yes'); }}
                          disabled={!isConnected || isPending || !!votes[movie.id]}
                          className={`flex items-center gap-2 px-6 py-3 ${
                            votes[movie.id] === 'yes' 
@@ -498,7 +499,7 @@ export default function MoviesPage() {
                       
                                              <Button
                          variant={votes[movie.id] === 'no' ? 'destructive' : 'ghost'}
-                         onClick={() => handleVote(movie.id, 'no')}
+                         onClick={(e) => { e.stopPropagation(); handleVote(movie.id, 'no'); }}
                          disabled={!isConnected || isPending || !!votes[movie.id]}
                          className={`flex items-center gap-2 px-6 py-3 ${
                            votes[movie.id] === 'no' 
@@ -517,32 +518,32 @@ export default function MoviesPage() {
                            {votes[movie.id] === 'no' ? 'Voted No ✓' : 'No'}
                          </span>
                        </Button>
-                    
-                    {/* Status Messages */}
-                    <div className="flex-1 text-right">
-                      {isPending && currentVotingId === movie.id && (
-                        <span className="text-yellow-400 text-sm">Confirming...</span>
-                      )}
-                      {votes[movie.id] && !isPending && (
-                        <span className="text-green-400 text-sm font-medium">
-                          {votes[movie.id] === 'yes' ? 'Voted Yes' : 'Voted No'}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Voted Already Message */}
-                  {votes[movie.id] && (
-                    <div className="mt-3 text-center">
-                      <span className="text-sm text-green-400 font-medium bg-green-400/10 px-3 py-1 rounded-full">
-                        ✓ You've voted already on this movie
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+                     
+                     {/* Status Messages */}
+                     <div className="flex-1 text-right">
+                       {isPending && currentVotingId === movie.id && (
+                         <span className="text-yellow-400 text-sm">Confirming...</span>
+                       )}
+                       {votes[movie.id] && !isPending && (
+                         <span className="text-green-400 text-sm font-medium">
+                           {votes[movie.id] === 'yes' ? 'Voted Yes' : 'Voted No'}
+                         </span>
+                       )}
+                     </div>
+                   </div>
+                   
+                   {/* Voted Already Message */}
+                   {votes[movie.id] && (
+                     <div className="mt-3 text-center">
+                       <span className="text-sm text-green-400 font-medium bg-green-400/10 px-3 py-1 rounded-full">
+                         ✓ You've voted already on this movie
+                       </span>
+                     </div>
+                   )}
+                 </div>
+               </div>
+             </CardContent>
+           </Card>
             ))}
           </div>
     </div>
