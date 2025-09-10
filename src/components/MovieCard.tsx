@@ -71,9 +71,9 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
       {/* Movie Info */}
       <div className="flex-1 flex flex-col justify-between p-4">
         <div>
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-base font-semibold text-white line-clamp-1">{movie.title}</h3>
-            <span className="text-xs text-white/60">{movie.releaseYear || 'N/A'}</span>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h3 className="text-base font-semibold text-white line-clamp-1 flex-1 min-w-0">{movie.title}</h3>
+            <span className="text-xs text-white/60 flex-shrink-0">{movie.releaseYear || 'N/A'}</span>
           </div>
           <p className="mb-3 text-xs text-white/70 line-clamp-2">{movie.description}</p>
           {movie.genres && (
@@ -81,7 +81,8 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
               {movie.genres.slice(0, 2).map((genre) => (
                 <span
                   key={genre}
-                  className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/60"
+                  className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/60 truncate max-w-[120px]"
+                  title={genre}
                 >
                   {genre}
                 </span>
@@ -91,9 +92,9 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
         </div>
         {/* Vote Counts */}
         <div className="mb-3 flex items-center justify-between text-xs mt-2">
-          <div className="flex items-center gap-2">
-            <span className="text-green-400">Yes: {movie.votes?.yes || 0}</span>
-            <span className="text-red-400">No: {movie.votes?.no || 0}</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-green-400 whitespace-nowrap">Yes: {movie.votes?.yes || 0}</span>
+            <span className="text-red-400 whitespace-nowrap">No: {movie.votes?.no || 0}</span>
           </div>
           {movie.rating && (
             <div className="flex items-center gap-1">
@@ -128,7 +129,7 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
                   <div className="absolute inset-0 bg-green-400/30 rounded-full blur-sm scale-150"></div>
                 )}
               </div>
-              <span>{isVoting ? 'Voting...' : userVote === 'yes' ? 'Voted Yes ✓' : 'Yes'}</span>
+              <span className="truncate">{isVoting ? 'Voting...' : userVote === 'yes' ? 'Voted Yes ✓' : 'Yes'}</span>
             </div>
           </Button>
           <Button
@@ -156,7 +157,7 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
                   <div className="absolute inset-0 bg-red-400/30 rounded-full blur-sm scale-150"></div>
                 )}
               </div>
-              <span>{isVoting ? 'Voting...' : userVote === 'no' ? 'Voted No ✓' : 'No'}</span>
+              <span className="truncate">{isVoting ? 'Voting...' : userVote === 'no' ? 'Voted No ✓' : 'No'}</span>
             </div>
           </Button>
         </div>
@@ -236,9 +237,9 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
       {/* Movie Info */}
       <div className="flex-1 flex flex-col justify-between p-6">
         <div>
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-white line-clamp-1">{movie.title}</h3>
-            <span className="text-sm text-white/60">{movie.releaseYear || 'N/A'}</span>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h3 className="text-lg font-semibold text-white line-clamp-1 flex-1 min-w-0">{movie.title}</h3>
+            <span className="text-sm text-white/60 flex-shrink-0">{movie.releaseYear || 'N/A'}</span>
           </div>
           <p className="mb-4 text-sm text-white/70 line-clamp-2">{movie.description}</p>
           {movie.genres && (
@@ -246,7 +247,8 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
               {movie.genres.map((genre) => (
                 <span
                   key={genre}
-                  className="rounded-full bg-white/10 px-2 py-1 text-xs text-white/60"
+                  className="rounded-full bg-white/10 px-2 py-1 text-xs text-white/60 truncate max-w-[150px]"
+                  title={genre}
                 >
                   {genre}
                 </span>
@@ -256,9 +258,9 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
         </div>
         {/* Vote Counts */}
         <div className="mb-4 flex items-center justify-between text-sm mt-2">
-          <div className="flex items-center gap-2">
-            <span className="text-green-400">Yes: {movie.votes?.yes || 0}</span>
-            <span className="text-red-400">No: {movie.votes?.no || 0}</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-green-400 whitespace-nowrap">Yes: {movie.votes?.yes || 0}</span>
+            <span className="text-red-400 whitespace-nowrap">No: {movie.votes?.no || 0}</span>
           </div>
           {movie.rating && (
             <div className="flex items-center gap-1">
@@ -289,7 +291,7 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
                   <div className="absolute inset-0 bg-green-400/30 rounded-full blur-sm scale-150"></div>
                 )}
               </div>
-              <span>{userVote === 'yes' ? 'Voted Yes ✓' : 'Yes'}</span>
+              <span className="truncate">{userVote === 'yes' ? 'Voted Yes ✓' : 'Yes'}</span>
             </div>
           </Button>
           <Button
@@ -313,7 +315,7 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
                   <div className="absolute inset-0 bg-red-400/30 rounded-full blur-sm scale-150"></div>
                 )}
               </div>
-              <span>{userVote === 'no' ? 'Voted No ✓' : 'No'}</span>
+              <span className="truncate">{userVote === 'no' ? 'Voted No ✓' : 'No'}</span>
             </div>
           </Button>
         </div>
