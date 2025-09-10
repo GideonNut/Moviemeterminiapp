@@ -434,7 +434,7 @@ export default function TVPage() {
                       {tvShow.title}
                     </CardTitle>
                     <CardDescription className="text-sm text-white/60 mb-4">
-                      {tvShow.genres && tvShow.genres.length > 0 ? tvShow.genres[0] : ''} {tvShow.releaseYear ? `• ${tvShow.releaseYear}` : ''}
+                      {tvShow.genres && tvShow.genres.length > 0 ? tvShow.genres[0] : ''} {tvShow.releaseYear ? tvShow.releaseYear : ''}
                     </CardDescription>
                     
                     {/* Vote Counts Display */}
