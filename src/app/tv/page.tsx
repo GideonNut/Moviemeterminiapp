@@ -434,18 +434,23 @@ export default function TVPage() {
                       {tvShow.title}
                     </CardTitle>
                     <CardDescription className="text-sm text-white/60 mb-4">
-                      {tvShow.genres && tvShow.genres.length > 0 ? tvShow.genres[0] : ''} {tvShow.releaseYear ? tvShow.releaseYear : ''}
+                      <span className="truncate block">{tvShow.genres && tvShow.genres.length > 0 ? tvShow.genres[0] : ''} {tvShow.releaseYear ? tvShow.releaseYear : ''}</span>
                     </CardDescription>
+                    
+                    {/* TV Show Description */}
+                    <div className="text-sm text-white/70 mb-4 line-clamp-3">
+                      {tvShow.description || 'No description available'}
+                    </div>
                     
                     {/* Vote Counts Display */}
                     <div className="flex items-center gap-6 text-sm text-white/60 mb-4">
-                      <span className="flex items-center gap-2">
-                        <ThumbsUp size={16} className="text-green-400" />
-                        <span className="font-medium">{tvShow.votes.yes} Yes</span>
+                      <span className="flex items-center gap-2 min-w-0">
+                        <ThumbsUp size={16} className="text-green-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Yes: {tvShow.votes.yes}</span>
                       </span>
-                      <span className="flex items-center gap-2">
-                        <ThumbsDown size={16} className="text-red-400" />
-                        <span className="font-medium">{tvShow.votes.no} No</span>
+                      <span className="flex items-center gap-2 min-w-0">
+                        <ThumbsDown size={16} className="text-red-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">No: {tvShow.votes.no}</span>
                       </span>
                     </div>
                   </div>
