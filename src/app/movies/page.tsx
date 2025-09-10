@@ -472,7 +472,7 @@ export default function MoviesPage() {
                     </div>
                     
                     <CardDescription className="text-sm text-white/60 mb-4">
-                      {movie.genres && movie.genres.length > 0 ? movie.genres[0] : ''} {movie.releaseYear ? movie.releaseYear : ''}
+                      <span className="truncate block">{movie.genres && movie.genres.length > 0 ? movie.genres[0] : ''} {movie.releaseYear ? movie.releaseYear : ''}</span>
                     </CardDescription>
                     
                     {/* Movie Description */}
@@ -496,13 +496,13 @@ export default function MoviesPage() {
 
                     {/* Vote Counts Display */}
                     <div className="flex items-center gap-6 text-sm text-white/60 mb-4">
-                      <span className="flex items-center gap-2">
-                        <ThumbsUp size={16} className="text-green-400" />
-                        <span className="font-medium">{movie.votes.yes} Yes</span>
+                      <span className="flex items-center gap-2 min-w-0">
+                        <ThumbsUp size={16} className="text-green-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Yes: {movie.votes.yes}</span>
                       </span>
-                      <span className="flex items-center gap-2">
-                        <ThumbsDown size={16} className="text-red-400" />
-                        <span className="font-medium">{movie.votes.no} No</span>
+                      <span className="flex items-center gap-2 min-w-0">
+                        <ThumbsDown size={16} className="text-red-400 flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">No: {movie.votes.no}</span>
                       </span>
                     </div>
                   </div>
