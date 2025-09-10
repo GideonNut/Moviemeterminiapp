@@ -205,7 +205,7 @@ export default function WatchlistPage() {
                         {movie.title}
                       </CardTitle>
                       <CardDescription className="text-sm text-white/60 mb-3">
-                        {movie.genres && movie.genres.length > 0 ? movie.genres[0] : 'Unknown'} • {movie.releaseYear || 'Unknown Year'}
+                        {movie.genres && movie.genres.length > 0 ? movie.genres[0] : 'Unknown'} {movie.releaseYear || 'Unknown Year'}
                       </CardDescription>
 
                       {/* Movie Description */}
