@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { addComment, getMovieComments, likeComment, addReply } from '~/lib/mongo';
+import { addComment, getMovieComments, likeComment, addReply, addCommentPoints } from '~/lib/mongo';
 
 export async function GET(request: NextRequest) {
   try {
@@ -49,6 +49,8 @@ export async function POST(request: NextRequest) {
         }
 
         const comment = await addComment(movieId, address, content);
+        // Award 2 points for commenting
+        await addCommentPoints(address);
         return NextResponse.json(comment);
 
       case 'like':
