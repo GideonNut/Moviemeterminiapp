@@ -92,9 +92,9 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
         </div>
         {/* Vote Counts */}
         <div className="mb-3 flex items-center justify-between text-xs mt-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-green-400 whitespace-nowrap">Yes: {movie.votes?.yes || 0}</span>
-            <span className="text-red-400 whitespace-nowrap">No: {movie.votes?.no || 0}</span>
+          <div className="flex items-center gap-2 min-w-0 text-muted-foreground">
+            <span className="whitespace-nowrap">Yes: {movie.votes?.yes || 0}</span>
+            <span className="whitespace-nowrap">No: {movie.votes?.no || 0}</span>
           </div>
           {movie.rating && (
             <div className="flex items-center gap-1">
@@ -106,13 +106,9 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
         {/* Vote Buttons */}
         <div className="flex gap-2 mt-2">
           <Button
-            variant={userVote === 'yes' ? 'default' : 'ghost'}
+            variant={userVote === 'yes' ? 'default' : 'outline'}
             size="sm"
-            className={`flex-1 text-xs py-1.5 ${
-              userVote === 'yes' 
-                ? 'bg-green-600 hover:bg-green-700 text-white' 
-                : 'hover:bg-green-600'
-            }`}
+            className={"flex-1 text-xs py-1.5"}
             onClick={() => {
               console.log('Yes button clicked!');
               handleVote(true);
@@ -126,20 +122,16 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
                   <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a2 2 0 0 1 3 3.88Z"/>
                 </svg>
                 {userVote === 'yes' && (
-                  <div className="absolute inset-0 bg-green-400/30 rounded-full blur-sm scale-150"></div>
+                  <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
                 )}
               </div>
               <span className="truncate">{isVoting ? 'Voting...' : userVote === 'yes' ? 'Voted Yes ✓' : 'Yes'}</span>
             </div>
           </Button>
           <Button
-            variant={userVote === 'no' ? 'destructive' : 'ghost'}
+            variant={userVote === 'no' ? 'default' : 'outline'}
             size="sm"
-            className={`flex-1 text-xs py-1.5 ${
-              userVote === 'no' 
-                ? 'bg-red-600 hover:bg-red-700 text-white' 
-                : 'hover:bg-red-600'
-            }`}
+            className={"flex-1 text-xs py-1.5"}
             onClick={() => {
               console.log('No button clicked!');
               handleVote(false);
@@ -154,7 +146,7 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
                   <path d="M6 15a6 6 0 0 0 12 0c0-1.887-.892-3.54-2.25-4.5"/>
                 </svg>
                 {userVote === 'no' && (
-                  <div className="absolute inset-0 bg-red-400/30 rounded-full blur-sm scale-150"></div>
+                  <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
                 )}
               </div>
               <span className="truncate">{isVoting ? 'Voting...' : userVote === 'no' ? 'Voted No ✓' : 'No'}</span>
@@ -163,7 +155,7 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
         </div>
         {hasVoted && (
           <div className="text-center mt-2">
-            <span className="text-xs text-green-400 font-medium">You've voted already on this movie</span>
+            <span className="text-xs font-medium bg-accent text-accent-foreground px-2 py-0.5 rounded-full">You've voted already on this movie</span>
           </div>
         )}
       </div>
@@ -258,9 +250,9 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
         </div>
         {/* Vote Counts */}
         <div className="mb-4 flex items-center justify-between text-sm mt-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-green-400 whitespace-nowrap">Yes: {movie.votes?.yes || 0}</span>
-            <span className="text-red-400 whitespace-nowrap">No: {movie.votes?.no || 0}</span>
+          <div className="flex items-center gap-2 min-w-0 text-muted-foreground">
+            <span className="whitespace-nowrap">Yes: {movie.votes?.yes || 0}</span>
+            <span className="whitespace-nowrap">No: {movie.votes?.no || 0}</span>
           </div>
           {movie.rating && (
             <div className="flex items-center gap-1">
@@ -272,12 +264,8 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
         {/* Vote Buttons */}
         <div className="flex gap-3 mt-2">
           <Button
-            variant={userVote === 'yes' ? 'default' : 'ghost'}
-            className={`flex-1 ${
-              userVote === 'yes' 
-                ? 'bg-green-600 hover:bg-green-700 text-white' 
-                : 'hover:bg-green-600'
-            }`}
+            variant={userVote === 'yes' ? 'default' : 'outline'}
+            className={"flex-1"}
             onClick={() => handleVote(true)}
             disabled={!isConnected || isVoting || hasVoted}
           >
@@ -288,19 +276,15 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
                   <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a2 2 0 0 1 3 3.88Z"/>
                 </svg>
                 {userVote === 'yes' && (
-                  <div className="absolute inset-0 bg-green-400/30 rounded-full blur-sm scale-150"></div>
+                  <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
                 )}
               </div>
               <span className="truncate">{userVote === 'yes' ? 'Voted Yes ✓' : 'Yes'}</span>
             </div>
           </Button>
           <Button
-            variant={userVote === 'no' ? 'destructive' : 'ghost'}
-            className={`flex-1 ${
-              userVote === 'no' 
-                ? 'bg-red-600 hover:bg-red-700 text-white' 
-                : 'hover:bg-red-600'
-            }`}
+            variant={userVote === 'no' ? 'default' : 'outline'}
+            className={"flex-1"}
             onClick={() => handleVote(false)}
             disabled={!isConnected || isVoting || hasVoted}
           >
@@ -312,7 +296,7 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
                   <path d="M6 15a6 6 0 0 0 12 0c0-1.887-.892-3.54-2.25-4.5"/>
                 </svg>
                 {userVote === 'no' && (
-                  <div className="absolute inset-0 bg-red-400/30 rounded-full blur-sm scale-150"></div>
+                  <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
                 )}
               </div>
               <span className="truncate">{userVote === 'no' ? 'Voted No ✓' : 'No'}</span>
@@ -321,7 +305,7 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
         </div>
         {hasVoted && (
           <div className="text-center mt-3">
-            <span className="text-sm text-green-400 font-medium">You've voted already on this movie</span>
+            <span className="text-sm font-medium bg-accent text-accent-foreground px-3 py-1 rounded-full">You've voted already on this movie</span>
           </div>
         )}
       </div>
