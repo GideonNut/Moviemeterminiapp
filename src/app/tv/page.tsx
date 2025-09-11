@@ -428,7 +428,7 @@ export default function TVPage() {
                 </div>
                 
                 {/* TV Show Info & Voting */}
-                <div className="flex-1 p-6 flex flex-col justify-between">
+                <div className="flex-1 p-6 flex flex-col justify-between text-left">
                   <div>
                     <CardTitle className="text-lg font-semibold mb-3 line-clamp-2">
                       {tvShow.title}
