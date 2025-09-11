@@ -25,7 +25,6 @@ import { getDataSuffix, submitReferral } from "@divvi/referral-sdk";
 export default function DiscoverPage() {
   const [isVoting, setIsVoting] = useState(false);
   const [votingMovies, setVotingMovies] = useState<Set<string>>(new Set());
-  const [isConnected, setIsConnected] = useState(false);
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -86,18 +85,7 @@ export default function DiscoverPage() {
     }
   }, [wagmiConnected, currentChainId, switchChainAsync]);
 
-  useEffect(() => {
-    const checkConnection = async () => {
-      try {
-        // Use Wagmi connection status
-        setIsConnected(wagmiConnected);
-      } catch (error) {
-        console.error('Error checking connection:', error);
-        setIsConnected(false);
-      }
-    };
-    checkConnection();
-  }, [wagmiConnected]);
+  // Derive connection directly from wagmi
 
   // Prepare Divvi referral tag once wallet is connected
   useEffect(() => {
