@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "~/components/ui/Button";
 import { Eye, EyeOff, RefreshCw } from "lucide-react";
 import { useAccount } from "wagmi";
+import { cn } from "~/lib/utils";
 
 interface WatchlistButtonProps {
   movieId: string;
@@ -123,15 +124,16 @@ export default function WatchlistButton({
 
   return (
     <Button
+      data-slot="watchlist-button"
       variant="ghost"
       size={size}
       onClick={toggleWatchlist}
       disabled={loading}
-      className={`p-2 transition-colors ${
-        isInWatchlist 
-          ? 'text-white/60 hover:text-white hover:bg-white/10' 
-          : 'text-white/60 hover:text-white hover:bg-white/10'
-      } ${className}`}
+      className={cn(
+        "p-2 transition-colors",
+        isInWatchlist ? "text-foreground/70 hover:text-foreground hover:bg-accent" : "text-foreground/70 hover:text-foreground hover:bg-accent",
+        className
+      )}
       title={isInWatchlist ? "Remove from watchlist" : "Add to watchlist"}
     >
       {loading ? (
