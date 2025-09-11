@@ -488,20 +488,20 @@ export default function MoviesPage() {
                       <Button 
                         variant="link" 
                         size="sm" 
-                        className="p-0 text-left underline text-sm text-blue-400 hover:text-blue-300"
+                        className="p-0 text-left underline text-sm"
                       >
                         View More Details
                       </Button>
                     </Link>
 
                     {/* Vote Counts Display */}
-                    <div className="flex items-center gap-6 text-sm text-white/60 mb-4">
+                    <div className="flex items-center gap-6 text-sm text-muted-foreground mb-4">
                       <span className="flex items-center gap-2 min-w-0">
-                        <ThumbsUp size={16} className="text-green-400 flex-shrink-0" />
+                        <ThumbsUp size={16} className="flex-shrink-0" />
                         <span className="font-medium whitespace-nowrap">Yes: {movie.votes.yes}</span>
                       </span>
                       <span className="flex items-center gap-2 min-w-0">
-                        <ThumbsDown size={16} className="text-red-400 flex-shrink-0" />
+                        <ThumbsDown size={16} className="flex-shrink-0" />
                         <span className="font-medium whitespace-nowrap">No: {movie.votes.no}</span>
                       </span>
                     </div>
@@ -509,49 +509,41 @@ export default function MoviesPage() {
                     
                     {/* Vote Buttons */}
                   <div className="flex items-center gap-4">
-                                             <Button
-                         variant={votes[movie.id] === 'yes' ? 'default' : 'ghost'}
-                         onClick={(e) => { e.stopPropagation(); handleVote(movie.id, 'yes'); }}
-                         disabled={!isConnected || isPending || !!votes[movie.id]}
-                         className={`flex items-center gap-2 px-6 py-3 ${
-                           votes[movie.id] === 'yes' 
-                             ? 'bg-green-600 hover:bg-green-700 text-white' 
-                             : 'hover:bg-green-600'
-                         }`}
-                         size="default"
-                       >
-                         <div className={`relative ${votes[movie.id] === 'yes' ? 'animate-pulse' : ''}`}>
-                           <ThumbsUp size={18} />
-                           {votes[movie.id] === 'yes' && (
-                             <div className="absolute inset-0 bg-green-400/30 rounded-full blur-sm scale-150"></div>
-                           )}
-                         </div>
-                         <span className="text-sm font-medium">
-                           {votes[movie.id] === 'yes' ? 'Voted Yes ✓' : 'Yes'}
-                         </span>
-                       </Button>
-                      
-                                             <Button
-                         variant={votes[movie.id] === 'no' ? 'destructive' : 'ghost'}
-                         onClick={(e) => { e.stopPropagation(); handleVote(movie.id, 'no'); }}
-                         disabled={!isConnected || isPending || !!votes[movie.id]}
-                         className={`flex items-center gap-2 px-6 py-3 ${
-                           votes[movie.id] === 'no' 
-                             ? 'bg-red-600 hover:bg-red-700 text-white' 
-                             : 'hover:bg-red-600'
-                         }`}
-                         size="default"
-                       >
-                         <div className={`relative ${votes[movie.id] === 'no' ? 'animate-pulse' : ''}`}>
-                           <ThumbsDown size={18} />
-                           {votes[movie.id] === 'no' && (
-                             <div className="absolute inset-0 bg-red-400/30 rounded-full blur-sm scale-150"></div>
-                           )}
-                         </div>
-                         <span className="text-sm font-medium">
-                           {votes[movie.id] === 'no' ? 'Voted No ✓' : 'No'}
-                         </span>
-                       </Button>
+                    <Button
+                      variant={votes[movie.id] === 'yes' ? 'default' : 'outline'}
+                      onClick={(e) => { e.stopPropagation(); handleVote(movie.id, 'yes'); }}
+                      disabled={!isConnected || isPending || !!votes[movie.id]}
+                      className={"flex items-center gap-2 px-6 py-3"}
+                      size="default"
+                    >
+                      <div className={`relative ${votes[movie.id] === 'yes' ? 'animate-pulse' : ''}`}>
+                        <ThumbsUp size={18} />
+                        {votes[movie.id] === 'yes' && (
+                          <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium">
+                        {votes[movie.id] === 'yes' ? 'Voted Yes ✓' : 'Yes'}
+                      </span>
+                    </Button>
+                    
+                    <Button
+                      variant={votes[movie.id] === 'no' ? 'default' : 'outline'}
+                      onClick={(e) => { e.stopPropagation(); handleVote(movie.id, 'no'); }}
+                      disabled={!isConnected || isPending || !!votes[movie.id]}
+                      className={"flex items-center gap-2 px-6 py-3"}
+                      size="default"
+                    >
+                      <div className={`relative ${votes[movie.id] === 'no' ? 'animate-pulse' : ''}`}>
+                        <ThumbsDown size={18} />
+                        {votes[movie.id] === 'no' && (
+                          <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium">
+                        {votes[movie.id] === 'no' ? 'Voted No ✓' : 'No'}
+                      </span>
+                    </Button>
                      
                      {/* Status Messages */}
                      <div className="flex-1 text-right">
@@ -559,7 +551,7 @@ export default function MoviesPage() {
                          <span className="text-yellow-400 text-sm">Confirming...</span>
                        )}
                        {votes[movie.id] && !isPending && (
-                         <span className="text-green-400 text-sm font-medium">
+                         <span className="text-sm font-medium text-foreground/80">
                            {votes[movie.id] === 'yes' ? 'Voted Yes' : 'Voted No'}
                          </span>
                        )}
@@ -569,7 +561,7 @@ export default function MoviesPage() {
                    {/* Voted Already Message */}
                    {votes[movie.id] && (
                      <div className="mt-3 text-center">
-                       <span className="text-sm text-green-400 font-medium bg-green-400/10 px-3 py-1 rounded-full">
+                       <span className="text-sm font-medium bg-accent text-accent-foreground px-3 py-1 rounded-full">
                          ✓ You've voted already on this movie
                        </span>
                      </div>
