@@ -123,12 +123,32 @@ const commentSchema = new mongoose.Schema<IComment>({
 // Index for efficient querying
 commentSchema.index({ movieId: 1, timestamp: -1 });
 
+// Points Schema
+interface IPoints extends Document {
+  address: string;
+  totalPoints: number;
+  votePoints: number;
+  commentPoints: number;
+  lastUpdated: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const pointsSchema = new mongoose.Schema<IPoints>({
+  address: { type: String, required: true, unique: true, index: true },
+  totalPoints: { type: Number, default: 0 },
+  votePoints: { type: Number, default: 0 },
+  commentPoints: { type: Number, default: 0 },
+  lastUpdated: { type: Date, default: Date.now }
+}, { timestamps: true });
+
 // Initialize models immediately (not inside connectMongo)
 let MovieModel: Model<IMovie>;
 let VoteModel: Model<IVote>;
 let NotificationModel: Model<INotification>;
 let WatchlistModel: Model<IWatchlist>;
 let CommentModel: Model<IComment>;
+let PointsModel: Model<IPoints>;
 
 // Initialize models if they don't exist
 function initializeModels() {
@@ -147,6 +167,9 @@ function initializeModels() {
     }
     if (!CommentModel) {
       CommentModel = mongoose.models.Comment as Model<IComment> || mongoose.model<IComment>('Comment', commentSchema);
+    }
+    if (!PointsModel) {
+      PointsModel = mongoose.models.Points as Model<IPoints> || mongoose.model<IPoints>('Points', pointsSchema);
     }
   } catch (error) {
     console.error('Error initializing models:', error);
@@ -642,5 +665,82 @@ export async function addReply(commentId: string, address: string, content: stri
   } catch (error) {
     console.error("Error adding reply:", error);
     throw new Error(`Failed to add reply: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+// Points functions
+export async function addVotePoints(address: string): Promise<void> {
+  try {
+    await ensureConnection();
+    
+    const points = await PointsModel.findOneAndUpdate(
+      { address },
+      { 
+        $inc: { 
+          totalPoints: 1, 
+          votePoints: 1 
+        },
+        $set: { 
+          lastUpdated: new Date() 
+        }
+      },
+      { 
+        upsert: true, 
+        new: true 
+      }
+    );
+  } catch (error) {
+    console.error("Error adding vote points:", error);
+    throw new Error(`Failed to add vote points: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+export async function addCommentPoints(address: string): Promise<void> {
+  try {
+    await ensureConnection();
+    
+    const points = await PointsModel.findOneAndUpdate(
+      { address },
+      { 
+        $inc: { 
+          totalPoints: 2, 
+          commentPoints: 2 
+        },
+        $set: { 
+          lastUpdated: new Date() 
+        }
+      },
+      { 
+        upsert: true, 
+        new: true 
+      }
+    );
+  } catch (error) {
+    console.error("Error adding comment points:", error);
+    throw new Error(`Failed to add comment points: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+export async function getUserPoints(address: string): Promise<IPoints | null> {
+  try {
+    await ensureConnection();
+    
+    const points = await PointsModel.findOne({ address });
+    return points;
+  } catch (error) {
+    console.error("Error getting user points:", error);
+    throw new Error(`Failed to get user points: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+export async function getAllUserPoints(): Promise<IPoints[]> {
+  try {
+    await ensureConnection();
+    
+    const points = await PointsModel.find({}).sort({ totalPoints: -1 });
+    return points;
+  } catch (error) {
+    console.error("Error getting all user points:", error);
+    throw new Error(`Failed to get all user points: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
