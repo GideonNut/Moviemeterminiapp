@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getTVShows, saveVote, getUserVotes } from "../../../lib/mongo";
+import { getTVShows, saveVote, getUserVotes, addVotePoints } from "../../../lib/mongo";
 
 export const runtime = "nodejs";
 
@@ -17,6 +17,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     if (body.action === "vote") {
       await saveVote(body.id, body.type, body.userAddress);
+      // Award 1 point for voting
+      await addVotePoints(body.userAddress);
       return Response.json({ success: true });
     } else if (body.action === "getUserVotes") {
       const userVotes = await getUserVotes(body.userAddress);
