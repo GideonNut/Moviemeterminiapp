@@ -462,7 +462,7 @@ export default function MoviesPage() {
                   </div>
                   
                 {/* Movie Info & Voting */}
-                <div className="flex-1 p-6 flex flex-col justify-between">
+                <div className="flex-1 p-6 flex flex-col justify-between text-left">
                   <div>
                     <div className="flex items-start justify-between mb-3">
                       <CardTitle className="text-lg font-semibold line-clamp-2 flex-1">
