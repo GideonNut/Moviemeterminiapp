@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getAllMovies, saveMovie, saveVote, resetMovieIds, getUserVotes } from "../../../lib/mongo";
+import { getAllMovies, saveMovie, saveVote, resetMovieIds, getUserVotes, addVotePoints } from "../../../lib/mongo";
 
 export const runtime = "nodejs";
 
@@ -20,6 +20,8 @@ export async function POST(request: NextRequest) {
       return Response.json({ success: true, movieId: result.id });
     } else if (body.action === "vote") {
       await saveVote(body.id, body.type, body.userAddress);
+      // Award 1 point for voting
+      await addVotePoints(body.userAddress);
       return Response.json({ success: true });
     } else if (body.action === "getUserVotes") {
       const userVotes = await getUserVotes(body.userAddress);
