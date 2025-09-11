@@ -53,11 +53,11 @@ export default function Header({ showSearch = false, onSearch, movies = [] }: He
   }, [session?.user?.fid]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-[#0A0A0A] border-b border-white/10">
+    <header data-slot="header" className="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border">
       <div className="max-w-7xl mx-auto px-4 py-4">
         <div className="flex items-center justify-between mb-4">
           {/* Logo on left */}
-          <Link href="/" className="flex items-center">
+          <Link href="/" className="flex items-center focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-md outline-none">
             <div className="w-10 h-10 relative">
               <Image
                 src="https://i.postimg.cc/Gtz6FMmk/new-favicon.png"
@@ -69,11 +69,11 @@ export default function Header({ showSearch = false, onSearch, movies = [] }: He
           </Link>
           
           {/* Right section with Leaderboard, Watchlist icon and Avatar */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-4">
             {/* Leaderboard Icon */}
             <Link 
               href="/leaderboards" 
-              className="text-white/70 hover:text-red-400 transition-colors"
+              className="text-foreground/70 hover:text-foreground transition-colors focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-md outline-none"
               title="Leaderboard"
             >
               <Trophy size={24} />
@@ -81,7 +81,7 @@ export default function Header({ showSearch = false, onSearch, movies = [] }: He
             {/* Watchlist Icon */}
             <Link 
               href="/watchlist" 
-              className="text-white/70 hover:text-red-400 transition-colors"
+              className="text-foreground/70 hover:text-foreground transition-colors focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-md outline-none"
               title="My Watchlist"
             >
               <Eye size={24} />
@@ -95,7 +95,7 @@ export default function Header({ showSearch = false, onSearch, movies = [] }: He
                   alt="User Profile"
                   layout="fill"
                   objectFit="cover"
-                  className="rounded-full border-2 border-white/20"
+                  className="rounded-full border-2 border-border"
                 />
                 {isLoading && (
                   <div className="absolute inset-0 bg-black/20 rounded-full flex items-center justify-center">
