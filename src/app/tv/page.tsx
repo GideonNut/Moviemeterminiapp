@@ -409,36 +409,35 @@ export default function TVPage() {
               : 'border-white/10'
           }`} onClick={() => router.push(`/tv/${tvShow.id}`)}>
             <CardContent className="p-0">
-              <div className="flex">
-                {/* TV Show Poster - Made bigger */}
-                <div className="w-32 h-48 relative bg-neutral-900 flex-shrink-0">
+              <div className="flex flex-col">
+                {/* TV Show Poster (portrait) */}
+                <div className="relative aspect-[2/3] w-full bg-neutral-900">
                   {tvShow.posterUrl ? (
                     <Image
                       src={ensureFullPosterUrl(tvShow.posterUrl) || ''}
                       alt={tvShow.title}
                       fill
                       className="object-cover"
-                      sizes="128px"
                     />
                   ) : (
-                    <div className="flex items-center justify-center h-full text-white/40">
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
                       <span className="text-sm">No Poster</span>
                     </div>
                   )}
                 </div>
                 
                 {/* TV Show Info & Voting */}
-                <div className="flex-1 p-6 flex flex-col justify-between text-left">
+                <div className="p-6 flex flex-col justify-between text-left">
                   <div>
                     <CardTitle className="text-lg font-semibold mb-3 line-clamp-2">
                       {tvShow.title}
                     </CardTitle>
-                    <CardDescription className="text-sm text-white/60 mb-4">
+                    <CardDescription className="text-sm text-muted-foreground mb-4">
                       <span className="truncate block">{tvShow.genres && tvShow.genres.length > 0 ? tvShow.genres[0] : ''} {tvShow.releaseYear ? tvShow.releaseYear : ''}</span>
                     </CardDescription>
                     
                     {/* TV Show Description */}
-                    <div className="text-sm text-white/70 mb-4 line-clamp-3">
+                    <div className="text-sm text-muted-foreground mb-4 line-clamp-3">
                       {tvShow.description || 'No description available'}
                     </div>
                     
