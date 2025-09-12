@@ -443,26 +443,25 @@ export default function MoviesPage() {
               : 'border-white/10'
           }`} onClick={() => router.push(`/movies/${movie.id}`)}>
                 <CardContent className="p-0">
-              <div className="flex">
-                {/* Movie Poster - Made bigger */}
-                <div className="w-40 h-60 relative bg-neutral-900 flex-shrink-0">
+              <div className="flex flex-col">
+                {/* Movie Poster (portrait) */}
+                <div className="relative aspect-[2/3] w-full bg-neutral-900">
                     {movie.posterUrl ? (
                       <Image
                         src={ensureFullPosterUrl(movie.posterUrl) || ''}
                         alt={movie.title}
                         fill
-                      className="object-cover w-full h-full"
-                      sizes="160px"
+                        className="object-cover"
                       />
                     ) : (
-                      <div className="flex items-center justify-center h-full text-white/40">
+                      <div className="flex items-center justify-center h-full text-muted-foreground">
                         <span className="text-sm">No Poster</span>
                       </div>
                     )}
                   </div>
                   
                 {/* Movie Info & Voting */}
-                <div className="flex-1 p-6 flex flex-col justify-between text-left">
+                <div className="p-6 flex flex-col justify-between text-left">
                   <div>
                     <div className="flex items-start justify-between mb-3">
                       <CardTitle className="text-lg font-semibold line-clamp-2 flex-1">
