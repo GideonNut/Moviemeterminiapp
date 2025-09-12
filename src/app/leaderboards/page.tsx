@@ -184,23 +184,23 @@ export default function LeaderboardsPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#0A0A0A] text-white">
+      <main className="min-h-screen">
         <div className="max-w-2xl mx-auto px-4 pb-20">
           <Header showSearch={true} />
           <div className="flex items-center mt-10 mb-6">
             <button 
               onClick={handleBack}
-              className="mr-3 p-2 hover:bg-white/10 rounded-lg transition-colors"
+              className="mr-3 p-2 rounded-md outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
             >
               <ArrowLeft size={18} />
             </button>
-            <h1 className="text-xl font-semibold text-white">Leaderboards</h1>
+            <h1 className="text-xl font-semibold text-foreground">Leaderboards</h1>
           </div>
 
           <div className="flex justify-center items-center py-20">
             <div className="flex items-center space-x-2">
               <Loader2 className="animate-spin" size={24} />
-              <span className="text-white/60">Loading leaderboard data...</span>
+              <span className="text-muted-foreground">Loading leaderboard data...</span>
             </div>
           </div>
         </div>
@@ -210,26 +210,26 @@ export default function LeaderboardsPage() {
 
   if (error) {
     return (
-      <main className="min-h-screen bg-[#0A0A0A] text-white">
+      <main className="min-h-screen">
         <div className="max-w-2xl mx-auto px-4 pb-20">
           <Header showSearch={true} />
           <div className="flex items-center mt-10 mb-6">
             <button 
               onClick={handleBack}
-              className="mr-3 p-2 hover:bg-white/10 rounded-lg transition-colors"
+              className="mr-3 p-2 rounded-md outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
             >
               <ArrowLeft size={18} />
             </button>
-            <h1 className="text-xl font-semibold text-white">Leaderboards</h1>
+            <h1 className="text-xl font-semibold text-foreground">Leaderboards</h1>
           </div>
 
           <div className="flex justify-center items-center py-20">
             <div className="text-center">
-              <Trophy size={48} className="text-white/40 mx-auto mb-4" />
-              <p className="text-red-400 mb-4">{error}</p>
+              <Trophy size={48} className="text-muted-foreground mx-auto mb-4" />
+              <p className="text-foreground mb-4">{error}</p>
               <button 
                 onClick={() => fetchLeaderboards()}
-                className="bg-[#18181B] hover:bg-[#27272A] text-white px-4 py-2 rounded-lg border border-white/10 transition-colors"
+                className="px-4 py-2 rounded-md border bg-background hover:bg-accent hover:text-accent-foreground border-border transition-colors outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
               >
                 Try Again
               </button>
@@ -244,7 +244,7 @@ export default function LeaderboardsPage() {
   const currentData = getCurrentData();
 
   return (
-    <main className="min-h-screen bg-[#0A0A0A] text-white">
+    <main className="min-h-screen">
       <div className="max-w-2xl mx-auto px-4 pb-20">
         <Header showSearch={true} />
         
@@ -252,28 +252,28 @@ export default function LeaderboardsPage() {
         <div className="flex items-center mt-10 mb-6">
           <button 
             onClick={handleBack}
-            className="mr-3 p-2 hover:bg-white/10 rounded-lg transition-colors"
+            className="mr-3 p-2 rounded-md outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
           >
             <ArrowLeft size={18} />
           </button>
-          <h1 className="text-xl font-semibold text-white">Leaderboards</h1>
+          <h1 className="text-xl font-semibold text-foreground">Leaderboards</h1>
         </div>
 
         {/* Hero Section */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <Trophy className="mr-3 text-yellow-400" size={32} />
-            <h2 className="text-2xl font-bold">Top Performers</h2>
+            <Trophy className="mr-3 text-accent-foreground" size={32} />
+            <h2 className="text-2xl font-bold text-foreground">Top Performers</h2>
           </div>
-          <p className="text-white/60 text-sm max-w-lg mx-auto mb-4">
+          <p className="text-muted-foreground text-sm max-w-lg mx-auto mb-4">
             Discover the top performers in the MovieMeter community
           </p>
           {data && (
             <div className="flex justify-center gap-6 text-sm">
-              <span className="text-purple-400 font-medium">
+              <span className="text-foreground font-medium">
                 {data.totalUsers.toLocaleString()} users
               </span>
-              <span className="text-blue-400 font-medium">
+              <span className="text-foreground font-medium">
                 {data.totalVotes.toLocaleString()} votes
               </span>
             </div>
@@ -282,26 +282,26 @@ export default function LeaderboardsPage() {
 
         {/* User's Rank (if connected) */}
         {isConnected && (
-          <div className="bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-lg p-4 mb-6">
+          <div className="bg-accent/20 border border-border rounded-lg p-4 mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold">
                 {formatAddress(address!)[0].toUpperCase()}
               </div>
               <div className="flex-1">
-                <div className="text-white font-medium text-sm">Your Ranking</div>
-                <div className="text-white/60 text-xs">{formatAddress(address!)}</div>
+                <div className="text-foreground font-medium text-sm text-left">Your Ranking</div>
+                <div className="text-muted-foreground text-xs text-left">{formatAddress(address!)}</div>
               </div>
               <div className="text-right">
                 {getCurrentUserRank() ? (
                   <div>
-                    <div className="text-purple-400 font-bold">#{getCurrentUserRank()}</div>
-                    <div className="text-white/40 text-xs">
+                    <div className="text-foreground font-bold">#{getCurrentUserRank()}</div>
+                    <div className="text-muted-foreground text-xs">
                       {activeTab === 'voters' ? 'Votes' : 
                        activeTab === 'earners' ? 'Earnings' : 'Streak'}
                     </div>
                   </div>
                 ) : (
-                  <div className="text-white/40 text-xs">Not ranked</div>
+                  <div className="text-muted-foreground text-xs">Not ranked</div>
                 )}
               </div>
             </div>
@@ -314,10 +314,10 @@ export default function LeaderboardsPage() {
             <button
               key={type.id}
               onClick={() => setActiveTab(type.id as 'voters' | 'earners' | 'streaks')}
-              className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors flex-1 justify-center text-sm ${
+              className={`flex items-center px-4 py-2 rounded-md font-medium transition-colors flex-1 justify-center text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] ${
                 activeTab === type.id
-                  ? "bg-white text-[#0A0A0A]"
-                  : "bg-[#18181B] text-white/60 hover:bg-[#27272A] hover:text-white border border-white/10"
+                  ? "bg-primary text-primary-foreground"
+                  : "border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               }`}
             >
               <type.icon className="mr-2" size={16} />
@@ -328,39 +328,39 @@ export default function LeaderboardsPage() {
 
         {/* Leaderboard Content */}
         {currentLeaderboard && (
-          <div className="bg-[#18181B] rounded-lg border border-white/10 overflow-hidden">
-            <div className="bg-[#27272A] px-4 py-3 border-b border-white/10">
+          <div className="bg-card rounded-lg border border-border overflow-hidden" data-slot="leaderboard">
+            <div className="bg-popover px-4 py-3 border-b border-border">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <currentLeaderboard.icon className="mr-2 text-white/80" size={18} />
-                  <h3 className="font-semibold text-white">{currentLeaderboard.name}</h3>
+                  <currentLeaderboard.icon className="mr-2 text-foreground" size={18} />
+                  <h3 className="font-semibold text-foreground">{currentLeaderboard.name}</h3>
                 </div>
                 <button 
                   onClick={() => fetchLeaderboards(true)}
                   disabled={refreshing}
-                  className="text-white/60 hover:text-white transition-colors p-1"
+                  className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
                 >
                   <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
                 </button>
               </div>
-              <p className="text-white/40 text-xs mt-1">
+              <p className="text-muted-foreground text-xs mt-1 text-left">
                 Updated in real-time • Based on actual voting data
               </p>
             </div>
 
-            <div className="divide-y divide-white/5">
+            <div className="divide-y divide-border/50">
               {currentData?.length > 0 ? (
                 currentData.map((entry: any, index: number) => (
                   <div 
                     key={`${entry.address}-${index}`}
-                    className={`p-4 hover:bg-white/5 transition-colors ${
-                      entry.address === address ? 'bg-purple-500/10 border-l-4 border-purple-500' : ''
+                    className={`p-4 hover:bg-accent/30 transition-colors text-left ${
+                      entry.address === address ? 'bg-accent/30 border-l-4 border-accent' : ''
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       {/* Rank */}
                       <div className="w-12 flex items-center justify-center">
-                        <div className={`text-lg font-bold ${getRankColor(entry.rank)}`}>
+                        <div className={`text-lg font-bold text-foreground`}>
                           {getRankIcon(entry.rank)}
                         </div>
                       </div>
@@ -368,14 +368,14 @@ export default function LeaderboardsPage() {
                       {/* User Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <div className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center text-white text-xs font-medium">
+                          <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-xs font-medium">
                             {formatAddress(entry.address)[0].toUpperCase()}
                           </div>
-                          <span className="text-white font-medium text-sm truncate">
+                          <span className="text-foreground font-medium text-sm truncate">
                             {formatAddress(entry.address)}
                           </span>
                           {entry.address === address && (
-                            <span className="text-purple-400 text-xs bg-purple-400/20 px-2 py-0.5 rounded flex-shrink-0">
+                            <span className="text-accent-foreground text-xs bg-accent/40 px-2 py-0.5 rounded flex-shrink-0">
                               You
                             </span>
                           )}
@@ -383,21 +383,21 @@ export default function LeaderboardsPage() {
                         
                         {/* Stats based on active tab */}
                         {activeTab === 'voters' && (
-                          <div className="flex items-center gap-4 text-xs text-white/60">
-                            <span className="text-green-400">{entry.yesVotes} Yes</span>
-                            <span className="text-red-400">{entry.noVotes} No</span>
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                            <span>{entry.yesVotes} Yes</span>
+                            <span>{entry.noVotes} No</span>
                            
                           </div>
                         )}
                         
                         {activeTab === 'streaks' && (
-                          <div className="text-xs text-white/60 truncate">
+                          <div className="text-xs text-muted-foreground truncate">
                             {entry.totalVotes} total votes • Last: {formatDate(entry.lastVoteDate)}
                           </div>
                         )}
                         
                         {activeTab === 'earners' && (
-                          <div className="text-xs text-white/60 truncate">
+                          <div className="text-xs text-muted-foreground truncate">
                             {entry.activity}
                           </div>
                         )}
@@ -405,14 +405,12 @@ export default function LeaderboardsPage() {
 
                       {/* Primary Stat */}
                       <div className="text-right">
-                        <div className={`text-lg font-bold ${
-                          entry.rank <= 3 ? 'text-yellow-400' : 'text-white'
-                        }`}>
+                        <div className={`text-lg font-bold text-foreground`}>
                           {activeTab === 'voters' ? entry.votes.toLocaleString() :
                            activeTab === 'earners' ? `${entry.earnings} G$` :
                            `${entry.streak}d`}
                         </div>
-                        <div className="text-xs text-white/40">
+                        <div className="text-xs text-muted-foreground">
                           {currentLeaderboard.metric}
                         </div>
                       </div>
@@ -421,9 +419,9 @@ export default function LeaderboardsPage() {
                 ))
               ) : (
                 <div className="p-8 text-center">
-                  <Trophy size={48} className="text-white/40 mx-auto mb-4" />
-                  <p className="text-white/60 mb-2">No data available yet</p>
-                  <p className="text-xs text-white/40">Start voting on movies to appear on the leaderboard!</p>
+                  <Trophy size={48} className="text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground mb-2">No data available yet</p>
+                  <p className="text-xs text-muted-foreground">Start voting on movies to appear on the leaderboard!</p>
                 </div>
               )}
             </div>
@@ -435,7 +433,7 @@ export default function LeaderboardsPage() {
           <button 
             onClick={() => fetchLeaderboards(true)}
             disabled={refreshing}
-            className="bg-[#18181B] hover:bg-[#27272A] text-white px-6 py-2 rounded-lg border border-white/10 transition-colors disabled:opacity-50"
+            className="px-6 py-2 rounded-md border bg-background hover:bg-accent hover:text-accent-foreground border-border transition-colors disabled:opacity-50 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
           >
             {refreshing ? (
               <>
