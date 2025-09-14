@@ -375,7 +375,7 @@ export default function TVDetailPage({ params }: { params: Promise<{ id: string 
                   <h3 className="text-lg font-semibold text-white mb-4">Cast Your Vote</h3>
                   {votes[tvShow.id] ? (
                     <div className="text-center py-4">
-                      <div className="text-green-400 mb-2">✓ You voted: {votes[tvShow.id]?.toUpperCase()}</div>
+                      <div className="text-green-400 mb-2">You voted: {votes[tvShow.id]?.toUpperCase()}</div>
                       <p className="text-white/60 text-sm">Thank you for participating!</p>
                     </div>
                   ) : (
@@ -409,7 +409,7 @@ export default function TVDetailPage({ params }: { params: Promise<{ id: string 
                   )}
                   {txStatus[tvShow.id] === 'success' && (
                     <div className="mt-4 text-center">
-                      <span className="text-green-400 text-sm">✓ Vote recorded successfully!</span>
+                      <span className="text-green-400 text-sm">Vote recorded successfully!</span>
                     </div>
                   )}
                   {txStatus[tvShow.id] === 'error' && (
