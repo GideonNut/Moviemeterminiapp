@@ -522,7 +522,7 @@ export default function MoviesPage() {
                         )}
                       </div>
                       <span className="text-sm font-medium">
-                        {votes[movie.id] === 'yes' ? 'Voted Yes ✓' : 'Yes'}
+                        {votes[movie.id] === 'yes' ? 'Voted Yes' : 'Yes'}
                       </span>
                     </Button>
                     
@@ -540,7 +540,7 @@ export default function MoviesPage() {
                         )}
                       </div>
                       <span className="text-sm font-medium">
-                        {votes[movie.id] === 'no' ? 'Voted No ✓' : 'No'}
+                        {votes[movie.id] === 'no' ? 'Voted No' : 'No'}
                       </span>
                     </Button>
                      
@@ -561,7 +561,7 @@ export default function MoviesPage() {
                    {votes[movie.id] && (
                      <div className="mt-3 text-center">
                        <span className="text-sm font-medium bg-accent text-accent-foreground px-3 py-1 rounded-full">
-                         ✓ You've voted already on this movie
+                         You've voted already on this movie
                        </span>
                      </div>
                    )}
