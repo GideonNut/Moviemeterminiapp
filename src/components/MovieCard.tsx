@@ -125,7 +125,7 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
                   <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
                 )}
               </div>
-              <span className="truncate">{isVoting ? 'Voting...' : userVote === 'yes' ? 'Voted Yes ✓' : 'Yes'}</span>
+              <span className="truncate">{isVoting ? 'Voting...' : userVote === 'yes' ? 'Voted Yes' : 'Yes'}</span>
             </div>
           </Button>
           <Button
@@ -149,7 +149,7 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
                   <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
                 )}
               </div>
-              <span className="truncate">{isVoting ? 'Voting...' : userVote === 'no' ? 'Voted No ✓' : 'No'}</span>
+              <span className="truncate">{isVoting ? 'Voting...' : userVote === 'no' ? 'Voted No' : 'No'}</span>
             </div>
           </Button>
         </div>
@@ -279,7 +279,7 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
                   <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
                 )}
               </div>
-              <span className="truncate">{userVote === 'yes' ? 'Voted Yes ✓' : 'Yes'}</span>
+              <span className="truncate">{userVote === 'yes' ? 'Voted Yes' : 'Yes'}</span>
             </div>
           </Button>
           <Button
@@ -299,7 +299,7 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
                   <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
                 )}
               </div>
-              <span className="truncate">{userVote === 'no' ? 'Voted No ✓' : 'No'}</span>
+              <span className="truncate">{userVote === 'no' ? 'Voted No' : 'No'}</span>
             </div>
           </Button>
         </div>
