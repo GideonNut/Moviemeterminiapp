@@ -470,7 +470,7 @@ export default function TVPage() {
                         )}
                       </div>
                       <span className="text-sm font-medium">
-                        {votes[tvShow.id] === 'yes' ? 'Voted Yes ✓' : 'Yes'}
+                        {votes[tvShow.id] === 'yes' ? 'Voted Yes' : 'Yes'}
                       </span>
                     </Button>
                     
@@ -488,7 +488,7 @@ export default function TVPage() {
                         )}
                       </div>
                       <span className="text-sm font-medium">
-                        {votes[tvShow.id] === 'no' ? 'Voted No ✓' : 'No'}
+                        {votes[tvShow.id] === 'no' ? 'Voted No' : 'No'}
                       </span>
                     </Button>
                     
@@ -509,7 +509,7 @@ export default function TVPage() {
                   {votes[tvShow.id] && (
                     <div className="mt-3 text-center">
                       <span className="text-sm font-medium bg-accent text-accent-foreground px-3 py-1 rounded-full">
-                        ✓ You've voted already on this TV show
+                        You've voted already on this TV show
                       </span>
                     </div>
                   )}
