@@ -430,7 +430,7 @@ export default function DiscoverPage() {
               ) : filteredMovies.length === 0 ? (
                 <div className="text-center text-white w-full text-sm py-8">No movies found.</div>
               ) : (
-                filteredMovies.slice(4, 8).map((movie: any) => (
+                filteredMovies.slice(0, 4).map((movie: any) => (
                   <CarouselItem key={movie.id || movie._id} className="pl-2 md:pl-4 basis-[280px] md:basis-[320px] lg:basis-[360px]">
                     <div className="flex justify-center">
                       <CompactMovieCard
@@ -463,7 +463,7 @@ export default function DiscoverPage() {
           ) : filteredMovies.length === 0 ? (
             <div className="col-span-4 text-center text-white text-sm py-8">No movies found.</div>
           ) : (
-            filteredMovies.slice(8, 12).map((movie: any) => (
+            filteredMovies.slice(4, 8).map((movie: any) => (
               <MovieCard
                 key={movie.id || movie._id}
                 movie={movie}
