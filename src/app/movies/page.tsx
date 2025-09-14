@@ -549,11 +549,6 @@ export default function MoviesPage() {
                        {isPending && currentVotingId === movie.id && (
                          <span className="text-yellow-400 text-sm">Confirming...</span>
                        )}
-                       {votes[movie.id] && !isPending && (
-                         <span className="text-sm font-medium text-foreground/80">
-                           {votes[movie.id] === 'yes' ? 'Voted Yes' : 'Voted No'}
-                         </span>
-                       )}
                      </div>
                    </div>
                    
