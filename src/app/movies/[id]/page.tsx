@@ -567,7 +567,7 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
                   <h3 className="text-lg font-semibold text-white mb-4">Cast Your Vote</h3>
                   {votes[movie.id] ? (
                     <div className="text-center py-4">
-                      <div className="text-green-400 mb-2">✓ You voted: {votes[movie.id]?.toUpperCase()}</div>
+                      <div className="text-green-400 mb-2">You voted: {votes[movie.id]?.toUpperCase()}</div>
                       <p className="text-white/60 text-sm">Thank you for participating!</p>
                     </div>
                   ) : (
@@ -601,7 +601,7 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
                   )}
                   {txStatus[movie.id] === 'success' && (
                     <div className="mt-4 text-center">
-                      <span className="text-green-400 text-sm">✓ Vote recorded successfully!</span>
+                      <span className="text-green-400 text-sm">Vote recorded successfully!</span>
                     </div>
                   )}
                   {txStatus[movie.id] === 'error' && (
