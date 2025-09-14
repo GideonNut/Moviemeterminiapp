@@ -497,11 +497,6 @@ export default function TVPage() {
                       {isPending && currentVotingId === tvShow.id && (
                         <span className="text-yellow-400 text-sm">Confirming...</span>
                       )}
-                      {votes[tvShow.id] && !isPending && (
-                        <span className="text-sm font-medium text-foreground/80">
-                          {votes[tvShow.id] === 'yes' ? 'Voted Yes' : 'Voted No'}
-                        </span>
-                      )}
                     </div>
                   </div>
                   
