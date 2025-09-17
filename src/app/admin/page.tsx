@@ -55,6 +55,30 @@ export default function AdminPage() {
         setIsTVShow(false);
         // Refresh the movies list
         router.refresh();
+
+        // Prompt to add to contract via Thirdweb (movies only)
+        if (!isTVShow) {
+          const confirmChainAdd = confirm("Add this movie on-chain via Thirdweb now? You will use your configured relayer.");
+          if (confirmChainAdd) {
+            try {
+              const thirdwebRes = await fetch("/api/thirdweb", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "addMovie", title })
+              });
+              const thirdwebData = await thirdwebRes.json();
+              if (!thirdwebRes.ok || !thirdwebData.success) {
+                const errMsg = thirdwebData?.error || "Thirdweb add failed";
+                alert(`On-chain add failed: ${errMsg}`);
+              } else {
+                alert("On-chain add submitted via Thirdweb.");
+              }
+            } catch (err) {
+              console.error("Thirdweb add error:", err);
+              alert("Failed to call Thirdweb API.");
+            }
+          }
+        }
       } else {
         setMessage("Error: " + (data.error || "Failed to add movie"));
       }
