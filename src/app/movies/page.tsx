@@ -193,12 +193,24 @@ export default function MoviesPage() {
       const chainId = await walletClient.getChainId();
       submitReferral({ txHash, chainId }).catch((e) => console.error('Divvi submitReferral failed:', e));
 
-      // Save vote to MongoDB
+      // Save vote to MongoDB, then refresh list and user votes
       fetch('/api/movies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'vote', id, type: vote, userAddress: address })
-      }).catch((e) => console.error('Failed to save vote to MongoDB:', e));
+      })
+      .then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to save vote');
+        }
+        // Brief delay to ensure DB write visibility, then refresh
+        setTimeout(() => {
+          fetchMovies();
+          fetchUserVotes();
+        }, 400);
+      })
+      .catch((e) => console.error('Failed to save vote to MongoDB:', e));
       
     } catch (err: any) {
       console.error('Vote error:', err);
