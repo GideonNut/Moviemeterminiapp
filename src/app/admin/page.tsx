@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "~/components/ui/Button";
+import ScrollToTop from "~/components/ScrollToTop";
 
 export default function AdminPage() {
   const router = useRouter();
