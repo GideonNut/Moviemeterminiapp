@@ -15,7 +15,35 @@ export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [importStatus, setImportStatus] = useState<string>("");
   const [isImporting, setIsImporting] = useState(false);
+  const [isRetracting, setIsRetracting] = useState(false);
   const [contentCounts, setContentCounts] = useState({ movies: 0, tvShows: 0 });
+
+  const handleRetract = async () => {
+    if (!confirm("Are you sure you want to retract all movies imported in the last hour?")) {
+      return;
+    }
+    
+    setIsRetracting(true);
+    try {
+      const response = await fetch("/api/movies/retract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setMessage(`Successfully retracted ${data.deletedCount} recently imported movies`);
+        router.refresh();
+      } else {
+        setMessage("Error retracting movies: " + (data.error || "Unknown error"));
+      }
+    } catch (error) {
+      console.error('Error retracting movies:', error);
+      setMessage("Error retracting movies. Please try again.");
+    } finally {
+      setIsRetracting(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,6 +133,27 @@ export default function AdminPage() {
       
       if (result.success) {
         setImportStatus(`✅ Successfully imported ${result.imported} trending movies!`);
+        if (result.titles && Array.isArray(result.titles) && result.titles.length > 0) {
+          const doOnChain = confirm(`Add ${result.titles.length} imported movies on-chain via Thirdweb now?`);
+          if (doOnChain) {
+            try {
+              const thirdwebRes = await fetch('/api/thirdweb', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'addMovies', titles: result.titles })
+              });
+              const twData = await thirdwebRes.json();
+              if (!thirdwebRes.ok || !twData.success) {
+                alert(`Thirdweb batch add failed: ${twData?.error || 'Unknown error'}`);
+              } else {
+                alert('Batch on-chain add submitted via Thirdweb.');
+              }
+            } catch (e) {
+              console.error('Thirdweb batch add error:', e);
+              alert('Failed to call Thirdweb batch API.');
+            }
+          }
+        }
       } else {
         setImportStatus(`❌ Import failed: ${result.error}`);
       }
@@ -157,6 +206,27 @@ export default function AdminPage() {
       
       if (result.success) {
         setImportStatus(`✅ Successfully imported ${result.imported} movies for "${query}"!`);
+        if (result.titles && Array.isArray(result.titles) && result.titles.length > 0) {
+          const doOnChain = confirm(`Add ${result.titles.length} imported movies on-chain via Thirdweb now?`);
+          if (doOnChain) {
+            try {
+              const thirdwebRes = await fetch('/api/thirdweb', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'addMovies', titles: result.titles })
+              });
+              const twData = await thirdwebRes.json();
+              if (!thirdwebRes.ok || !twData.success) {
+                alert(`Thirdweb batch add failed: ${twData?.error || 'Unknown error'}`);
+              } else {
+                alert('Batch on-chain add submitted via Thirdweb.');
+              }
+            } catch (e) {
+              console.error('Thirdweb batch add error:', e);
+              alert('Failed to call Thirdweb batch API.');
+            }
+          }
+        }
       } else {
         setImportStatus(`❌ Import failed: ${result.error}`);
       }
@@ -424,6 +494,16 @@ export default function AdminPage() {
                   <p className="text-sm text-white/70">{importStatus}</p>
                 </div>
               )}
+              
+              {/* Retract Button */}
+              <Button 
+                onClick={handleRetract}
+                disabled={isRetracting}
+                variant="destructive"
+                className="w-full mt-4"
+              >
+                {isRetracting ? "Retracting..." : "Retract Recent Imports"}
+              </Button>
             </div>
           </div>
 
