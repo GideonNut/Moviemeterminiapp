@@ -5,14 +5,21 @@ export const runtime = "nodejs";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { action, title } = body || {};
+    const { action, title, titles } = body || {};
 
-    if (action !== "addMovie") {
+    if (action !== "addMovie" && action !== "addMovies") {
       return Response.json({ success: false, error: "Invalid action" }, { status: 400 });
     }
 
-    if (typeof title !== "string" || !title.trim()) {
-      return Response.json({ success: false, error: "Missing or invalid title" }, { status: 400 });
+    const isBatch = action === "addMovies";
+    if (isBatch) {
+      if (!Array.isArray(titles) || titles.length === 0 || titles.some((t: unknown) => typeof t !== 'string' || !t.trim())) {
+        return Response.json({ success: false, error: "Missing or invalid titles array" }, { status: 400 });
+      }
+    } else {
+      if (typeof title !== "string" || !title.trim()) {
+        return Response.json({ success: false, error: "Missing or invalid title" }, { status: 400 });
+      }
     }
 
     const secretKey = process.env.THIRDWEB_SECRET_KEY;
@@ -37,13 +44,19 @@ export async function POST(request: NextRequest) {
         "x-secret-key": secretKey,
       },
       body: JSON.stringify({
-        calls: [
-          {
-            contractAddress,
-            method: "function addMovie(string _title)",
-            params: [title.trim()],
-          },
-        ],
+        calls: isBatch
+          ? (titles as string[]).map((t) => ({
+              contractAddress,
+              method: "function addMovie(string _title)",
+              params: [t.trim()],
+            }))
+          : [
+              {
+                contractAddress,
+                method: "function addMovie(string _title)",
+                params: [title.trim()],
+              },
+            ],
         chainId,
         from: fromAddress,
       }),
