@@ -19,7 +19,7 @@ export default function AdminPage() {
   const [contentCounts, setContentCounts] = useState({ movies: 0, tvShows: 0 });
 
   const handleRetract = async () => {
-    if (!confirm("Are you sure you want to retract all movies imported in the last hour?")) {
+    if (!confirm("Are you sure you want to retract all movies imported in the last 48 hours?")) {
       return;
     }
     
