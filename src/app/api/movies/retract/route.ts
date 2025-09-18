@@ -5,10 +5,10 @@ export const runtime = "nodejs";
 
 export async function POST() {
   try {
-    // Find and delete movies created in the last hour
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    // Find and delete movies created in the last 48 hours
+    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
     const result = await Movie.deleteMany({
-      createdAt: { $gte: oneHourAgo }
+      createdAt: { $gte: fortyEightHoursAgo }
     });
 
     return NextResponse.json({ 
