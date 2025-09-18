@@ -34,6 +34,9 @@ const movieSchema = new mongoose.Schema<IMovie>({
   timestamps: true
 });
 
+// Create and export the Movie model
+export const Movie: Model<IMovie> = mongoose.models.Movie || mongoose.model<IMovie>("Movie", movieSchema);
+
 // Vote Schema
 interface IVote extends Document {
   movieId: string;
