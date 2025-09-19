@@ -49,7 +49,7 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
   const fullPosterUrl = movie.posterUrl ? ensureFullPosterUrl(movie.posterUrl) : null;
 
   return (
-    <div className="group relative overflow-hidden rounded-xl border border-white/10 bg-[#23232B] shadow-lg transition-all duration-300 hover:border-white/20 flex flex-col w-full max-w-[280px]">
+    <div className={`group relative overflow-hidden rounded-xl border ${hasVoted ? 'border-green-500/30 bg-green-500/5' : 'border-white/10'} bg-[#23232B] shadow-lg transition-all duration-300 hover:border-white/20 flex flex-col w-full max-w-[280px] ${hasVoted ? 'ring-1 ring-green-500/20' : ''}`}>
       {/* Movie Poster */}
       <div className="relative aspect-[2/3] w-full overflow-hidden">
         {fullPosterUrl ? (
@@ -153,11 +153,7 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
             </div>
           </Button>
         </div>
-        {hasVoted && (
-          <div className="text-center mt-2">
-            <span className="text-xs font-medium bg-accent text-accent-foreground px-2 py-0.5 rounded-full">You've voted already on this movie</span>
-          </div>
-        )}
+        {/* We don't show the "already voted" message here anymore */}
       </div>
     </div>
   );
@@ -207,7 +203,7 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
   const fullPosterUrl = movie.posterUrl ? ensureFullPosterUrl(movie.posterUrl) : null;
 
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-[#23232B] shadow-2xl transition-all duration-300 hover:border-white/20 flex flex-col">
+    <div className={`group relative overflow-hidden rounded-2xl border ${hasVoted ? 'border-green-500/30 bg-green-500/5' : 'border-white/10'} bg-[#23232B] shadow-2xl transition-all duration-300 hover:border-white/20 flex flex-col ${hasVoted ? 'ring-1 ring-green-500/20' : ''}`}>
       {/* Movie Poster */}
       <div className="relative aspect-[2/3] w-full overflow-hidden">
         {fullPosterUrl ? (
