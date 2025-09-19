@@ -38,6 +38,7 @@ export default function MoviesPage() {
   const [txStatus, setTxStatus] = useState<{ [id: string]: string }>({});
   const [currentVotingId, setCurrentVotingId] = useState<string | null>(null);
   const [referralTag, setReferralTag] = useState<string | null>(null);
+  const [voteAttempts, setVoteAttempts] = useState<{ [id: string]: { show: boolean; timeoutId?: NodeJS.Timeout } }>({});
   // Removed showMoviesWithoutPosters state since filter UI was removed
 
   const { address, isConnected } = useAccount();
@@ -155,9 +156,37 @@ export default function MoviesPage() {
     }
   }, [isConnected, address]);
 
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(voteAttempts).forEach(attempt => {
+        if (attempt.timeoutId) {
+          clearTimeout(attempt.timeoutId);
+        }
+      });
+    };
+  }, [voteAttempts]);
+
   const handleVote = async (id: string, vote: 'yes' | 'no') => {
     if (votes[id]) {
-      alert('You have already voted on this movie.');
+      // Clear any existing timeout
+      if (voteAttempts[id]?.timeoutId) {
+        clearTimeout(voteAttempts[id].timeoutId);
+      }
+      
+      // Show the message and set a timeout to hide it
+      const timeoutId = setTimeout(() => {
+        setVoteAttempts(prev => ({
+          ...prev,
+          [id]: { ...prev[id], show: false }
+        }));
+      }, 2000);
+
+      setVoteAttempts(prev => ({
+        ...prev,
+        [id]: { show: true, timeoutId }
+      }));
+
       return;
     }
     
@@ -568,17 +597,13 @@ export default function MoviesPage() {
                        {isPending && currentVotingId === movie.id && (
                          <span className="text-yellow-400 text-sm">Confirming...</span>
                        )}
+                       {voteAttempts[movie.id]?.show && (
+                         <span className="text-yellow-400 text-sm">
+                           You've already voted on this movie
+                         </span>
+                       )}
                      </div>
                    </div>
-                   
-                   {/* Voted Already Message */}
-                   {votes[movie.id] && (
-                     <div className="mt-3 text-center">
-                       <span className="text-sm font-medium bg-accent text-accent-foreground px-3 py-1 rounded-full">
-                         You've voted already on this movie
-                       </span>
-                     </div>
-                   )}
                  </div>
                </div>
              </CardContent>
