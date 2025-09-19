@@ -139,7 +139,10 @@ export default function TVPage() {
   }, [isConnected, address]);
 
   const handleVote = async (id: string, vote: 'yes' | 'no') => {
-    if (votes[id]) return;
+    if (votes[id]) {
+      alert('You have already voted on this TV show.');
+      return;
+    }
     
     // Check if we're on the correct network first
     if (currentChainId !== 42220) {
