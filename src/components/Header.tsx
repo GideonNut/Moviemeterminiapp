@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Eye, Trophy } from 'lucide-react';
+import { Bell, Trophy } from 'lucide-react';
 import SearchBar from './SearchBar';
 import { getFarcasterUser } from '~/lib/farcaster';
 
@@ -84,7 +84,7 @@ export default function Header({ showSearch = false, onSearch, movies = [] }: He
               className="text-foreground/70 hover:text-foreground transition-colors focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-md outline-none"
               title="My Watchlist"
             >
-              <Eye size={24} />
+              <Bell size={24} />
             </Link>
             
             {/* User Avatar - Only show if we have a valid profile picture */}
