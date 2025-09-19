@@ -25,6 +25,7 @@ interface Movie {
     yes: number;
     no: number;
   };
+  commentCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -508,7 +509,7 @@ export default function MoviesPage() {
                       </Button>
                     </Link>
 
-                    {/* Vote Counts Display */}
+                    {/* Vote and Comment Counts Display */}
                     <div className="flex items-center gap-6 text-sm text-muted-foreground mb-4">
                       <span className="flex items-center gap-2 min-w-0">
                         <ThumbsUp size={16} className="flex-shrink-0" />
@@ -517,6 +518,9 @@ export default function MoviesPage() {
                       <span className="flex items-center gap-2 min-w-0">
                         <ThumbsDown size={16} className="flex-shrink-0" />
                         <span className="font-medium whitespace-nowrap">No: {movie.votes.no}</span>
+                      </span>
+                      <span className="flex items-center gap-2 min-w-0 border-l border-white/10 pl-6">
+                        <span className="font-medium whitespace-nowrap">💬 {movie.commentCount || 0}</span>
                       </span>
                     </div>
                   </div>
