@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Header from "~/components/Header";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Eye, EyeOff, RefreshCw, Heart } from "lucide-react";
+import { ArrowLeft, Bell, BellOff, RefreshCw, Heart } from "lucide-react";
 import { useAccount } from "wagmi";
 import { ensureFullPosterUrl } from "~/lib/utils";
 
@@ -95,7 +95,7 @@ export default function WatchlistPage() {
 
         <Card className="bg-card border-border" data-slot="watchlist-empty-auth">
           <CardContent className="p-8 text-center">
-            <Eye size={48} className="text-muted-foreground mx-auto mb-4" />
+            <Bell size={48} className="text-muted-foreground mx-auto mb-4" />
             <CardTitle className="text-base font-medium mb-2 text-foreground">
               Connect to View Watchlist
             </CardTitle>
@@ -162,12 +162,12 @@ export default function WatchlistPage() {
       {watchlist.length === 0 ? (
         <Card className="bg-card border-border" data-slot="watchlist-empty">
           <CardContent className="p-8 text-center">
-            <Eye size={48} className="text-muted-foreground mx-auto mb-4" />
+            <Bell size={48} className="text-muted-foreground mx-auto mb-4" />
             <CardTitle className="text-base font-medium mb-2 text-foreground">
               Your watchlist is empty
             </CardTitle>
             <CardDescription className="text-sm text-muted-foreground mb-4">
-              Add movies to your watchlist by clicking the eye icon on any movie card
+              Add movies to your watchlist by clicking the bell icon on any movie card
             </CardDescription>
             <Link href="/movies">
               <Button variant="outline" size="sm">
@@ -238,7 +238,7 @@ export default function WatchlistPage() {
                         {removing === movie.id ? (
                           <RefreshCw size={16} className="animate-spin" />
                         ) : (
-                          <EyeOff size={16} />
+                          <BellOff size={16} />
                         )}
                       </Button>
                     </div>
