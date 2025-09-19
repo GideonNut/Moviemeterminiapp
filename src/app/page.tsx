@@ -402,7 +402,6 @@ export default function DiscoverPage() {
       });
     }
   };
-  };
 
   const handleSearch = (query: string) => {
     // Handle search logic here
@@ -601,9 +600,6 @@ export default function DiscoverPage() {
         </div>
       </section>
     </main>
-
-    {/* Bottom Navigation */}
-  
   </div>
   );
 }
