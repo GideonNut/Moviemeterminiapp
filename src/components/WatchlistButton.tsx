@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { Button } from "~/components/ui/Button";
-import { Eye, EyeOff, RefreshCw } from "lucide-react";
+import { Bell, BellOff, RefreshCw } from "lucide-react";
 import { useAccount } from "wagmi";
 import { cn } from "~/lib/utils";
 
@@ -139,9 +139,9 @@ export default function WatchlistButton({
       {loading ? (
         <RefreshCw size={16} className="animate-spin" />
       ) : isInWatchlist ? (
-       <EyeOff size={16} />
+       <Bell size={16} className="fill-current" />
       ) : (
-       <Eye size={16} />
+       <BellOff size={16} />
       )}
       {showText && (
         <span className="ml-2 text-xs">
