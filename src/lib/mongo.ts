@@ -126,6 +126,9 @@ const commentSchema = new mongoose.Schema<IComment>({
 // Index for efficient querying
 commentSchema.index({ movieId: 1, timestamp: -1 });
 
+// Create and export the Comment model
+export const Comment: Model<IComment> = mongoose.models.Comment || mongoose.model<IComment>("Comment", commentSchema);
+
 // Points Schema
 interface IPoints extends Document {
   address: string;
