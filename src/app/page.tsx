@@ -9,6 +9,7 @@ import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/Button";
 import { Home, Film, Tv, Gift } from "lucide-react";
 import trailersData from "../data/trailers.json";
+import { truncateAddress } from "~/lib/truncateAddress";
 import {
   Carousel,
   CarouselContent,
@@ -38,6 +39,8 @@ export default function DiscoverPage() {
   const [trailers, setTrailers] = useState<Trailer[]>([]);
   // Add state for modal
   const [openTrailer, setOpenTrailer] = useState<null | { title: string; youtubeId: string }>(null);
+  // Add state for comments
+  const [comments, setComments] = useState([]);
 
   // Wagmi hooks for blockchain interaction
   const { address, isConnected: wagmiConnected } = useAccount();
@@ -84,6 +87,20 @@ export default function DiscoverPage() {
         });
     }
   }, [wagmiConnected, currentChainId, switchChainAsync]);
+
+  // Fetch latest comments
+  useEffect(() => {
+    fetch("/api/comments/latest")
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.comments)) {
+          setComments(data.comments);
+        }
+      })
+      .catch(error => {
+        console.error("Error fetching comments:", error);
+      });
+  }, []);
 
   // Derive connection directly from wagmi
 
@@ -381,6 +398,29 @@ export default function DiscoverPage() {
           </div>
         </section>
 
+        {/* Trending Movies & TV Shows */}
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold text-white mb-3">Trending Movies & TV Shows</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+            {loading ? (
+              <div className="col-span-4 text-center text-white text-sm py-8">Loading movies...</div>
+            ) : filteredMovies.length === 0 ? (
+              <div className="col-span-4 text-center text-white text-sm py-8">No movies found.</div>
+            ) : (
+              filteredMovies.slice(4, 8).map((movie: any) => (
+                <MovieCard
+                  key={movie.id || movie._id}
+                  movie={movie}
+                  onVote={(vote) => handleVote(movie.id || movie._id, vote ? 'yes' : 'no')}
+                  isVoting={currentVotingId === (movie.id || movie._id) || isPending}
+                  isConnected={wagmiConnected}
+                  userVotes={votes}
+                />
+              ))
+            )}
+          </div>
+        </section>
+
         {/* Newest Trailers */}
         <section className="mb-8">
           <h2 className="text-xl font-semibold text-white mb-3">Newest Trailers</h2>
@@ -454,34 +494,49 @@ export default function DiscoverPage() {
         )}
       </section>
 
-      {/* Trending Movies & TV Shows */}
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-white mb-3">Trending Movies & TV Shows</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-          {loading ? (
-            <div className="col-span-4 text-center text-white text-sm py-8">Loading movies...</div>
-          ) : filteredMovies.length === 0 ? (
-            <div className="col-span-4 text-center text-white text-sm py-8">No movies found.</div>
-          ) : (
-            filteredMovies.slice(4, 8).map((movie: any) => (
-              <MovieCard
-                key={movie.id || movie._id}
-                movie={movie}
-                onVote={(vote) => handleVote(movie.id || movie._id, vote ? 'yes' : 'no')}
-                isVoting={currentVotingId === (movie.id || movie._id) || isPending}
-                isConnected={wagmiConnected}
-                userVotes={votes}
-              />
-            ))
-          )}
-        </div>
-      </section>
-
       {/* Newest Reviews */}
       <section className="mb-8">
         <h2 className="text-xl font-semibold text-white mb-3">Newest Reviews</h2>
-        <div className="flex justify-center items-center min-h-[80px]">
-          <span className="text-white/60 text-sm">There are no reviews at this time.</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {loading ? (
+            <div className="col-span-full text-center text-white text-sm py-8">Loading reviews...</div>
+          ) : !comments || comments.length === 0 ? (
+            <div className="col-span-full flex justify-center items-center min-h-[80px]">
+              <span className="text-white/60 text-sm">There are no reviews at this time.</span>
+            </div>
+          ) : (
+            comments.map((comment: any) => (
+              <div key={comment.id} className="bg-[#18181B] rounded-lg p-4 shadow-lg">
+                <div className="flex items-start space-x-3">
+                  {comment.moviePoster && (
+                    <div className="flex-shrink-0">
+                      <img 
+                        src={comment.moviePoster} 
+                        alt={comment.movieTitle}
+                        className="w-12 h-16 object-cover rounded"
+                      />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">
+                      {comment.movieTitle}
+                    </p>
+                    <p className="text-xs text-white/60 mb-2">
+                      {new Date(comment.createdAt).toLocaleDateString()}
+                    </p>
+                    <p className="text-sm text-white/90 line-clamp-3">
+                      {comment.content}
+                    </p>
+                    <div className="flex items-center mt-2 text-xs text-white/60">
+                      <span>by {truncateAddress(comment.address)}</span>
+                      <span className="mx-2">•</span>
+                      <span>{comment.likes} likes</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </section>
     </main>
