@@ -19,6 +19,7 @@ interface Movie {
     yes: number;
     no: number;
   };
+  commentCount?: number;
   _id?: string; // Added _id to the interface
 }
 
@@ -90,11 +91,12 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
             </div>
           )}
         </div>
-        {/* Vote Counts */}
+        {/* Vote and Comment Counts */}
         <div className="mb-3 flex items-center justify-between text-xs mt-2">
           <div className="flex items-center gap-2 min-w-0 text-muted-foreground">
             <span className="whitespace-nowrap">Yes: {movie.votes?.yes || 0}</span>
             <span className="whitespace-nowrap">No: {movie.votes?.no || 0}</span>
+            <span className="whitespace-nowrap pl-2 border-l border-white/10">💬 {movie.commentCount || 0}</span>
           </div>
           {movie.rating && (
             <div className="flex items-center gap-1">
