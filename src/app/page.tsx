@@ -23,10 +23,25 @@ import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance, u
 import { encodeFunctionData } from "viem";
 import { getDataSuffix, submitReferral } from "@divvi/referral-sdk";
 
+interface Movie {
+  id: string;
+  _id?: string;
+  title: string;
+  description: string;
+  posterUrl?: string;
+  releaseYear?: string;
+  genres?: string[];
+  votes: {
+    yes: number;
+    no: number;
+  };
+  isTVShow?: boolean;
+}
+
 export default function DiscoverPage() {
   const [isVoting, setIsVoting] = useState(false);
   const [votingMovies, setVotingMovies] = useState<Set<string>>(new Set());
-  const [movies, setMovies] = useState([]);
+  const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [currentVotingId, setCurrentVotingId] = useState<string | null>(null);
@@ -246,7 +261,10 @@ export default function DiscoverPage() {
   const handleVote = async (movieId: string, vote: 'yes' | 'no') => {
     console.log('Main page: handleVote called with:', movieId, vote);
     
-    if (votes[movieId]) return;
+    if (votes[movieId]) {
+      alert('You have already voted on this movie.');
+      return;
+    }
     
     if (!wagmiConnected || !address) {
       alert('Please connect your wallet to vote');
@@ -265,8 +283,8 @@ export default function DiscoverPage() {
     setCurrentVoteType(vote);
     
     // Set the vote immediately to prevent double-clicking
-    setVotes((prev) => ({ ...prev, [movieId]: vote }));
-    
+    setVotes(prev => ({ ...prev, [movieId]: vote }));
+
     try {
       const movieIdBigInt = BigInt(parseInt(movieId, 10));
       const calldata = encodeFunctionData({
@@ -275,9 +293,11 @@ export default function DiscoverPage() {
         args: [movieIdBigInt, vote === 'yes']
       });
       const dataWithTag = referralTag ? (calldata + referralTag.slice(2)) : calldata;
+      
       if (!walletClient) throw new Error('Wallet client unavailable');
+      
       const txHash = await walletClient.sendTransaction({
-        account: address!,
+        account: address,
         to: VOTE_CONTRACT_ADDRESS,
         data: dataWithTag as `0x${string}`,
         value: 0n
@@ -285,10 +305,12 @@ export default function DiscoverPage() {
 
       // Submit referral to Divvi
       const chainId = await walletClient.getChainId();
-      submitReferral({ txHash, chainId }).catch((e) => console.error('Divvi submitReferral failed:', e));
+      await submitReferral({ txHash, chainId }).catch((e) => {
+        console.error('Divvi submitReferral failed:', e);
+      });
 
-      // Persist vote to MongoDB like before
-      fetch('/api/movies', {
+      // Update MongoDB and get updated vote counts
+      const response = await fetch('/api/movies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -297,50 +319,89 @@ export default function DiscoverPage() {
           type: vote,
           userAddress: address
         })
-      }).catch(error => {
-        console.error('Failed to save vote to MongoDB:', error);
       });
 
-      // Clear voting flags and refresh movies
-      setCurrentVotingId(null);
-      setCurrentVoteType(null);
-      setTimeout(() => {
-        fetch("/api/movies").then(res => res.json()).then(data => {
-          if (data.success && Array.isArray(data.movies)) {
-            setMovies(data.movies);
-          }
-        });
-      }, 1000);
+      const data = await response.json();
+      
+      if (data.success) {
+        // Update UI with the real vote counts from the server
+        setMovies(prevMovies => 
+          prevMovies.map(movie => {
+            if (movie.id === movieId || movie._id === movieId) {
+              return {
+                ...movie,
+                votes: data.updatedVotes || {
+                  yes: movie.votes.yes + (vote === 'yes' ? 1 : 0),
+                  no: movie.votes.no + (vote === 'no' ? 1 : 0)
+                }
+              };
+            }
+            return movie;
+          })
+        );
 
-    } catch (err: any) {
+        // Refresh movies after a short delay to get the latest counts
+        setTimeout(() => {
+          fetch("/api/movies")
+            .then(res => res.json())
+            .then(data => {
+              if (data.success && Array.isArray(data.movies)) {
+                setMovies(data.movies);
+              }
+            })
+            .catch(error => {
+              console.error('Failed to refresh movies:', error);
+            });
+        }, 1000);
+      } else {
+        throw new Error('Failed to update vote in MongoDB');
+      }
+
+    } catch (err) {
       console.error('Vote error:', err);
       
-      // Revert the vote if there was an error
-      setVotes((prev) => ({ ...prev, [movieId]: null }));
+      // Revert optimistic update if the transaction failed
+      setMovies(prevMovies => 
+        prevMovies.map(movie => {
+          if (movie.id === movieId || movie._id === movieId) {
+            return {
+              ...movie,
+              votes: {
+                yes: movie.votes.yes - (vote === 'yes' ? 1 : 0),
+                no: movie.votes.no - (vote === 'no' ? 1 : 0)
+              }
+            };
+          }
+          return movie;
+        })
+      );
       
-      // Provide more specific error messages
+      // Clear the vote
+      setVotes(prev => ({ ...prev, [movieId]: null }));
+      
       let errorMessage = 'Transaction failed';
-      if (err.message?.includes('insufficient funds') || err.message?.includes('insufficient balance')) {
-        errorMessage = 'Insufficient CELO for gas fees. Please ensure you have enough CELO to cover transaction costs.';
-      } else if (err.message?.includes('user rejected')) {
-        errorMessage = 'Transaction was cancelled';
-      } else if (err.message?.includes('execution reverted')) {
-        errorMessage = 'Smart contract execution failed. This could mean:\n\n1. The movie ID does not exist on the contract\n2. The contract has an error\n3. You have already voted on this movie\n\nPlease check if the movie exists on the contract first.';
-      } else if (err.message?.includes('gas')) {
-        errorMessage = 'Gas estimation failed. Please try again.';
+      if (err instanceof Error) {
+        if (err.message?.includes('insufficient funds')) {
+          errorMessage = 'Insufficient CELO for gas fees';
+        } else if (err.message?.includes('user rejected')) {
+          errorMessage = 'Transaction was cancelled';
+        } else if (err.message?.includes('execution reverted')) {
+          errorMessage = 'Smart contract execution failed. This could mean:\n\n1. The movie ID does not exist on the contract\n2. The contract has an error\n3. You have already voted on this movie';
+        } else if (err.message?.includes('gas')) {
+          errorMessage = 'Gas estimation failed. Please try again.';
+        }
       }
-      
-      setCurrentVotingId(null);
-      setCurrentVoteType(null);
       alert(errorMessage);
     } finally {
-      // Clear individual movie voting state
+      setCurrentVotingId(null);
+      setCurrentVoteType(null);
       setVotingMovies(prev => {
         const newSet = new Set(prev);
         newSet.delete(movieId);
         return newSet;
       });
     }
+  };
   };
 
   const handleSearch = (query: string) => {
