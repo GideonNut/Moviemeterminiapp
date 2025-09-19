@@ -1,12 +1,38 @@
 import { NextRequest } from "next/server";
 import { getAllMovies, saveMovie, saveVote, resetMovieIds, getUserVotes, addVotePoints } from "../../../lib/mongo";
+import { Comment } from "~/lib/mongo";
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {
     const movies = await getAllMovies();
-    return Response.json({ success: true, movies });
+    
+    // Get comment counts for all movies
+    const commentCounts = await Comment.aggregate([
+      {
+        $group: {
+          _id: "$movieId",
+          commentCount: { $sum: 1 }
+        }
+      }
+    ]);
+
+    // Create a map of movie ID to comment count
+    const commentCountMap = new Map(
+      commentCounts.map(item => [item._id.toString(), item.commentCount])
+    );
+
+    // Add comment counts to movies
+    const moviesWithComments = movies.map(movie => {
+      const movieObj = movie.toObject();
+      return {
+        ...movieObj,
+        commentCount: commentCountMap.get(movieObj._id.toString()) || 0
+      };
+    });
+
+    return Response.json({ success: true, movies: moviesWithComments });
   } catch (error) {
     return Response.json({ success: false, error: (error as Error).message }, { status: 500 });
   }
