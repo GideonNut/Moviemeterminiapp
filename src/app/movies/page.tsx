@@ -155,7 +155,10 @@ export default function MoviesPage() {
   }, [isConnected, address]);
 
   const handleVote = async (id: string, vote: 'yes' | 'no') => {
-    if (votes[id]) return;
+    if (votes[id]) {
+      alert('You have already voted on this movie.');
+      return;
+    }
     
     // Check if we're on a Celo network
     if (currentChainId !== 42220 && currentChainId !== 44787) {
