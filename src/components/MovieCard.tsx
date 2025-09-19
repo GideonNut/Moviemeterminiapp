@@ -1,5 +1,6 @@
 import { Button } from "./ui/Button";
 import Image from 'next/image';
+import { useRouter } from "next/navigation";
 import { ensureFullPosterUrl } from "~/lib/utils";
 
 interface Movie {
@@ -33,12 +34,18 @@ interface MovieCardProps {
 
 // Compact version for carousel display
 export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVotes }: MovieCardProps) {
+  const router = useRouter();
+  
   const handleVote = async (vote: boolean) => {
     console.log('CompactMovieCard: handleVote called with:', vote);
     console.log('CompactMovieCard: isConnected:', isConnected, 'isVoting:', isVoting);
     
     // Call the parent's onVote function instead of making our own API call
     onVote(vote);
+  };
+
+  const handleClick = () => {
+    router.push('/movies');
   };
 
   // Check if user has voted on this movie
@@ -50,7 +57,9 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
   const fullPosterUrl = movie.posterUrl ? ensureFullPosterUrl(movie.posterUrl) : null;
 
   return (
-    <div className={`group relative overflow-hidden rounded-xl border ${hasVoted ? 'border-green-500/30 bg-green-500/5' : 'border-white/10'} bg-[#23232B] shadow-lg transition-all duration-300 hover:border-white/20 flex flex-col w-full max-w-[280px] ${hasVoted ? 'ring-1 ring-green-500/20' : ''}`}>
+    <div 
+      onClick={handleClick}
+      className={`group relative overflow-hidden rounded-xl border ${hasVoted ? 'border-green-500/30 bg-green-500/5' : 'border-white/10'} bg-[#23232B] shadow-lg transition-all duration-300 hover:border-white/20 flex flex-col w-full max-w-[280px] ${hasVoted ? 'ring-1 ring-green-500/20' : ''} cursor-pointer`}>
       {/* Movie Poster */}
       <div className="relative aspect-[2/3] w-full overflow-hidden">
         {fullPosterUrl ? (
