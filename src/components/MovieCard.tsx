@@ -2,6 +2,8 @@ import { Button } from "./ui/Button";
 import Image from 'next/image';
 import { useRouter } from "next/navigation";
 import { ensureFullPosterUrl } from "~/lib/utils";
+import { ThumbsDownIcon, ThumbsUpIcon } from "./icons";
+import { useState } from "react";
 
 interface Movie {
   id: string;
@@ -35,10 +37,20 @@ interface MovieCardProps {
 // Compact version for carousel display
 export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVotes }: MovieCardProps) {
   const router = useRouter();
+  const [bounceState, setBounceState] = useState<{ yes: boolean; no: boolean }>({ yes: false, no: false });
   
   const handleVote = async (vote: boolean) => {
     console.log('CompactMovieCard: handleVote called with:', vote);
     console.log('CompactMovieCard: isConnected:', isConnected, 'isVoting:', isVoting);
+    
+    // Trigger bounce animation
+    const voteType = vote ? 'yes' : 'no';
+    setBounceState(prev => ({ ...prev, [voteType]: true }));
+    
+    // Remove bounce animation after it completes
+    setTimeout(() => {
+      setBounceState(prev => ({ ...prev, [voteType]: false }));
+    }, 600); // Duration of bounce animation
     
     // Call the parent's onVote function instead of making our own API call
     onVote(vote);
@@ -120,18 +132,16 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
             variant={userVote === 'yes' ? 'default' : 'outline'}
             size="sm"
             className={"flex-1 text-xs py-1.5 ring-primary"}
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent card click
               console.log('Yes button clicked!');
               handleVote(true);
             }}
             disabled={!isConnected || isVoting || hasVoted}
           >
             <div className={`relative flex items-center gap-1 ${userVote === 'yes' ? 'animate-pulse' : ''}`}>
-              <div className="relative">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M7 10v12"/>
-                  <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a2 2 0 0 1 3 3.88Z"/>
-                </svg>
+              <div className={`relative ${bounceState.yes ? 'animate-bounce' : ''}`}>
+                <ThumbsUpIcon size={18} />
                 {userVote === 'yes' && (
                   <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
                 )}
@@ -143,19 +153,16 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
             variant={userVote === 'no' ? 'default' : 'outline'}
             size="sm"
             className={"flex-1 text-xs py-1.5"}
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent card click
               console.log('No button clicked!');
               handleVote(false);
             }}
             disabled={!isConnected || isVoting || hasVoted}
           >
             <div className={`relative flex items-center gap-1 ${userVote === 'no' ? 'animate-pulse' : ''}`}>
-              <div className="relative">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M10 15v4a3 3 0 0 0 6 0v-1a3 3 0 0 0-6 0Z"/>
-                  <path d="M18 8a6 6 0 0 0-12 0c0 1.887.892 3.54 2.25 4.5"/>
-                  <path d="M6 15a6 6 0 0 0 12 0c0-1.887-.892-3.54-2.25-4.5"/>
-                </svg>
+              <div className={`relative ${bounceState.no ? 'animate-bounce' : ''}`}>
+                <ThumbsDownIcon size={18} />
                 {userVote === 'no' && (
                   <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
                 )}
@@ -171,6 +178,8 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
 }
 
 export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: MovieCardProps) {
+  const [bounceState, setBounceState] = useState<{ yes: boolean; no: boolean }>({ yes: false, no: false });
+
   const handleVote = async (vote: boolean) => {
     const movieId = movie.id || movie._id;
     if (!movieId) {
@@ -179,6 +188,15 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
     }
     
     console.log('Voting on movie:', movieId, 'with vote:', vote);
+    
+    // Trigger bounce animation
+    const voteType = vote ? 'yes' : 'no';
+    setBounceState(prev => ({ ...prev, [voteType]: true }));
+    
+    // Remove bounce animation after it completes
+    setTimeout(() => {
+      setBounceState(prev => ({ ...prev, [voteType]: false }));
+    }, 600); // Duration of bounce animation
     
     try {
       const response = await fetch("/api/movies", {
@@ -277,11 +295,8 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
             disabled={!isConnected || isVoting || hasVoted}
           >
             <div className={`relative flex items-center gap-2 ${userVote === 'yes' ? 'animate-pulse' : ''}`}>
-              <div className="relative">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M7 10v12"/>
-                  <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a2 2 0 0 1 3 3.88Z"/>
-                </svg>
+              <div className={`relative ${bounceState.yes ? 'animate-bounce' : ''}`}>
+               <ThumbsUpIcon size={18} />
                 {userVote === 'yes' && (
                   <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
                 )}
@@ -296,12 +311,8 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
             disabled={!isConnected || isVoting || hasVoted}
           >
             <div className={`relative flex items-center gap-2 ${userVote === 'no' ? 'animate-pulse' : ''}`}>
-              <div className="relative">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M10 15v4a3 3 0 0 0 6 0v-1a3 3 0 0 0-6 0Z"/>
-                  <path d="M18 8a6 6 0 0 0-12 0c0 1.887.892 3.54 2.25 4.5"/>
-                  <path d="M6 15a6 6 0 0 0 12 0c0-1.887-.892-3.54-2.25-4.5"/>
-                </svg>
+              <div className={`relative ${bounceState.no ? 'animate-bounce' : ''}`}>
+                <ThumbsDownIcon size={18} />
                 {userVote === 'no' && (
                   <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
                 )}
