@@ -3,7 +3,6 @@ import Image from 'next/image';
 import { useRouter } from "next/navigation";
 import { ensureFullPosterUrl } from "~/lib/utils";
 import { ThumbsDownIcon, ThumbsUpIcon } from "./icons";
-import { useState } from "react";
 
 interface Movie {
   id: string;
@@ -37,20 +36,10 @@ interface MovieCardProps {
 // Compact version for carousel display
 export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVotes }: MovieCardProps) {
   const router = useRouter();
-  const [bounceState, setBounceState] = useState<{ yes: boolean; no: boolean }>({ yes: false, no: false });
   
   const handleVote = async (vote: boolean) => {
     console.log('CompactMovieCard: handleVote called with:', vote);
     console.log('CompactMovieCard: isConnected:', isConnected, 'isVoting:', isVoting);
-    
-    // Trigger bounce animation
-    const voteType = vote ? 'yes' : 'no';
-    setBounceState(prev => ({ ...prev, [voteType]: true }));
-    
-    // Remove bounce animation after it completes
-    setTimeout(() => {
-      setBounceState(prev => ({ ...prev, [voteType]: false }));
-    }, 600); // Duration of bounce animation
     
     // Call the parent's onVote function instead of making our own API call
     onVote(vote);
@@ -132,15 +121,14 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
             variant={userVote === 'yes' ? 'default' : 'outline'}
             size="sm"
             className={"flex-1 text-xs py-1.5 ring-primary"}
-            onClick={(e) => {
-              e.stopPropagation(); // Prevent card click
+            onClick={() => {
               console.log('Yes button clicked!');
               handleVote(true);
             }}
             disabled={!isConnected || isVoting || hasVoted}
           >
             <div className={`relative flex items-center gap-1 ${userVote === 'yes' ? 'animate-pulse' : ''}`}>
-              <div className={`relative ${bounceState.yes ? 'animate-bounce' : ''}`}>
+              <div className="relative">
                 <ThumbsUpIcon size={18} />
                 {userVote === 'yes' && (
                   <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
@@ -153,15 +141,14 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
             variant={userVote === 'no' ? 'default' : 'outline'}
             size="sm"
             className={"flex-1 text-xs py-1.5"}
-            onClick={(e) => {
-              e.stopPropagation(); // Prevent card click
+            onClick={() => {
               console.log('No button clicked!');
               handleVote(false);
             }}
             disabled={!isConnected || isVoting || hasVoted}
           >
             <div className={`relative flex items-center gap-1 ${userVote === 'no' ? 'animate-pulse' : ''}`}>
-              <div className={`relative ${bounceState.no ? 'animate-bounce' : ''}`}>
+              <div className="relative">
                 <ThumbsDownIcon size={18} />
                 {userVote === 'no' && (
                   <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
@@ -178,8 +165,6 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
 }
 
 export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: MovieCardProps) {
-  const [bounceState, setBounceState] = useState<{ yes: boolean; no: boolean }>({ yes: false, no: false });
-
   const handleVote = async (vote: boolean) => {
     const movieId = movie.id || movie._id;
     if (!movieId) {
@@ -188,15 +173,6 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
     }
     
     console.log('Voting on movie:', movieId, 'with vote:', vote);
-    
-    // Trigger bounce animation
-    const voteType = vote ? 'yes' : 'no';
-    setBounceState(prev => ({ ...prev, [voteType]: true }));
-    
-    // Remove bounce animation after it completes
-    setTimeout(() => {
-      setBounceState(prev => ({ ...prev, [voteType]: false }));
-    }, 600); // Duration of bounce animation
     
     try {
       const response = await fetch("/api/movies", {
@@ -295,7 +271,7 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
             disabled={!isConnected || isVoting || hasVoted}
           >
             <div className={`relative flex items-center gap-2 ${userVote === 'yes' ? 'animate-pulse' : ''}`}>
-              <div className={`relative ${bounceState.yes ? 'animate-bounce' : ''}`}>
+              <div className="relative">
                <ThumbsUpIcon size={18} />
                 {userVote === 'yes' && (
                   <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
@@ -311,7 +287,7 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
             disabled={!isConnected || isVoting || hasVoted}
           >
             <div className={`relative flex items-center gap-2 ${userVote === 'no' ? 'animate-pulse' : ''}`}>
-              <div className={`relative ${bounceState.no ? 'animate-bounce' : ''}`}>
+              <div className="relative">
                 <ThumbsDownIcon size={18} />
                 {userVote === 'no' && (
                   <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
