@@ -9,8 +9,9 @@ import { encodeFunctionData } from "viem";
 import { getDataSuffix, submitReferral } from "@divvi/referral-sdk";
 import { useRouter } from "next/navigation";
 import Header from "~/components/Header";
-import { ArrowLeft, ThumbsUp, ThumbsDown, RefreshCw, AlertCircle } from "lucide-react";
+import { ArrowLeft,  RefreshCw, AlertCircle } from "lucide-react";
 import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl } from "~/lib/utils";
+import { ThumbsDownIcon, ThumbsUpIcon } from "~/components/icons";
 
 interface TVShow {
   id: string;
@@ -447,11 +448,11 @@ export default function TVPage() {
                     {/* Vote Counts Display */}
                     <div className="flex items-center gap-6 text-sm text-muted-foreground mb-4">
                       <span className="flex items-center gap-2 min-w-0">
-                        <ThumbsUp size={16} className="flex-shrink-0" />
+                        <ThumbsUpIcon size={16} className="flex-shrink-0" />
                         <span className="font-medium whitespace-nowrap">Yes: {tvShow.votes.yes}</span>
                       </span>
                       <span className="flex items-center gap-2 min-w-0">
-                        <ThumbsDown size={16} className="flex-shrink-0" />
+                        <ThumbsDownIcon size={16} className="flex-shrink-0" />
                         <span className="font-medium whitespace-nowrap">No: {tvShow.votes.no}</span>
                       </span>
                     </div>
@@ -467,7 +468,7 @@ export default function TVPage() {
                       size="default"
                     >
                       <div className={`relative ${votes[tvShow.id] === 'yes' ? 'animate-pulse' : ''}`}>
-                        <ThumbsUp size={18} />
+                        <ThumbsUpIcon size={18} />
                         {votes[tvShow.id] === 'yes' && (
                           <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
                         )}
@@ -485,7 +486,7 @@ export default function TVPage() {
                       size="default"
                     >
                       <div className={`relative ${votes[tvShow.id] === 'no' ? 'animate-pulse' : ''}`}>
-                        <ThumbsDown size={18} />
+                        <ThumbsDownIcon size={18} />
                         {votes[tvShow.id] === 'no' && (
                           <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
                         )}
