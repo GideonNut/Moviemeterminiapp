@@ -2,7 +2,8 @@
 import { Card, CardContent, CardTitle, CardDescription } from "~/components/ui/card";
 import { Button } from "~/components/ui/Button";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Gift, Coins, Trophy, Star } from "lucide-react";
+import { ArrowLeft, Gift, Coins, Star } from "lucide-react";
+import {  TrophyIcon } from '~/components/icons'
 import Header from "~/components/Header";
 import { useAccount } from "wagmi";
 import { useState, useEffect } from "react";
@@ -81,7 +82,7 @@ export default function RewardsPage() {
   const getIcon = (type: string) => {
     switch (type) {
       case 'badge':
-        return <Trophy size={20} className="text-accent-foreground" />;
+        return <TrophyIcon size={20} className="text-accent-foreground" />;
       case 'tokens':
         return <Coins size={20} className="text-primary" />;
       default:
