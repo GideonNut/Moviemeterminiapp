@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Trophy, Users, Flame, ArrowLeft, RefreshCw, Loader2, Award } from "lucide-react";
+import { Users, Flame, ArrowLeft, RefreshCw, Loader2, Award } from "lucide-react";
+import {  TrophyIcon } from '~/components/icons'
 import { useAccount } from "wagmi";
 import Header from "~/components/Header";
 
@@ -42,7 +43,7 @@ interface LeaderboardData {
 
 const leaderboardTypes = [
   { id: "voters", name: "Top Voters", icon: Users, metric: "votes" },
-  { id: "earners", name: "Top Earners", icon: Trophy, metric: "earnings" },
+  { id: "earners", name: "Top Earners", icon: TrophyIcon, metric: "earnings" },
   { id: "streaks", name: "Longest Streaks", icon: Flame, metric: "streak" },
 ];
 
@@ -225,7 +226,7 @@ export default function LeaderboardsPage() {
 
           <div className="flex justify-center items-center py-20">
             <div className="text-center">
-              <Trophy size={48} className="text-muted-foreground mx-auto mb-4" />
+              <TrophyIcon size={48} className="text-muted-foreground mx-auto mb-4" />
               <p className="text-foreground mb-4">{error}</p>
               <button 
                 onClick={() => fetchLeaderboards()}
@@ -262,7 +263,7 @@ export default function LeaderboardsPage() {
         {/* Hero Section */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <Trophy className="mr-3 text-accent-foreground" size={32} />
+            <TrophyIcon className="mr-3 text-accent-foreground" size={32} />
             <h2 className="text-2xl font-bold text-foreground">Top Performers</h2>
           </div>
           <p className="text-muted-foreground text-sm max-w-lg mx-auto mb-4">
@@ -419,7 +420,7 @@ export default function LeaderboardsPage() {
                 ))
               ) : (
                 <div className="p-8 text-center">
-                  <Trophy size={48} className="text-muted-foreground mx-auto mb-4" />
+                  <TrophyIcon size={48} className="text-muted-foreground mx-auto mb-4" />
                   <p className="text-muted-foreground mb-2">No data available yet</p>
                   <p className="text-xs text-muted-foreground">Start voting on movies to appear on the leaderboard!</p>
                 </div>
