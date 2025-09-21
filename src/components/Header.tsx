@@ -3,9 +3,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Bell, Trophy } from 'lucide-react';
 import SearchBar from './SearchBar';
 import { getFarcasterUser } from '~/lib/farcaster';
+import { BellIcon, TrophyIcon } from './icons';
 
 interface Movie {
   id?: string;
@@ -73,18 +73,25 @@ export default function Header({ showSearch = false, onSearch, movies = [] }: He
             {/* Leaderboard Icon */}
             <Link 
               href="/leaderboards" 
-              className="text-foreground/70 hover:text-foreground transition-colors focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-md outline-none"
+              className="text-foreground/70 hover:text-foreground transition-colors focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-md outline-none group"
               title="Leaderboard"
             >
-              <Trophy size={24} />
+              <TrophyIcon 
+                size={24} 
+                className="text-foreground/70 group-hover:text-foreground transition-colors" 
+              />
             </Link>
+            
             {/* Watchlist Icon */}
             <Link 
               href="/watchlist" 
-              className="text-foreground/70 hover:text-foreground transition-colors focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-md outline-none"
+              className="text-foreground/70 hover:text-foreground transition-colors focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-md outline-none group"
               title="My Watchlist"
             >
-              <Bell size={24} />
+              <BellIcon 
+                size={24} 
+                className="text-foreground/70 group-hover:text-foreground transition-colors" 
+              />
             </Link>
             
             {/* User Avatar - Only show if we have a valid profile picture */}
