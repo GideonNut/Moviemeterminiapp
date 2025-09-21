@@ -59,9 +59,9 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
   return (
     <div 
       onClick={handleClick}
-      className={`group relative overflow-hidden rounded-xl border ${hasVoted ? 'border-green-500/30 bg-green-500/5' : 'border-white/10'} bg-[#23232B] shadow-lg transition-all duration-300 hover:border-white/20 flex flex-col w-full max-w-[280px] ${hasVoted ? 'ring-1 ring-green-500/20' : ''} cursor-pointer`}>
+      className={`group relative overflow-hidden p-1.5 px-3 pt-3 rounded-t-[16px] rounded-b-[24px] border ${hasVoted ? 'border-green-500/30 bg-green-500/5' : 'border-white/10'} bg-[#141414] ring-primary shadow-lg transition-all duration-300 hover:border-white/20 flex flex-col w-full max-w-[280px] ${hasVoted ? 'ring-1 ring-green-500/20' : ''} cursor-pointer`}>
       {/* Movie Poster */}
-      <div className="relative aspect-[2/3] w-full overflow-hidden">
+      <div className="relative aspect-[2/3] w-full rounded-[18px]  overflow-hidden">
         {fullPosterUrl ? (
           <Image
             src={fullPosterUrl}
@@ -79,7 +79,7 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
       </div>
 
       {/* Movie Info */}
-      <div className="flex-1 flex flex-col justify-between p-4">
+      <div className="flex-1 flex flex-col justify-between p-4 px-0">
         <div>
           <div className="mb-2 flex items-center justify-between gap-2">
             <h3 className="text-base font-semibold text-white line-clamp-1 flex-1 min-w-0">{movie.title}</h3>
@@ -119,7 +119,7 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
           <Button
             variant={userVote === 'yes' ? 'default' : 'outline'}
             size="sm"
-            className={"flex-1 text-xs py-1.5"}
+            className={"flex-1 text-xs py-1.5 ring-primary"}
             onClick={() => {
               console.log('Yes button clicked!');
               handleVote(true);
