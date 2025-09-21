@@ -1,6 +1,7 @@
 "use client";
 
 import { MovieCard, CompactMovieCard } from "~/components/MovieCard";
+import { MovieCardSkeleton, CompactMovieCardSkeleton } from "~/components/MovieCardSkeleton";
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -430,7 +431,15 @@ export default function DiscoverPage() {
             <Carousel className="w-full">
               <CarouselContent className="-ml-2 md:-ml-4">
                 {loading ? (
-                  <div className="text-center text-white w-full text-sm py-8">Loading movies...</div>
+                 
+                  Array.from({ length: 4 }).map((_, index) => (
+                    <CarouselItem key={index} className="pl-2 md:pl-4 basis-[280px] md:basis-[320px] lg:basis-[360px]">
+                      <div className="flex justify-center">
+                        <CompactMovieCardSkeleton />
+                      </div>
+                    </CarouselItem>
+                  ))
+
                 ) : filteredMovies.length === 0 ? (
                   <div className="text-center text-white w-full text-sm py-8">No movies found.</div>
                 ) : (
@@ -463,7 +472,9 @@ export default function DiscoverPage() {
           <h2 className="text-xl font-semibold text-white mb-3">Trending Movies & TV Shows</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             {loading ? (
-              <div className="col-span-4 text-center text-white text-sm py-8">Loading movies...</div>
+                Array.from({ length: 4 }).map((_, index) => (
+                <MovieCardSkeleton key={index} />
+              ))
             ) : filteredMovies.length === 0 ? (
               <div className="col-span-4 text-center text-white text-sm py-8">No movies found.</div>
             ) : (
