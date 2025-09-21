@@ -59,7 +59,7 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
   return (
     <div 
       onClick={handleClick}
-      className={`group relative overflow-hidden p-1.5 px-3 pt-3 rounded-t-[16px] rounded-b-[24px] border ${hasVoted ? 'border-green-500/30 bg-green-500/5' : 'border-white/10'} bg-[#141414] ring-primary shadow-lg transition-all duration-300 hover:border-white/20 flex flex-col w-full max-w-[280px] ${hasVoted ? 'ring-1 ring-green-500/20' : ''} cursor-pointer`}>
+      className={`group relative overflow-hidden p-1.5 px-3 pt-3 rounded-t-[16px] rounded-b-[24px] border ${hasVoted ? 'border-green-500/30 bg-green-500/5' : 'border-white/10 ring-primary'} bg-[#141414]  shadow-lg transition-all duration-300 hover:border-white/20 flex flex-col w-full max-w-[280px] ${hasVoted ? 'ring-1 ring-green-500/20' : ''} cursor-pointer`}>
       {/* Movie Poster */}
       <div className="relative aspect-[2/3] w-full rounded-[18px]  overflow-hidden">
         {fullPosterUrl ? (
