@@ -4,7 +4,9 @@ import { Card, CardContent, CardTitle, CardDescription } from "~/components/ui/c
 import { Button } from "~/components/ui/Button";
 import Image from "next/image";
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
-import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance } from "wagmi";
+import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance, useWalletClient } from "wagmi";
+import { encodeFunctionData } from "viem";
+import { getDataSuffix, submitReferral } from "@divvi/referral-sdk";
 import { useRouter } from "next/navigation";
 import Header from "~/components/Header";
 import { ArrowLeft, ThumbsUp, ThumbsDown, RefreshCw, AlertCircle } from "lucide-react";
@@ -25,17 +27,19 @@ interface TVShow {
   updatedAt: string;
 }
 
-export default function TVShowsPage() {
+export default function TVPage() {
   const router = useRouter();
   const [tvShows, setTvShows] = useState<TVShow[]>([]);
   const [loading, setLoading] = useState(true);
   const [votes, setVotes] = useState<{ [id: string]: 'yes' | 'no' | null }>({});
   const [txStatus, setTxStatus] = useState<{ [id: string]: string }>({});
   const [currentVotingId, setCurrentVotingId] = useState<string | null>(null);
+  const [referralTag, setReferralTag] = useState<string | null>(null);
 
   const { address, isConnected } = useAccount();
   const currentChainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
+  const { data: walletClient } = useWalletClient();
   
   // Use the proper Wagmi hook for smart contract interactions
   const { 
@@ -68,10 +72,25 @@ export default function TVShowsPage() {
     }
   }, [isConnected, currentChainId, switchChainAsync]);
 
+  // Prepare Divvi referral tag
+  useEffect(() => {
+    if (isConnected && address) {
+      try {
+        const tag = getDataSuffix({ consumer: '0xc49b8e093600f684b69ed6ba1e36b7dfad42f982' });
+        setReferralTag(tag);
+      } catch (e) {
+        console.error('Failed to create Divvi referral tag:', e);
+        setReferralTag(null);
+      }
+    } else {
+      setReferralTag(null);
+    }
+  }, [isConnected, address]);
+
   const fetchTVShows = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/tv-shows');
+      const response = await fetch('/api/tv');
       if (response.ok) {
         const data = await response.json();
         setTvShows(data.tvShows || []);
@@ -90,7 +109,7 @@ export default function TVShowsPage() {
     if (!isConnected || !address) return;
     
     try {
-      const response = await fetch('/api/tv-shows', {
+      const response = await fetch('/api/tv', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -120,7 +139,10 @@ export default function TVShowsPage() {
   }, [isConnected, address]);
 
   const handleVote = async (id: string, vote: 'yes' | 'no') => {
-    if (votes[id]) return;
+    if (votes[id]) {
+      alert('You have already voted on this TV show.');
+      return;
+    }
     
     // Check if we're on the correct network first
     if (currentChainId !== 42220) {
@@ -139,16 +161,31 @@ export default function TVShowsPage() {
       // Set the vote immediately to prevent double-clicking
       setVotes((prev) => ({ ...prev, [id]: vote }));
 
-      // Use the proper Wagmi hook for smart contract interactions
-      writeContract({
-        address: VOTE_CONTRACT_ADDRESS,
+      // Build calldata, append referral tag, and send raw transaction
+      const calldata = encodeFunctionData({
         abi: VOTE_CONTRACT_ABI,
-        functionName: "vote",
-        args: [tvShowId, vote === 'yes'],
-        gas: 150000n, // Conservative gas estimate
+        functionName: 'vote',
+        args: [tvShowId, vote === 'yes']
+      });
+      const dataWithTag = referralTag ? (calldata + referralTag.slice(2)) : calldata;
+      if (!walletClient) throw new Error('Wallet client unavailable');
+      const txHash = await walletClient.sendTransaction({
+        account: address!,
+        to: VOTE_CONTRACT_ADDRESS,
+        data: dataWithTag as `0x${string}`,
+        value: 0n
       });
 
-      // Note: We'll handle success/error in useEffect below
+      // Report to Divvi
+      const chainId = await walletClient.getChainId();
+      submitReferral({ txHash, chainId }).catch((e) => console.error('Divvi submitReferral failed:', e));
+
+      // Save vote to MongoDB
+      fetch('/api/tv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'vote', id, type: vote, userAddress: address })
+      }).catch((e) => console.error('Failed to save vote to MongoDB:', e));
       
     } catch (err: any) {
       console.error('Vote error:', err);
@@ -187,7 +224,7 @@ export default function TVShowsPage() {
       
       // Save vote to MongoDB
       if (address && votes[currentVotingId]) {
-        fetch('/api/tv-shows', {
+        fetch('/api/tv', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -250,7 +287,7 @@ export default function TVShowsPage() {
   // Handle MongoDB vote save errors
   const handleVoteSaveError = async (id: string, vote: 'yes' | 'no') => {
     try {
-      const response = await fetch('/api/tv-shows', {
+      const response = await fetch('/api/tv', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -367,87 +404,113 @@ export default function TVShowsPage() {
       )}
 
       {/* TV Shows List */}
-      <div className="space-y-4">
+      <div className="space-y-6">
         {tvShows.map((tvShow) => (
-          <Card key={tvShow.id} className="bg-[#18181B] text-white border border-white/10 overflow-hidden">
+          <Card key={tvShow.id} className={`bg-[#18181B] text-white border overflow-hidden cursor-pointer ${
+            votes[tvShow.id] 
+              ? 'border-green-500/30 bg-green-500/5' 
+              : 'border-white/10'
+          }`} onClick={() => router.push(`/tv/${tvShow.id}`)}>
             <CardContent className="p-0">
-              <div className="flex">
-                {/* TV Show Poster */}
-                <div className="w-24 h-36 relative bg-neutral-900 flex-shrink-0">
+              <div className="flex flex-col">
+                {/* TV Show Poster (portrait) */}
+                <div className="relative aspect-[2/3] w-full bg-neutral-900">
                   {tvShow.posterUrl ? (
                     <Image
                       src={ensureFullPosterUrl(tvShow.posterUrl) || ''}
                       alt={tvShow.title}
                       fill
                       className="object-cover"
-                      sizes="96px"
                     />
                   ) : (
-                    <div className="flex items-center justify-center h-full text-white/40">
-                      <span className="text-xs">No Poster</span>
+                    <div className="flex items-center justify-center h-full text-muted-foreground">
+                      <span className="text-sm">No Poster</span>
                     </div>
                   )}
                 </div>
                 
                 {/* TV Show Info & Voting */}
-                <div className="flex-1 p-4 flex flex-col justify-between">
+                <div className="p-6 flex flex-col justify-between text-left">
                   <div>
-                    <CardTitle className="text-base font-semibold mb-1 line-clamp-2">
+                    <CardTitle className="text-lg font-semibold mb-3 line-clamp-2">
                       {tvShow.title}
                     </CardTitle>
-                    <CardDescription className="text-sm text-white/60 mb-3">
-                      {tvShow.genres && tvShow.genres.length > 0 ? tvShow.genres[0] : 'Unknown'} • {tvShow.releaseYear || 'Unknown Year'}
+                    <CardDescription className="text-sm text-muted-foreground mb-4">
+                      <span className="truncate block">{tvShow.genres && tvShow.genres.length > 0 ? tvShow.genres[0] : ''} {tvShow.releaseYear ? tvShow.releaseYear : ''}</span>
                     </CardDescription>
                     
+                    {/* TV Show Description */}
+                    <div className="text-sm text-muted-foreground mb-4 line-clamp-3">
+                      {tvShow.description || 'No description available'}
+                    </div>
+                    
                     {/* Vote Counts Display */}
-                    <div className="flex items-center gap-4 text-xs text-white/60 mb-3">
-                      <span className="flex items-center gap-1">
-                        <ThumbsUp size={14} className="text-green-400" />
-                        {tvShow.votes.yes} Yes
+                    <div className="flex items-center gap-6 text-sm text-muted-foreground mb-4">
+                      <span className="flex items-center gap-2 min-w-0">
+                        <ThumbsUp size={16} className="flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Yes: {tvShow.votes.yes}</span>
                       </span>
-                      <span className="flex items-center gap-1">
-                        <ThumbsDown size={14} className="text-red-400" />
-                        {tvShow.votes.no} No
+                      <span className="flex items-center gap-2 min-w-0">
+                        <ThumbsDown size={16} className="flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">No: {tvShow.votes.no}</span>
                       </span>
                     </div>
                   </div>
                   
                   {/* Vote Buttons */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-4">
                     <Button
-                      variant={votes[tvShow.id] === 'yes' ? 'default' : 'ghost'}
-                      onClick={() => handleVote(tvShow.id, 'yes')}
+                      variant={votes[tvShow.id] === 'yes' ? 'default' : 'outline'}
+                      onClick={(e) => { e.stopPropagation(); handleVote(tvShow.id, 'yes'); }}
                       disabled={!isConnected || isPending || !!votes[tvShow.id]}
-                      className="flex items-center gap-2 px-4 py-2"
-                      size="sm"
+                      className={"flex items-center gap-2 px-6 py-3"}
+                      size="default"
                     >
-                      <ThumbsUp size={16} />
-                      <span className="text-sm">Yes</span>
+                      <div className={`relative ${votes[tvShow.id] === 'yes' ? 'animate-pulse' : ''}`}>
+                        <ThumbsUp size={18} />
+                        {votes[tvShow.id] === 'yes' && (
+                          <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium">
+                        {votes[tvShow.id] === 'yes' ? 'Voted Yes' : 'Yes'}
+                      </span>
                     </Button>
                     
                     <Button
-                      variant={votes[tvShow.id] === 'no' ? 'destructive' : 'ghost'}
-                      onClick={() => handleVote(tvShow.id, 'no')}
+                      variant={votes[tvShow.id] === 'no' ? 'default' : 'outline'}
+                      onClick={(e) => { e.stopPropagation(); handleVote(tvShow.id, 'no'); }}
                       disabled={!isConnected || isPending || !!votes[tvShow.id]}
-                      className="flex items-center gap-2 px-4 py-2"
-                      size="sm"
+                      className={"flex items-center gap-2 px-6 py-3"}
+                      size="default"
                     >
-                      <ThumbsDown size={16} />
-                      <span className="text-sm">No</span>
+                      <div className={`relative ${votes[tvShow.id] === 'no' ? 'animate-pulse' : ''}`}>
+                        <ThumbsDown size={18} />
+                        {votes[tvShow.id] === 'no' && (
+                          <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium">
+                        {votes[tvShow.id] === 'no' ? 'Voted No' : 'No'}
+                      </span>
                     </Button>
                     
                     {/* Status Messages */}
                     <div className="flex-1 text-right">
                       {isPending && currentVotingId === tvShow.id && (
-                        <span className="text-yellow-400 text-xs">Confirming...</span>
-                      )}
-                      {votes[tvShow.id] && !isPending && (
-                        <span className="text-blue-400 text-xs">
-                          {votes[tvShow.id] === 'yes' ? 'Voted Yes' : 'Voted No'}
-                        </span>
+                        <span className="text-yellow-400 text-sm">Confirming...</span>
                       )}
                     </div>
                   </div>
+                  
+                  {/* Voted Already Message */}
+                  {votes[tvShow.id] && (
+                    <div className="mt-3 text-center">
+                      <span className="text-sm font-medium bg-accent text-accent-foreground px-3 py-1 rounded-full">
+                        You've voted already on this TV show
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>

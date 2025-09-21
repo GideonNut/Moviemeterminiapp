@@ -1,13 +1,17 @@
 "use client";
 import { useState, useEffect } from "react";
+import WatchlistButton from "~/components/WatchlistButton";
+import Link from "next/link";
 import { Card, CardContent, CardTitle, CardDescription } from "~/components/ui/card";
 import { Button } from "~/components/ui/Button";
 import Image from "next/image";
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
-import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance } from "wagmi";
+import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance, useReadContract, useWalletClient } from "wagmi";
+import { encodeFunctionData } from "viem";
+import { getDataSuffix, submitReferral } from "@divvi/referral-sdk";
 import { useRouter } from "next/navigation";
 import Header from "~/components/Header";
-import { ArrowLeft, ThumbsUp, ThumbsDown, Plus, RefreshCw } from "lucide-react";
+import { ArrowLeft, ThumbsUp, ThumbsDown, RefreshCw } from "lucide-react";
 import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl } from "~/lib/utils";
 
 interface Movie {
@@ -21,6 +25,7 @@ interface Movie {
     yes: number;
     no: number;
   };
+  commentCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -31,11 +36,15 @@ export default function MoviesPage() {
   const [loading, setLoading] = useState(true);
   const [votes, setVotes] = useState<{ [id: string]: 'yes' | 'no' | null }>({});
   const [txStatus, setTxStatus] = useState<{ [id: string]: string }>({});
+  const [currentVotingId, setCurrentVotingId] = useState<string | null>(null);
+  const [referralTag, setReferralTag] = useState<string | null>(null);
+  const [voteAttempts, setVoteAttempts] = useState<{ [id: string]: { show: boolean; timeoutId?: NodeJS.Timeout } }>({});
   // Removed showMoviesWithoutPosters state since filter UI was removed
 
   const { address, isConnected } = useAccount();
   const currentChainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
+  const { data: walletClient } = useWalletClient();
   
   // Use the proper Wagmi hook for smart contract interactions
   const { 
@@ -48,7 +57,7 @@ export default function MoviesPage() {
   // Get CELO balance for gas fees
   const { data: celoBalance } = useBalance({
     address,
-    chainId: currentChainId === 42220 ? 42220 : 44787, // Use mainnet if available, otherwise testnet
+    chainId: 42220,
   });
 
   // Auto-switch to Celo when wallet connects
@@ -77,14 +86,29 @@ export default function MoviesPage() {
     }
   }, [isConnected, currentChainId, switchChainAsync]);
 
+  // Prepare Divvi referral tag
+  useEffect(() => {
+    if (isConnected && address) {
+      try {
+        const tag = getDataSuffix({ consumer: '0xc49b8e093600f684b69ed6ba1e36b7dfad42f982' });
+        setReferralTag(tag);
+      } catch (e) {
+        console.error('Failed to create Divvi referral tag:', e);
+        setReferralTag(null);
+      }
+    } else {
+      setReferralTag(null);
+    }
+  }, [isConnected, address]);
+
   const fetchMovies = async () => {
     try {
       setLoading(true);
       const response = await fetch('/api/movies');
       if (response.ok) {
         const data = await response.json();
-        
         setMovies(data.movies || []);
+        console.log('Fetched movies:', data.movies || []);
       } else {
         console.error('Failed to fetch movies');
       }
@@ -98,12 +122,73 @@ export default function MoviesPage() {
   // Show all movies since filter was removed
   const filteredMovies = movies;
 
+  // Fetch user's previous votes from MongoDB
+  const fetchUserVotes = async () => {
+    if (!isConnected || !address) return;
+    
+    try {
+      const response = await fetch('/api/movies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'getUserVotes',
+          userAddress: address
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setVotes(data.userVotes || {});
+      }
+    } catch (error) {
+      console.error('Error fetching user votes:', error);
+    }
+  };
+
   useEffect(() => {
     fetchMovies();
   }, []);
 
+  // Fetch user votes when wallet connects
+  useEffect(() => {
+    if (isConnected && address) {
+      fetchUserVotes();
+    }
+  }, [isConnected, address]);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(voteAttempts).forEach(attempt => {
+        if (attempt.timeoutId) {
+          clearTimeout(attempt.timeoutId);
+        }
+      });
+    };
+  }, [voteAttempts]);
+
   const handleVote = async (id: string, vote: 'yes' | 'no') => {
-    if (votes[id]) return;
+    if (votes[id]) {
+      // Clear any existing timeout
+      if (voteAttempts[id]?.timeoutId) {
+        clearTimeout(voteAttempts[id].timeoutId);
+      }
+      
+      // Show the message and set a timeout to hide it
+      const timeoutId = setTimeout(() => {
+        setVoteAttempts(prev => ({
+          ...prev,
+          [id]: { ...prev[id], show: false }
+        }));
+      }, 2000);
+
+      setVoteAttempts(prev => ({
+        ...prev,
+        [id]: { show: true, timeoutId }
+      }));
+
+      return;
+    }
     
     // Check if we're on a Celo network
     if (currentChainId !== 42220 && currentChainId !== 44787) {
@@ -111,6 +196,7 @@ export default function MoviesPage() {
       return;
     }
     
+    setCurrentVotingId(id);
     setTxStatus((prev) => ({ ...prev, [id]: 'pending' }));
     
     try {
@@ -118,20 +204,52 @@ export default function MoviesPage() {
 
       const movieId = BigInt(parseInt(id, 10));
 
-      // Use the proper Wagmi hook for smart contract interactions
-      writeContract({
-        address: VOTE_CONTRACT_ADDRESS,
+      // Set the vote immediately to prevent double-clicking
+      setVotes((prev) => ({ ...prev, [id]: vote }));
+
+      // Build calldata, append referral tag, and send raw transaction
+      const calldata = encodeFunctionData({
         abi: VOTE_CONTRACT_ABI,
-        functionName: "vote",
-        args: [movieId, vote === 'yes'],
-        // Remove fixed gas estimate to let viem estimate it automatically
-        // gas: 150000n, // Conservative gas estimate
+        functionName: 'vote',
+        args: [movieId, vote === 'yes']
+      });
+      const dataWithTag = referralTag ? (calldata + referralTag.slice(2)) : calldata;
+      if (!walletClient) throw new Error('Wallet client unavailable');
+      const txHash = await walletClient.sendTransaction({
+        account: address!,
+        to: VOTE_CONTRACT_ADDRESS,
+        data: dataWithTag as `0x${string}`,
+        value: 0n
       });
 
-      // Note: We'll handle success/error in useEffect below
+      // Report to Divvi
+      const chainId = await walletClient.getChainId();
+      submitReferral({ txHash, chainId }).catch((e) => console.error('Divvi submitReferral failed:', e));
+
+      // Save vote to MongoDB, then refresh list and user votes
+      fetch('/api/movies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'vote', id, type: vote, userAddress: address })
+      })
+      .then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to save vote');
+        }
+        // Brief delay to ensure DB write visibility, then refresh
+        setTimeout(() => {
+          fetchMovies();
+          fetchUserVotes();
+        }, 400);
+      })
+      .catch((e) => console.error('Failed to save vote to MongoDB:', e));
       
     } catch (err: any) {
       console.error('Vote error:', err);
+      
+      // Revert the vote if there was an error
+      setVotes((prev) => ({ ...prev, [id]: null }));
       
       // Provide more specific error messages
       let errorMessage = 'Transaction failed';
@@ -140,14 +258,13 @@ export default function MoviesPage() {
       } else if (err.message?.includes('user rejected')) {
         errorMessage = 'Transaction was cancelled';
       } else if (err.message?.includes('execution reverted')) {
-        errorMessage = 'Smart contract execution failed';
+        errorMessage = 'Smart contract execution failed. This could mean:\n\n1. The movie ID does not exist on the contract\n2. The contract has an error\n3. You have already voted on this movie\n\nPlease check if the movie exists on the contract first.';
       } else if (err.message?.includes('gas')) {
         errorMessage = 'Gas estimation failed. Please try again.';
-      } else if (err.message?.includes('method handler crashed')) {
-        errorMessage = 'Smart contract interaction failed. This might be a network or contract issue. Please ensure you have sufficient CELO for gas fees on mainnet.';
       }
       
       setTxStatus((prev) => ({ ...prev, [id]: 'error' }));
+      setCurrentVotingId(null);
       
       // Show error to user (you can add a toast notification here)
       alert(errorMessage);
@@ -156,22 +273,52 @@ export default function MoviesPage() {
 
   // Handle transaction state changes
   useEffect(() => {
-    if (hash) {
+    if (hash && currentVotingId) {
       // Transaction was sent successfully
       console.log('Transaction hash:', hash);
-      // Update the vote status and refresh movies
-      setVotes((prev) => ({ ...prev, [Object.keys(votes)[0]]: votes[Object.keys(votes)[0]] }));
-      setTxStatus((prev) => ({ ...prev, [Object.keys(votes)[0]]: 'success' }));
+      
+      // Update the transaction status to success
+      setTxStatus((prev) => ({ ...prev, [currentVotingId]: 'success' }));
+      
+      // Save vote to MongoDB
+      if (address && votes[currentVotingId]) {
+        fetch('/api/movies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'vote',
+            id: currentVotingId,
+            type: votes[currentVotingId],
+            userAddress: address
+          })
+        }).then(response => {
+          if (!response.ok) {
+            return response.json().then(errorData => {
+              throw new Error(errorData.error || 'Failed to save vote');
+            });
+          }
+        }).catch(error => {
+          console.error('Failed to save vote to MongoDB:', error);
+          // Use the error handling function
+          handleVoteSaveError(currentVotingId, votes[currentVotingId]!);
+        });
+      }
+      
+      // Clear the current voting ID
+      setCurrentVotingId(null);
       
       // Refresh movies to get updated vote counts
       setTimeout(() => fetchMovies(), 1000);
     }
-  }, [hash, votes]);
+  }, [hash, currentVotingId, address, votes]);
 
   // Handle errors from the contract
   useEffect(() => {
-    if (error) {
+    if (error && currentVotingId) {
       console.error('Contract error:', error);
+      
+      // Revert the vote if the contract call failed
+      setVotes((prev) => ({ ...prev, [currentVotingId]: null }));
       
       // Provide specific error messages based on the error
       let errorMessage = 'Transaction failed';
@@ -180,28 +327,55 @@ export default function MoviesPage() {
       } else if (error.message?.includes('user rejected')) {
         errorMessage = 'Transaction was cancelled';
       } else if (error.message?.includes('execution reverted')) {
-        errorMessage = 'Smart contract execution failed';
+        errorMessage = 'Smart contract execution failed. This could mean:\n\n1. The movie ID does not exist on the contract\n2. The contract has an error\n3. You have already voted on this movie\n\nPlease check if the movie exists on the contract first.';
       } else if (error.message?.includes('gas')) {
         errorMessage = 'Gas estimation failed. Please try again.';
       }
       
-      // Find which movie was being voted on and update its status
-      const movieId = Object.keys(txStatus).find(key => txStatus[key] === 'pending');
-      if (movieId) {
-        setTxStatus((prev) => ({ ...prev, [movieId]: 'error' }));
-      }
+      // Update the status for the specific movie being voted on
+      setTxStatus((prev) => ({ ...prev, [currentVotingId]: 'error' }));
+      
+      // Clear the current voting ID
+      setCurrentVotingId(null);
       
       alert(errorMessage);
     }
-  }, [error, txStatus]);
+  }, [error, currentVotingId]);
 
-  const handleAddMovie = () => {
-    router.push('/admin');
+  // Handle MongoDB vote save errors
+  const handleVoteSaveError = async (id: string, vote: 'yes' | 'no') => {
+    try {
+      const response = await fetch('/api/movies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'vote',
+          id,
+          type: vote,
+          userAddress: address
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (errorData.error?.includes('already voted')) {
+          // User already voted, show specific message
+          alert('You have already voted on this movie. Each user can only vote once per movie.');
+          // Refresh user votes to show current state
+          fetchUserVotes();
+        } else {
+          throw new Error(errorData.error || 'Failed to save vote');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save vote to MongoDB:', error);
+      alert('Failed to save your vote. Please try again.');
+    }
   };
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4">
+      <div className="max-w-2xl mx-auto px-4">
         <Header showSearch={true} />
         <div className="flex items-center justify-center mt-20">
           <div className="text-center">
@@ -214,23 +388,21 @@ export default function MoviesPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4">
+    <div className="max-w-2xl mx-auto px-4">
+      {/* Page Header */}
+
       <Header showSearch={true} />
-      
-      {/* Debug Information - Remove this after testing */}
-      {isConnected && (
-        <div className="mb-4 p-3 rounded-lg border border-blue-500/20 bg-blue-500/10">
-          <h3 className="text-blue-400 text-sm font-medium mb-2">Debug Info</h3>
-          <div className="text-xs text-blue-300 space-y-1">
-            <div>Wallet Address: {address?.slice(0, 6)}...{address?.slice(-4)}</div>
-            <div>Current Chain ID: {currentChainId}</div>
-            <div>Network: {currentChainId === 42220 ? 'Celo Mainnet' : currentChainId === 44787 ? 'Celo Alfajores (Testnet)' : isSwitchingNetwork ? 'Switching to Celo...' : `Unknown (${currentChainId})`}</div>
-            <div>Network Switching: {isSwitchingNetwork ? 'Yes' : 'No'}</div>
-            <div>Balance: {celoBalance ? `${formatCELOBalance(celoBalance.value)} CELO` : 'Loading...'}</div>
-            <div>Sufficient for Gas: {celoBalance ? (hasSufficientCELOForGas(celoBalance.value) ? 'Yes' : 'No') : 'Unknown'}</div>
-          </div>
+      <div className="flex items-center mt-10 mb-6">
+        <Button 
+          variant="ghost" 
+          size="sm"
+          onClick={() => router.back()} 
+          className="mr-3 p-2 bg-white hover:bg-white/10"
+        >
+          <ArrowLeft size={18} />
+        </Button>
+        <h1 className="text-xl font-semibold text-white">Vote on Movies</h1>
         </div>
-      )}
       
       {/* Balance and Gas Status */}
       {isConnected && (
@@ -244,13 +416,15 @@ export default function MoviesPage() {
                   ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
                   : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
               }`}>
-                {currentChainId === 42220 ? 'Celo Mainnet' : currentChainId === 44787 ? 'Celo Alfajores (Testnet)' : isSwitchingNetwork ? 'Switching to Celo...' : 'Other Network'}
+                {currentChainId === 42220 ? 'Celo Mainnet' : 
+                 currentChainId === 44787 ? 'Celo Alfajores (Testnet)' :
+                 isSwitchingNetwork ? 'Switching to Celo...' : 'Other Network'}
               </span>
             </div>
           </div>
 
           {/* CELO Balance - Only show if on Celo network */}
-          {(currentChainId === 42220 || currentChainId === 44787) && celoBalance && (
+          {currentChainId === 42220 && celoBalance && (
             <>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -277,7 +451,7 @@ export default function MoviesPage() {
           )}
 
           {/* Warning if not on Celo */}
-          {currentChainId !== 42220 && currentChainId !== 44787 && (
+          {currentChainId !== 42220 && (
             <div className="mt-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-md">
               <p className="text-yellow-400 text-xs">
                 ⚠️ Automatically switching to Celo network... Please wait a moment before voting.
@@ -305,131 +479,137 @@ export default function MoviesPage() {
         </div>
       )}
 
-      {/* Add Movie Button */}
-      <div className="flex items-center justify-between mt-10 mb-6">
-        <div className="flex items-center">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={() => router.back()} 
-            className="mr-3 p-2 bg-white hover:bg-white/10"
-          >
-            <ArrowLeft size={18} />
-          </Button>
-          <h1 className="text-2xl font-semibold text-white">Movies</h1>
-        </div>
-        
-        <Button 
-          onClick={handleAddMovie}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
-        >
-          <Plus size={16} />
-          Add Movie
-        </Button>
-      </div>
-
-      {/* Movies Grid */}
-      {movies.length === 0 ? (
-        <div className="text-center py-20">
-          <div className="text-white/40 text-lg mb-4">No movies yet</div>
-          <Button onClick={handleAddMovie} className="bg-blue-600 hover:bg-blue-700">
-            Add Your First Movie
-          </Button>
-        </div>
-      ) : (
-        <>
-          {/* Movies Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Movies List */}
+      <div className="space-y-6">
             {filteredMovies.map((movie) => (
-              <Card key={movie.id} className="bg-[#18181B] text-white border border-white/10 overflow-hidden hover:border-white/20 transition-colors">
+          <Card key={movie.id} className={`bg-[#18181B] text-white border overflow-hidden cursor-pointer ${
+            votes[movie.id] 
+              ? 'border-green-500/30 bg-green-500/5' 
+              : 'border-white/10'
+          }`} onClick={() => router.push(`/movies/${movie.id}`)}>
                 <CardContent className="p-0">
-                  {/* Movie Poster */}
-                  <div className="w-full h-48 relative bg-neutral-900">
+              <div className="flex flex-col">
+                {/* Movie Poster (portrait) */}
+                <div className="relative aspect-[2/3] w-full bg-neutral-900">
                     {movie.posterUrl ? (
                       <Image
                         src={ensureFullPosterUrl(movie.posterUrl) || ''}
                         alt={movie.title}
                         fill
                         className="object-cover"
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       />
                     ) : (
-                      <div className="flex items-center justify-center h-full text-white/40">
+                      <div className="flex items-center justify-center h-full text-muted-foreground">
                         <span className="text-sm">No Poster</span>
                       </div>
                     )}
                   </div>
                   
-                  {/* Movie Info */}
-                  <div className="p-4">
-                    <CardTitle className="text-lg font-semibold mb-2 line-clamp-2">
+                {/* Movie Info & Voting */}
+                <div className="p-6 flex flex-col justify-between text-left">
+                  <div>
+                    <div className="flex items-start justify-between mb-3">
+                      <CardTitle className="text-lg font-semibold line-clamp-2 flex-1">
                       {movie.title}
                     </CardTitle>
+                      <WatchlistButton movieId={movie.id} size="sm" className="ml-3 flex-shrink-0" />
+                    </div>
                     
-                    <CardDescription className="text-sm text-white/60 mb-3 line-clamp-3">
-                      {movie.description}
+                    <CardDescription className="text-sm text-white/60 mb-4">
+                      <span className="truncate block">{movie.genres && movie.genres.length > 0 ? movie.genres[0] : ''} {movie.releaseYear ? movie.releaseYear : ''}</span>
                     </CardDescription>
                     
-                    <div className="flex items-center justify-between text-xs text-white/40 mb-4">
-                      <span>{movie.releaseYear || 'Unknown Year'}</span>
-                      {movie.genres && movie.genres.length > 0 && (
-                        <span>{movie.genres[0]}</span>
-                      )}
+                    {/* Movie Description */}
+                    <div className="text-sm text-white/70 mb-4 line-clamp-3">
+                      {movie.description || 'No description available'}
                     </div>
                     
-                    {/* Vote Counts */}
-                    <div className="flex items-center justify-between mb-4 text-sm">
-                      <div className="flex items-center gap-1 text-green-400">
-                        <ThumbsUp size={14} />
-                        <span>{movie.votes.yes}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-red-400">
-                        <ThumbsDown size={14} />
-                        <span>{movie.votes.no}</span>
-                      </div>
-                    </div>
-                    
-                    {/* Vote Buttons */}
-                    <div className="flex gap-2">
-                      <Button
-                        variant={votes[movie.id] === 'yes' ? 'default' : 'ghost'}
-                        onClick={() => handleVote(movie.id, 'yes')}
-                        disabled={!isConnected || isPending || !!votes[movie.id]}
-                        className="flex-1 flex items-center justify-center gap-2"
-                        size="sm"
+                    <Link 
+                      href={`/movies/${movie.id}`}
+                      className="inline-block mb-4"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Button 
+                        variant="link" 
+                        size="sm" 
+                        className="p-0 text-left underline text-sm"
                       >
-                        <ThumbsUp size={16} />
-                        Yes
+                        View More Details
                       </Button>
-                      
-                      <Button
-                        variant={votes[movie.id] === 'no' ? 'destructive' : 'ghost'}
-                        onClick={() => handleVote(movie.id, 'no')}
-                        disabled={!isConnected || isPending || !!votes[movie.id]}
-                        className="flex-1 flex items-center justify-center gap-2"
-                        size="sm"
-                      >
-                        <ThumbsDown size={16} />
-                        No
-                      </Button>
-                    </div>
-                    
-                    {/* Status Messages */}
-                    <div className="mt-2 text-center">
-                      {isPending && (
-                        <span className="text-yellow-400 text-xs">Confirming...</span>
-                      )}
-                      {votes[movie.id] && !isPending && (
-                        <span className="text-green-400 text-xs">✓ Voted!</span>
-                      )}
+                    </Link>
+
+                    {/* Vote and Comment Counts Display */}
+                    <div className="flex items-center gap-6 text-sm text-muted-foreground mb-4">
+                      <span className="flex items-center gap-2 min-w-0">
+                        <ThumbsUp size={16} className="flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">Yes: {movie.votes.yes}</span>
+                      </span>
+                      <span className="flex items-center gap-2 min-w-0">
+                        <ThumbsDown size={16} className="flex-shrink-0" />
+                        <span className="font-medium whitespace-nowrap">No: {movie.votes.no}</span>
+                      </span>
+                      <span className="flex items-center gap-2 min-w-0 border-l border-white/10 pl-6">
+                        <span className="font-medium whitespace-nowrap">💬 {movie.commentCount || 0}</span>
+                      </span>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                    
+                    {/* Vote Buttons */}
+                  <div className="flex items-center gap-4">
+                    <Button
+                      variant={votes[movie.id] === 'yes' ? 'default' : 'outline'}
+                      onClick={(e) => { e.stopPropagation(); handleVote(movie.id, 'yes'); }}
+                      disabled={!isConnected || isPending || !!votes[movie.id]}
+                      className={"flex items-center gap-2 px-6 py-3"}
+                      size="default"
+                    >
+                      <div className={`relative ${votes[movie.id] === 'yes' ? 'animate-pulse' : ''}`}>
+                        <ThumbsUp size={18} />
+                        {votes[movie.id] === 'yes' && (
+                          <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium">
+                        {votes[movie.id] === 'yes' ? 'Voted Yes' : 'Yes'}
+                      </span>
+                    </Button>
+                    
+                    <Button
+                      variant={votes[movie.id] === 'no' ? 'default' : 'outline'}
+                      onClick={(e) => { e.stopPropagation(); handleVote(movie.id, 'no'); }}
+                      disabled={!isConnected || isPending || !!votes[movie.id]}
+                      className={"flex items-center gap-2 px-6 py-3"}
+                      size="default"
+                    >
+                      <div className={`relative ${votes[movie.id] === 'no' ? 'animate-pulse' : ''}`}>
+                        <ThumbsDown size={18} />
+                        {votes[movie.id] === 'no' && (
+                          <div className="absolute inset-0 bg-ring/20 rounded-full blur-sm scale-150"></div>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium">
+                        {votes[movie.id] === 'no' ? 'Voted No' : 'No'}
+                      </span>
+                    </Button>
+                     
+                     {/* Status Messages */}
+                     <div className="flex-1 text-right">
+                       {isPending && currentVotingId === movie.id && (
+                         <span className="text-yellow-400 text-sm">Confirming...</span>
+                       )}
+                       {voteAttempts[movie.id]?.show && (
+                         <span className="text-yellow-400 text-sm">
+                           You've already voted on this movie
+                         </span>
+                       )}
+                     </div>
+                   </div>
+                 </div>
+               </div>
+             </CardContent>
+           </Card>
             ))}
           </div>
-        </>
-      )}
     </div>
   );
 }

@@ -38,9 +38,11 @@ export async function POST(request: NextRequest) {
       isTVShow: mediaType === "tv"
     }));
 
-    // Persist in Mongo
+    // Persist in Mongo and collect titles
+    const importedTitles: string[] = [];
     for (const item of newContent) {
       await saveMovie(item);
+      if (item.title) importedTitles.push(item.title);
     }
 
     const mediaTypeLabel = mediaType === "tv" ? "TV shows" : "movies";
@@ -48,6 +50,7 @@ export async function POST(request: NextRequest) {
       success: true, 
       imported: newContent.length,
       mediaType: mediaType,
+      titles: importedTitles,
       message: `Successfully imported ${newContent.length} ${mediaTypeLabel}`
     });
   } catch (error) {

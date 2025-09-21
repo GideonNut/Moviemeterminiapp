@@ -9,6 +9,7 @@ import { Input } from "~/components/ui/input";
 import { Button } from "~/components/ui/Button";
 import { Home, Film, Tv, Gift } from "lucide-react";
 import trailersData from "../data/trailers.json";
+import { truncateAddress } from "~/lib/truncateAddress";
 import {
   Carousel,
   CarouselContent,
@@ -16,34 +17,122 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from "~/components/ui/carousel";
-import  Header  from "~/components/Header";
+import Header from "~/components/Header";
+import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
+import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance, useWalletClient } from "wagmi";
+import { encodeFunctionData } from "viem";
+import { getDataSuffix, submitReferral } from "@divvi/referral-sdk";
+
+interface Movie {
+  id: string;
+  _id?: string;
+  title: string;
+  description: string;
+  posterUrl?: string;
+  releaseYear?: string;
+  genres?: string[];
+  votes: {
+    yes: number;
+    no: number;
+  };
+  isTVShow?: boolean;
+}
 
 export default function DiscoverPage() {
   const [isVoting, setIsVoting] = useState(false);
   const [votingMovies, setVotingMovies] = useState<Set<string>>(new Set());
-  const [isConnected, setIsConnected] = useState(false);
-  const [movies, setMovies] = useState([]);
+  const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [currentVotingId, setCurrentVotingId] = useState<string | null>(null);
+  const [currentVoteType, setCurrentVoteType] = useState<'yes' | 'no' | null>(null);
+  const [votes, setVotes] = useState<{ [id: string]: 'yes' | 'no' | null }>({});
+  const [referralTag, setReferralTag] = useState<string | null>(null);
+  
   // Add state for trailers
   type Trailer = { id: string; title: string; genre: string; year: string; youtubeId: string };
   const [trailers, setTrailers] = useState<Trailer[]>([]);
   // Add state for modal
   const [openTrailer, setOpenTrailer] = useState<null | { title: string; youtubeId: string }>(null);
+  // Add state for comments
+  const [comments, setComments] = useState([]);
 
+  // Wagmi hooks for blockchain interaction
+  const { address, isConnected: wagmiConnected } = useAccount();
+  const currentChainId = useChainId();
+  const { switchChainAsync } = useSwitchChain();
+  const { data: walletClient } = useWalletClient();
+  
+  // Use the proper Wagmi hook for smart contract interactions
+  const { 
+    data: hash, 
+    isPending,
+    writeContract,
+    error
+  } = useWriteContract();
+
+  // Get CELO balance for gas fees
+  const { data: celoBalance } = useBalance({
+    address,
+    chainId: 42220,
+  });
+
+  // Auto-switch to Celo when wallet connects
+  const [isSwitchingNetwork, setIsSwitchingNetwork] = useState(false);
+  
   useEffect(() => {
-    const checkConnection = async () => {
-      try {
-        // Allow voting on homepage for demo purposes
-        const connected = true;
-        setIsConnected(connected);
-      } catch (error) {
-        console.error('Error checking connection:', error);
-        setIsConnected(false);
-      }
-    };
-    checkConnection();
+    if (wagmiConnected && currentChainId !== 42220 && currentChainId !== 44787) {
+      setIsSwitchingNetwork(true);
+      // Try mainnet first for production use
+      switchChainAsync({ chainId: 42220 })
+        .then(() => {
+          setIsSwitchingNetwork(false);
+        })
+        .catch((err) => {
+          console.error('Failed to switch to Celo mainnet, trying testnet:', err);
+          // Fallback to testnet if mainnet fails
+          return switchChainAsync({ chainId: 44787 });
+        })
+        .then(() => {
+          setIsSwitchingNetwork(false);
+        })
+        .catch((err) => {
+          console.error('Failed to switch to Celo:', err);
+          setIsSwitchingNetwork(false);
+        });
+    }
+  }, [wagmiConnected, currentChainId, switchChainAsync]);
+
+  // Fetch latest comments
+  useEffect(() => {
+    fetch("/api/comments/latest")
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.comments)) {
+          setComments(data.comments);
+        }
+      })
+      .catch(error => {
+        console.error("Error fetching comments:", error);
+      });
   }, []);
+
+  // Derive connection directly from wagmi
+
+  // Prepare Divvi referral tag once wallet is connected
+  useEffect(() => {
+    if (wagmiConnected && address) {
+      try {
+        const tag = getDataSuffix({ consumer: '0xc49b8e093600f684b69ed6ba1e36b7dfad42f982' });
+        setReferralTag(tag);
+      } catch (e) {
+        console.error('Failed to create Divvi referral tag:', e);
+        setReferralTag(null);
+      }
+    } else {
+      setReferralTag(null);
+    }
+  }, [wagmiConnected, address]);
 
   useEffect(() => {
     const fetchMovies = async () => {
@@ -68,33 +157,244 @@ export default function DiscoverPage() {
     setTrailers(trailersData);
   }, []);
 
+  // Fetch user's previous votes from MongoDB
+  const fetchUserVotes = async () => {
+    if (!wagmiConnected || !address) return;
+    
+    try {
+      const response = await fetch('/api/movies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'getUserVotes',
+          userAddress: address
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setVotes(data.userVotes || {});
+      }
+    } catch (error) {
+      console.error('Error fetching user votes:', error);
+    }
+  };
+
+  // Fetch user votes when wallet connects
+  useEffect(() => {
+    if (wagmiConnected && address) {
+      fetchUserVotes();
+    }
+  }, [wagmiConnected, address]);
+
+  // Handle transaction state changes
+  useEffect(() => {
+    if (hash && currentVotingId) {
+      // Transaction was sent successfully
+      console.log('Transaction hash:', hash);
+      
+      // Save vote to MongoDB
+      if (address && currentVotingId && currentVoteType) {
+        fetch('/api/movies', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'vote',
+            id: currentVotingId,
+            type: currentVoteType,
+            userAddress: address
+          })
+        }).then(response => {
+          if (!response.ok) {
+            return response.json().then(errorData => {
+              throw new Error(errorData.error || 'Failed to save vote');
+            });
+          }
+        }).catch(error => {
+          console.error('Failed to save vote to MongoDB:', error);
+        });
+      }
+      
+      // Clear the current voting ID and vote type
+      setCurrentVotingId(null);
+      setCurrentVoteType(null);
+      
+      // Refresh movies to get updated vote counts
+      setTimeout(() => {
+        fetch("/api/movies").then(res => res.json()).then(data => {
+          if (data.success && Array.isArray(data.movies)) {
+            setMovies(data.movies);
+          }
+        });
+      }, 1000);
+    }
+  }, [hash, currentVotingId, currentVoteType, address]);
+
+  // Handle errors from the contract
+  useEffect(() => {
+    if (error && currentVotingId) {
+      console.error('Contract error:', error);
+      
+      // Revert the vote if the contract call failed
+      setVotes((prev) => ({ ...prev, [currentVotingId]: null }));
+      
+      // Clear the current voting ID
+      setCurrentVotingId(null);
+      setCurrentVoteType(null);
+      
+      // Provide specific error messages based on the error
+      let errorMessage = 'Transaction failed';
+      if (error.message?.includes('insufficient funds') || error.message?.includes('insufficient balance')) {
+        errorMessage = 'Insufficient CELO for gas fees. Please ensure you have enough CELO to cover transaction costs.';
+      } else if (error.message?.includes('user rejected')) {
+        errorMessage = 'Transaction was cancelled';
+      } else if (error.message?.includes('execution reverted')) {
+        errorMessage = 'Smart contract execution failed. This could mean:\n\n1. The movie ID does not exist on the contract\n2. The contract has an error\n3. You have already voted on this movie\n\nPlease check if the movie exists on the contract first.';
+      } else if (error.message?.includes('gas')) {
+        errorMessage = 'Gas estimation failed. Please try again.';
+      }
+      
+      alert(errorMessage);
+    }
+  }, [error, currentVotingId]);
+
   const handleVote = async (movieId: string, vote: 'yes' | 'no') => {
     console.log('Main page: handleVote called with:', movieId, vote);
     
+    if (votes[movieId]) {
+      alert('You have already voted on this movie.');
+      return;
+    }
+    
+    if (!wagmiConnected || !address) {
+      alert('Please connect your wallet to vote');
+      return;
+    }
+    
+    // Check if we're on a Celo network
+    if (currentChainId !== 42220 && currentChainId !== 44787) {
+      alert('Please switch to a Celo network (testnet or mainnet) before voting.');
+      return;
+    }
+    
     // Set individual movie voting state
     setVotingMovies(prev => new Set(prev).add(movieId));
+    setCurrentVotingId(movieId);
+    setCurrentVoteType(vote);
     
+    // Set the vote immediately to prevent double-clicking
+    setVotes(prev => ({ ...prev, [movieId]: vote }));
+
     try {
-      const res = await fetch("/api/movies", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "vote", id: movieId, type: vote, userAddress: "demo-user" })
+      const movieIdBigInt = BigInt(parseInt(movieId, 10));
+      const calldata = encodeFunctionData({
+        abi: VOTE_CONTRACT_ABI,
+        functionName: 'vote',
+        args: [movieIdBigInt, vote === 'yes']
       });
-      const data = await res.json();
-      console.log('Main page: Vote API response:', data);
+      const dataWithTag = referralTag ? (calldata + referralTag.slice(2)) : calldata;
+      
+      if (!walletClient) throw new Error('Wallet client unavailable');
+      
+      const txHash = await walletClient.sendTransaction({
+        account: address,
+        to: VOTE_CONTRACT_ADDRESS,
+        data: dataWithTag as `0x${string}`,
+        value: 0n
+      });
+
+      // Submit referral to Divvi
+      const chainId = await walletClient.getChainId();
+      await submitReferral({ txHash, chainId }).catch((e) => {
+        console.error('Divvi submitReferral failed:', e);
+      });
+
+      // Update MongoDB and get updated vote counts
+      const response = await fetch('/api/movies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'vote',
+          id: movieId,
+          type: vote,
+          userAddress: address
+        })
+      });
+
+      const data = await response.json();
       
       if (data.success) {
-        // Refresh movies after voting
-        const res = await fetch("/api/movies");
-        const updated = await res.json();
-        if (updated.success && Array.isArray(updated.movies)) {
-          setMovies(updated.movies);
+        // Update UI with the real vote counts from the server
+        setMovies(prevMovies => 
+          prevMovies.map(movie => {
+            if (movie.id === movieId || movie._id === movieId) {
+              return {
+                ...movie,
+                votes: data.updatedVotes || {
+                  yes: movie.votes.yes + (vote === 'yes' ? 1 : 0),
+                  no: movie.votes.no + (vote === 'no' ? 1 : 0)
+                }
+              };
+            }
+            return movie;
+          })
+        );
+
+        // Refresh movies after a short delay to get the latest counts
+        setTimeout(() => {
+          fetch("/api/movies")
+            .then(res => res.json())
+            .then(data => {
+              if (data.success && Array.isArray(data.movies)) {
+                setMovies(data.movies);
+              }
+            })
+            .catch(error => {
+              console.error('Failed to refresh movies:', error);
+            });
+        }, 1000);
+      } else {
+        throw new Error('Failed to update vote in MongoDB');
+      }
+
+    } catch (err) {
+      console.error('Vote error:', err);
+      
+      // Revert optimistic update if the transaction failed
+      setMovies(prevMovies => 
+        prevMovies.map(movie => {
+          if (movie.id === movieId || movie._id === movieId) {
+            return {
+              ...movie,
+              votes: {
+                yes: movie.votes.yes - (vote === 'yes' ? 1 : 0),
+                no: movie.votes.no - (vote === 'no' ? 1 : 0)
+              }
+            };
+          }
+          return movie;
+        })
+      );
+      
+      // Clear the vote
+      setVotes(prev => ({ ...prev, [movieId]: null }));
+      
+      let errorMessage = 'Transaction failed';
+      if (err instanceof Error) {
+        if (err.message?.includes('insufficient funds')) {
+          errorMessage = 'Insufficient CELO for gas fees';
+        } else if (err.message?.includes('user rejected')) {
+          errorMessage = 'Transaction was cancelled';
+        } else if (err.message?.includes('execution reverted')) {
+          errorMessage = 'Smart contract execution failed. This could mean:\n\n1. The movie ID does not exist on the contract\n2. The contract has an error\n3. You have already voted on this movie';
+        } else if (err.message?.includes('gas')) {
+          errorMessage = 'Gas estimation failed. Please try again.';
         }
       }
-    } catch (error) {
-      console.error('Error voting:', error);
+      alert(errorMessage);
     } finally {
-      // Clear individual movie voting state
+      setCurrentVotingId(null);
+      setCurrentVoteType(null);
       setVotingMovies(prev => {
         const newSet = new Set(prev);
         newSet.delete(movieId);
@@ -123,6 +423,64 @@ export default function DiscoverPage() {
 
       {/* Main Content */}
       <main className="pt-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        {/* Recently Added Movies */}
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold text-white mb-3">Recently Added Movies</h2>
+          <div className="relative">
+            <Carousel className="w-full">
+              <CarouselContent className="-ml-2 md:-ml-4">
+                {loading ? (
+                  <div className="text-center text-white w-full text-sm py-8">Loading movies...</div>
+                ) : filteredMovies.length === 0 ? (
+                  <div className="text-center text-white w-full text-sm py-8">No movies found.</div>
+                ) : (
+                  filteredMovies.slice(0, 4).map((movie: any) => (
+                    <CarouselItem key={movie.id || movie._id} className="pl-2 md:pl-4 basis-[280px] md:basis-[320px] lg:basis-[360px]">
+                      <div className="flex justify-center">
+                        <CompactMovieCard
+                          movie={movie}
+                          onVote={(vote) => {
+                            console.log('CompactMovieCard onVote callback called with:', vote);
+                            handleVote(movie.id || movie._id, vote ? 'yes' : 'no');
+                          }}
+                          isVoting={currentVotingId === (movie.id || movie._id) || isPending}
+                          isConnected={wagmiConnected}
+                          userVotes={votes}
+                        />
+                      </div>
+                    </CarouselItem>
+                  ))
+                )}
+              </CarouselContent>
+              <CarouselPrevious className="flex -left-4" />
+              <CarouselNext className="flex -right-4" />
+            </Carousel>
+          </div>
+        </section>
+
+        {/* Trending Movies & TV Shows */}
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold text-white mb-3">Trending Movies & TV Shows</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+            {loading ? (
+              <div className="col-span-4 text-center text-white text-sm py-8">Loading movies...</div>
+            ) : filteredMovies.length === 0 ? (
+              <div className="col-span-4 text-center text-white text-sm py-8">No movies found.</div>
+            ) : (
+              filteredMovies.slice(4, 8).map((movie: any) => (
+                <MovieCard
+                  key={movie.id || movie._id}
+                  movie={movie}
+                  onVote={(vote) => handleVote(movie.id || movie._id, vote ? 'yes' : 'no')}
+                  isVoting={currentVotingId === (movie.id || movie._id) || isPending}
+                  isConnected={wagmiConnected}
+                  userVotes={votes}
+                />
+              ))
+            )}
+          </div>
+        </section>
+
         {/* Newest Trailers */}
         <section className="mb-8">
           <h2 className="text-xl font-semibold text-white mb-3">Newest Trailers</h2>
@@ -196,89 +554,52 @@ export default function DiscoverPage() {
         )}
       </section>
 
-      {/* Recently Added Movies */}
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-white mb-3">Recently Added Movies</h2>
-        <div className="relative">
-          <Carousel className="w-full">
-            <CarouselContent className="-ml-2 md:-ml-4">
-              {loading ? (
-                <div className="text-center text-white w-full text-sm py-8">Loading movies...</div>
-              ) : filteredMovies.length === 0 ? (
-                <div className="text-center text-white w-full text-sm py-8">No movies found.</div>
-              ) : (
-                filteredMovies.slice(4, 8).map((movie: any) => (
-                  <CarouselItem key={movie.id || movie._id} className="pl-2 md:pl-4 basis-[280px] md:basis-[320px] lg:basis-[360px]">
-                    <div className="flex justify-center">
-                      <CompactMovieCard
-                        movie={movie}
-                        onVote={(vote) => {
-                          console.log('CompactMovieCard onVote callback called with:', vote);
-                          handleVote(movie.id || movie._id, vote ? 'yes' : 'no');
-                        }}
-                        isVoting={votingMovies.has(movie.id || movie._id)}
-                        isConnected={isConnected}
-                      />
-                    </div>
-                  </CarouselItem>
-                ))
-              )}
-            </CarouselContent>
-            <CarouselPrevious className="flex -left-4" />
-            <CarouselNext className="flex -right-4" />
-          </Carousel>
-        </div>
-      </section>
-
       {/* Newest Reviews */}
       <section className="mb-8">
         <h2 className="text-xl font-semibold text-white mb-3">Newest Reviews</h2>
-        <div className="flex justify-center items-center min-h-[80px]">
-          <span className="text-white/60 text-sm">There are no reviews at this time.</span>
-        </div>
-      </section>
-
-      {/* Trending Celebrities */}
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-white mb-3">Trending Celebrities</h2>
-        <div className="flex justify-center items-center min-h-[80px]">
-          <span className="text-white/60 text-sm">There are no trending celebrities at this time.</span>
-        </div>
-      </section>
-
-      {/* Trending On Demand */}
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-white mb-3">Trending On Demand</h2>
-        <div className="flex justify-center items-center min-h-[80px]">
-          <span className="text-white/60 text-sm">There are no trending on demand items at this time.</span>
-        </div>
-      </section>
-
-      {/* Trending Movies & TV Shows */}
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-white mb-3">Trending Movies & TV Shows</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {loading ? (
-            <div className="col-span-4 text-center text-white text-sm py-8">Loading movies...</div>
-          ) : filteredMovies.length === 0 ? (
-            <div className="col-span-4 text-center text-white text-sm py-8">No movies found.</div>
+            <div className="col-span-full text-center text-white text-sm py-8">Loading reviews...</div>
+          ) : !comments || comments.length === 0 ? (
+            <div className="col-span-full flex justify-center items-center min-h-[80px]">
+              <span className="text-white/60 text-sm">There are no reviews at this time.</span>
+            </div>
           ) : (
-            filteredMovies.slice(8, 12).map((movie: any) => (
-              <MovieCard
-                key={movie.id || movie._id}
-                movie={movie}
-                onVote={(vote) => handleVote(movie.id || movie._id, vote ? 'yes' : 'no')}
-                isVoting={votingMovies.has(movie.id || movie._id)}
-                isConnected={isConnected}
-              />
+            comments.map((comment: any) => (
+              <div key={comment.id} className="bg-[#18181B] rounded-lg p-4 shadow-lg">
+                <div className="flex items-start space-x-3">
+                  {comment.moviePoster && (
+                    <div className="flex-shrink-0">
+                      <img 
+                        src={comment.moviePoster} 
+                        alt={comment.movieTitle}
+                        className="w-12 h-16 object-cover rounded"
+                      />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white truncate">
+                      {comment.movieTitle}
+                    </p>
+                    <p className="text-xs text-white/60 mb-2">
+                      {new Date(comment.createdAt).toLocaleDateString()}
+                    </p>
+                    <p className="text-sm text-white/90 line-clamp-3">
+                      {comment.content}
+                    </p>
+                    <div className="flex items-center mt-2 text-xs text-white/60">
+                      <span>by {truncateAddress(comment.address)}</span>
+                      <span className="mx-2">•</span>
+                      <span>{comment.likes} likes</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             ))
           )}
         </div>
       </section>
     </main>
-
-    {/* Bottom Navigation */}
-  
   </div>
   );
 }

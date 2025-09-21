@@ -1,17 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { addComment, getMovieComments, likeComment, addReply } from '~/lib/mongo';
+import { addComment, getMovieComments, likeComment, addReply, addCommentPoints, Comment } from '~/lib/mongo';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const movieId = searchParams.get('movieId');
 
-    if (!movieId) {
-      return NextResponse.json({ error: 'Movie ID is required' }, { status: 400 });
+    if (movieId) {
+      // If movieId is provided, return comments for that specific movie
+      const comments = await getMovieComments(movieId);
+      return NextResponse.json(comments);
     }
+    
+    // If no movieId is provided, return latest comments across all movies
+    const latestComments = await Comment.aggregate([
+      {
+        $lookup: {
+          from: 'movies',
+          localField: 'movieId',
+          foreignField: '_id',
+          as: 'movie'
+        }
+      },
+      { $unwind: '$movie' },
+      { $sort: { createdAt: -1 } },
+      { $limit: 5 },
+      {
+        $project: {
+          id: '$_id',
+          content: 1,
+          address: 1,
+          movieTitle: '$movie.title',
+          moviePoster: '$movie.posterUrl',
+          createdAt: 1,
+          likesCount: { $size: { $ifNull: ['$likes', []] } }
+        }
+      }
+    ]);
 
-    const comments = await getMovieComments(movieId);
-    return NextResponse.json(comments);
+    return NextResponse.json({ 
+      success: true, 
+      comments: latestComments
+    });
   } catch (error) {
     console.error('Error in comments GET:', error);
     return NextResponse.json(
@@ -49,6 +79,8 @@ export async function POST(request: NextRequest) {
         }
 
         const comment = await addComment(movieId, address, content);
+        // Award 2 points for commenting
+        await addCommentPoints(address);
         return NextResponse.json(comment);
 
       case 'like':

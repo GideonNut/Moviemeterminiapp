@@ -77,7 +77,7 @@ export default function SearchBar({
   };
 
   return (
-    <div className="relative w-full max-w-md mx-auto" ref={searchRef}>
+    <div data-slot="searchbar" className="relative w-full max-w-md mx-auto" ref={searchRef}>
       <Input
         type="text"
         placeholder={placeholder}
@@ -89,11 +89,11 @@ export default function SearchBar({
       
       {/* Search Results Dropdown */}
       {showResults && searchResults.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-[#18181B] border border-white/20 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto search-results-dropdown">
+        <div data-slot="searchbar-results" className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-sm z-50 max-h-80 overflow-y-auto search-results-dropdown">
           {searchResults.map((movie) => (
             <div
               key={movie.id || movie._id}
-              className="p-3 hover:bg-white/5 cursor-pointer border-b border-white/10 last:border-b-0 transition-colors duration-150"
+              className="p-3 hover:bg-accent cursor-pointer border-b border-border/60 last:border-b-0 transition-colors duration-150"
               onClick={() => handleMovieClick(movie)}
             >
               <div className="flex items-center space-x-3">
@@ -112,16 +112,16 @@ export default function SearchBar({
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <CardTitle className="text-white text-sm font-medium truncate">
+                  <CardTitle className="text-foreground text-sm font-medium truncate">
                     {movie.title}
                   </CardTitle>
                   {movie.genres && movie.genres.length > 0 && (
-                    <p className="text-white/60 text-xs mt-1">
+                    <p className="text-muted-foreground text-xs mt-1">
                       {movie.genres.slice(0, 2).join(', ')}
                     </p>
                   )}
                   {movie.description && (
-                    <p className="text-white/40 text-xs mt-1 line-clamp-2">
+                    <p className="text-muted-foreground/80 text-xs mt-1 line-clamp-2">
                       {movie.description}
                     </p>
                   )}
@@ -134,8 +134,8 @@ export default function SearchBar({
       
       {/* No Results Message */}
       {showResults && search.trim() !== "" && searchResults.length === 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-[#18181B] border border-white/20 rounded-lg shadow-lg z-50 p-3 search-results-dropdown">
-          <p className="text-white/60 text-sm text-center">No movies found for "{search}"</p>
+        <div data-slot="searchbar-empty" className="absolute top-full left-0 right-0 mt-1 bg-popover border border-border rounded-md shadow-sm z-50 p-3 search-results-dropdown">
+          <p className="text-muted-foreground text-sm text-center">No movies found for "{search}"</p>
         </div>
       )}
     </div>

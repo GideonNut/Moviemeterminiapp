@@ -6,7 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Header from "~/components/Header";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Eye, EyeOff, RefreshCw, Heart } from "lucide-react";
+import { ArrowLeft, Bell, BellOff, RefreshCw, Heart } from "lucide-react";
 import { useAccount } from "wagmi";
 import { ensureFullPosterUrl } from "~/lib/utils";
 
@@ -80,25 +80,26 @@ export default function WatchlistPage() {
   if (!isConnected) {
     return (
       <div className="max-w-2xl mx-auto px-4">
+        <Header showSearch={true} />
         <div className="flex items-center mb-6 mt-5">
           <Button 
-            variant="default" 
+            variant="ghost" 
             size="sm"
             onClick={() => router.back()} 
-            className="mr-3 p-2 hover:bg-white/10"
+            className="mr-3 p-2"
           >
             <ArrowLeft size={18} />
           </Button>
-          <h1 className="text-xl font-semibold text-white">My Watchlist</h1>
+          <h1 className="text-xl font-semibold text-foreground">My Watchlist</h1>
         </div>
 
-        <Card className="bg-[#18181B] border-white/10">
+        <Card className="bg-card border-border" data-slot="watchlist-empty-auth">
           <CardContent className="p-8 text-center">
-            <Eye size={48} className="text-white/40 mx-auto mb-4" />
-            <CardTitle className="text-base font-medium mb-2 text-white">
+            <Bell size={48} className="text-muted-foreground mx-auto mb-4" />
+            <CardTitle className="text-base font-medium mb-2 text-foreground">
               Connect to View Watchlist
             </CardTitle>
-            <CardDescription className="text-sm text-white/60">
+            <CardDescription className="text-sm text-muted-foreground">
               Connect your wallet to see your saved movies
             </CardDescription>
           </CardContent>
@@ -112,20 +113,20 @@ export default function WatchlistPage() {
       <div className="max-w-2xl mx-auto px-4">
         <div className="flex items-center mb-6 mt-5">
           <Button 
-            variant="default" 
+            variant="ghost" 
             size="sm"
             onClick={() => router.back()} 
-            className="mr-3 p-2 hover:bg-white/10"
+            className="mr-3 p-2"
           >
             <ArrowLeft size={18} />
           </Button>
-          <h1 className="text-xl font-semibold text-white">My Watchlist</h1>
+          <h1 className="text-xl font-semibold text-foreground">My Watchlist</h1>
         </div>
 
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
-            <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-white/60" />
-            <p className="text-white/60">Loading your watchlist...</p>
+            <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">Loading your watchlist...</p>
           </div>
         </div>
       </div>
@@ -137,21 +138,21 @@ export default function WatchlistPage() {
       <Header showSearch={true} />
       <div className="flex items-center mb-6 mt-15">
         <Button 
-          variant="default" 
+          variant="ghost" 
           size="sm"
           onClick={() => router.back()} 
-          className="mr-3 p-2 hover:bg-white/10"
+          className="mr-3 p-2"
         >
           <ArrowLeft size={18} />
         </Button>
-        <h1 className="text-xl font-semibold text-white">My Watchlist</h1>
+        <h1 className="text-xl font-semibold text-foreground">My Watchlist</h1>
       </div>
 
       {/* Watchlist Count */}
-      <div className="mb-6 p-4 rounded-lg border border-white/10 bg-[#18181B]">
+      <div className="mb-6 p-4 rounded-lg border border-border bg-card" data-slot="watchlist-stats">
         <div className="flex items-center gap-2">
-          <Heart size={20} className="text-purple-400" />
-          <span className="text-white font-medium">
+          <Heart size={20} className="text-accent-foreground" />
+          <span className="text-foreground font-medium">
             {watchlist.length} movie{watchlist.length !== 1 ? 's' : ''} in your watchlist
           </span>
         </div>
@@ -159,16 +160,16 @@ export default function WatchlistPage() {
 
       {/* Watchlist */}
       {watchlist.length === 0 ? (
-        <Card className="bg-[#18181B] border-white/10">
+        <Card className="bg-card border-border" data-slot="watchlist-empty">
           <CardContent className="p-8 text-center">
-            <Eye size={48} className="text-white/40 mx-auto mb-4" />
-            <CardTitle className="text-base font-medium mb-2 text-white">
+            <Bell size={48} className="text-muted-foreground mx-auto mb-4" />
+            <CardTitle className="text-base font-medium mb-2 text-foreground">
               Your watchlist is empty
             </CardTitle>
-            <CardDescription className="text-sm text-white/60 mb-4">
-              Add movies to your watchlist by clicking the eye icon on any movie card
+            <CardDescription className="text-sm text-muted-foreground mb-4">
+              Add movies to your watchlist by clicking the bell icon on any movie card
             </CardDescription>
-            <Link href="/vote-movies">
+            <Link href="/movies">
               <Button variant="outline" size="sm">
                 Browse Movies
               </Button>
@@ -178,7 +179,7 @@ export default function WatchlistPage() {
       ) : (
         <div className="space-y-4">
           {watchlist.map((movie) => (
-            <Card key={movie.id} className="bg-[#18181B] text-white border border-white/10 overflow-hidden">
+            <Card key={movie.id} className="bg-card text-foreground border border-border overflow-hidden" data-slot="watchlist-item">
               <CardContent className="p-0">
                 <div className="flex">
                   {/* Movie Poster */}
@@ -199,17 +200,17 @@ export default function WatchlistPage() {
                   </div>
                   
                   {/* Movie Info */}
-                  <div className="flex-1 p-4 flex flex-col justify-between">
+                  <div className="flex-1 p-4 flex flex-col justify-between text-left">
                     <div>
                       <CardTitle className="text-base font-semibold mb-1 line-clamp-2">
                         {movie.title}
                       </CardTitle>
-                      <CardDescription className="text-sm text-white/60 mb-3">
-                        {movie.genres && movie.genres.length > 0 ? movie.genres[0] : 'Unknown'} • {movie.releaseYear || 'Unknown Year'}
+                      <CardDescription className="text-sm text-muted-foreground mb-3">
+                        <span className="truncate block">{movie.genres && movie.genres.length > 0 ? movie.genres[0] : 'Unknown'} {movie.releaseYear || 'Unknown Year'}</span>
                       </CardDescription>
 
                       {/* Movie Description */}
-                      <div className="text-sm text-white/60 mb-3 line-clamp-2">
+                      <div className="text-sm text-muted-foreground mb-3 line-clamp-2">
                         {movie.description || 'No description available'}
                       </div>
                     </div>
@@ -218,26 +219,26 @@ export default function WatchlistPage() {
                     <div className="flex items-center gap-3">
                       <Link href={`/movies/${movie.id}`} className="flex-1">
                         <Button 
-                          variant="default" 
+                          variant="outline" 
                           size="sm" 
-                          className="w-full text-xs bg-white text-gray-700 border-white/20 hover:border-white/40 hover:bg-white/5"
+                          className="w-full text-xs"
                         >
                           View Details
                         </Button>
                       </Link>
                       
                       <Button
-                        variant="default"
+                        variant="outline"
                         size="sm"
                         onClick={() => removeFromWatchlist(movie.id)}
                         disabled={removing === movie.id}
-                        className="p-2 hover:bg-red-500/20 hover:text-red-400"
+                        className="p-2"
                         title="Remove from watchlist"
                       >
                         {removing === movie.id ? (
                           <RefreshCw size={16} className="animate-spin" />
                         ) : (
-                          <EyeOff size={16} />
+                          <BellOff size={16} />
                         )}
                       </Button>
                     </div>

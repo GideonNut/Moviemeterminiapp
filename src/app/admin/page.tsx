@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "~/components/ui/Button";
+import ScrollToTop from "~/components/ScrollToTop";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -15,7 +16,35 @@ export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [importStatus, setImportStatus] = useState<string>("");
   const [isImporting, setIsImporting] = useState(false);
+  const [isRetracting, setIsRetracting] = useState(false);
   const [contentCounts, setContentCounts] = useState({ movies: 0, tvShows: 0 });
+
+  const handleRetract = async () => {
+    if (!confirm("Are you sure you want to retract all movies imported in the last 48 hours?")) {
+      return;
+    }
+    
+    setIsRetracting(true);
+    try {
+      const response = await fetch("/api/movies/retract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setMessage(`Successfully retracted ${data.deletedCount} recently imported movies`);
+        router.refresh();
+      } else {
+        setMessage("Error retracting movies: " + (data.error || "Unknown error"));
+      }
+    } catch (error) {
+      console.error('Error retracting movies:', error);
+      setMessage("Error retracting movies. Please try again.");
+    } finally {
+      setIsRetracting(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,6 +84,30 @@ export default function AdminPage() {
         setIsTVShow(false);
         // Refresh the movies list
         router.refresh();
+
+        // Prompt to add to contract via Thirdweb (movies only)
+        if (!isTVShow) {
+          const confirmChainAdd = confirm("Add this movie on-chain via Thirdweb now? You will use your configured relayer.");
+          if (confirmChainAdd) {
+            try {
+              const thirdwebRes = await fetch("/api/thirdweb", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "addMovie", title })
+              });
+              const thirdwebData = await thirdwebRes.json();
+              if (!thirdwebRes.ok || !thirdwebData.success) {
+                const errMsg = thirdwebData?.error || "Thirdweb add failed";
+                alert(`On-chain add failed: ${errMsg}`);
+              } else {
+                alert("On-chain add submitted via Thirdweb.");
+              }
+            } catch (err) {
+              console.error("Thirdweb add error:", err);
+              alert("Failed to call Thirdweb API.");
+            }
+          }
+        }
       } else {
         setMessage("Error: " + (data.error || "Failed to add movie"));
       }
@@ -81,6 +134,27 @@ export default function AdminPage() {
       
       if (result.success) {
         setImportStatus(`✅ Successfully imported ${result.imported} trending movies!`);
+        if (result.titles && Array.isArray(result.titles) && result.titles.length > 0) {
+          const doOnChain = confirm(`Add ${result.titles.length} imported movies on-chain via Thirdweb now?`);
+          if (doOnChain) {
+            try {
+              const thirdwebRes = await fetch('/api/thirdweb', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'addMovies', titles: result.titles })
+              });
+              const twData = await thirdwebRes.json();
+              if (!thirdwebRes.ok || !twData.success) {
+                alert(`Thirdweb batch add failed: ${twData?.error || 'Unknown error'}`);
+              } else {
+                alert('Batch on-chain add submitted via Thirdweb.');
+              }
+            } catch (e) {
+              console.error('Thirdweb batch add error:', e);
+              alert('Failed to call Thirdweb batch API.');
+            }
+          }
+        }
       } else {
         setImportStatus(`❌ Import failed: ${result.error}`);
       }
@@ -133,6 +207,27 @@ export default function AdminPage() {
       
       if (result.success) {
         setImportStatus(`✅ Successfully imported ${result.imported} movies for "${query}"!`);
+        if (result.titles && Array.isArray(result.titles) && result.titles.length > 0) {
+          const doOnChain = confirm(`Add ${result.titles.length} imported movies on-chain via Thirdweb now?`);
+          if (doOnChain) {
+            try {
+              const thirdwebRes = await fetch('/api/thirdweb', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'addMovies', titles: result.titles })
+              });
+              const twData = await thirdwebRes.json();
+              if (!thirdwebRes.ok || !twData.success) {
+                alert(`Thirdweb batch add failed: ${twData?.error || 'Unknown error'}`);
+              } else {
+                alert('Batch on-chain add submitted via Thirdweb.');
+              }
+            } catch (e) {
+              console.error('Thirdweb batch add error:', e);
+              alert('Failed to call Thirdweb batch API.');
+            }
+          }
+        }
       } else {
         setImportStatus(`❌ Import failed: ${result.error}`);
       }
@@ -179,7 +274,7 @@ export default function AdminPage() {
       // Get all content from database
       const [moviesResponse, tvShowsResponse] = await Promise.all([
         fetch("/api/movies"),
-        fetch("/api/tv-shows")
+        fetch("/api/tv")
       ]);
       
       const moviesData = await moviesResponse.json();
@@ -222,7 +317,7 @@ export default function AdminPage() {
     try {
       const [moviesResponse, tvShowsResponse] = await Promise.all([
         fetch("/api/movies"),
-        fetch("/api/tv-shows")
+        fetch("/api/tv")
       ]);
       
       const moviesData = await moviesResponse.json();
@@ -400,6 +495,16 @@ export default function AdminPage() {
                   <p className="text-sm text-white/70">{importStatus}</p>
                 </div>
               )}
+              
+              {/* Retract Button */}
+              <Button 
+                onClick={handleRetract}
+                disabled={isRetracting}
+                variant="destructive"
+                className="w-full mt-4"
+              >
+                {isRetracting ? "Retracting..." : "Retract Recent Imports"}
+              </Button>
             </div>
           </div>
 
@@ -527,6 +632,13 @@ export default function AdminPage() {
                 >
                   {isImporting ? "Syncing..." : "Sync Content to Contract"}
                 </Button>
+                
+                <a
+                  href="/test-contract"
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition-colors text-center block"
+                >
+                  Test Smart Contract
+                </a>
                 
                 <Button
                   onClick={async () => {

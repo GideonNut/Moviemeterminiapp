@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Eye } from 'lucide-react';
+import { Bell, Trophy } from 'lucide-react';
 import SearchBar from './SearchBar';
 import { getFarcasterUser } from '~/lib/farcaster';
 
@@ -24,7 +24,7 @@ interface HeaderProps {
 
 export default function Header({ showSearch = false, onSearch, movies = [] }: HeaderProps) {
   const { data: session } = useSession();
-  const [profilePicture, setProfilePicture] = useState<string>('https://randomuser.me/api/portraits/men/32.jpg');
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -35,12 +35,17 @@ export default function Header({ showSearch = false, onSearch, movies = [] }: He
           const user = await getFarcasterUser(session.user.fid);
           if (user?.pfp) {
             setProfilePicture(user.pfp);
+          } else {
+            setProfilePicture(null);
           }
         } catch (error) {
           console.error('Error fetching user profile:', error);
+          setProfilePicture(null);
         } finally {
           setIsLoading(false);
         }
+      } else {
+        setProfilePicture(null);
       }
     };
 
@@ -48,11 +53,11 @@ export default function Header({ showSearch = false, onSearch, movies = [] }: He
   }, [session?.user?.fid]);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-[#0A0A0A] border-b border-white/10">
+    <header data-slot="header" className="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border">
       <div className="max-w-7xl mx-auto px-4 py-4">
         <div className="flex items-center justify-between mb-4">
           {/* Logo on left */}
-          <Link href="/" className="flex items-center">
+          <Link href="/" className="flex items-center focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-md outline-none">
             <div className="w-10 h-10 relative">
               <Image
                 src="https://i.postimg.cc/Gtz6FMmk/new-favicon.png"
@@ -63,32 +68,42 @@ export default function Header({ showSearch = false, onSearch, movies = [] }: He
             </div>
           </Link>
           
-          {/* Right section with Watchlist icon and Avatar */}
-          <div className="flex items-center space-x-4">
+          {/* Right section with Leaderboard, Watchlist icon and Avatar */}
+          <div className="flex items-center gap-4">
+            {/* Leaderboard Icon */}
+            <Link 
+              href="/leaderboards" 
+              className="text-foreground/70 hover:text-foreground transition-colors focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-md outline-none"
+              title="Leaderboard"
+            >
+              <Trophy size={24} />
+            </Link>
             {/* Watchlist Icon */}
             <Link 
               href="/watchlist" 
-              className="text-white/70 hover:text-purple-400 transition-colors"
+              className="text-foreground/70 hover:text-foreground transition-colors focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-md outline-none"
               title="My Watchlist"
             >
-              <Eye size={24} />
+              <Bell size={24} />
             </Link>
             
-            {/* User Avatar */}
-            <div className="w-10 h-10 relative">
-              <Image
-                src={profilePicture}
-                alt="User Profile"
-                layout="fill"
-                objectFit="cover"
-                className="rounded-full border-2 border-white/20"
-              />
-              {isLoading && (
-                <div className="absolute inset-0 bg-black/20 rounded-full flex items-center justify-center">
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                </div>
-              )}
-            </div>
+            {/* User Avatar - Only show if we have a valid profile picture */}
+            {profilePicture && (
+              <div className="w-10 h-10 relative">
+                <Image
+                  src={profilePicture}
+                  alt="User Profile"
+                  layout="fill"
+                  objectFit="cover"
+                  className="rounded-full border-2 border-border"
+                />
+                {isLoading && (
+                  <div className="absolute inset-0 bg-black/20 rounded-full flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
         
