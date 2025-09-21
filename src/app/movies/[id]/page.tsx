@@ -7,7 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Header from "~/components/Header";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Calendar, Clock, ThumbsUp, ThumbsDown, Star, Play, RefreshCw } from "lucide-react";
+import { ArrowLeft, Calendar, Clock,  Star, Play, RefreshCw } from "lucide-react";
 import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance, useWalletClient } from "wagmi";
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
 import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl } from "~/lib/utils";
@@ -15,6 +15,7 @@ import WatchlistButton from "~/components/WatchlistButton";
 import CommentsSection from "~/components/CommentsSection";
 import { encodeFunctionData } from "viem";
 import { getDataSuffix, submitReferral } from "@divvi/referral-sdk";
+import { ThumbsDownIcon, ThumbsUpIcon } from "~/components/icons";
 
 interface Movie {
   id: string;
@@ -578,7 +579,7 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
                         className="flex-1 bg-green-600 hover:bg-green-700 text-white border-0"
                         size="lg"
                       >
-                        <ThumbsUp size={20} className="mr-2" />
+                        <ThumbsUpIcon size={20} className="mr-2" />
                         {isPending && currentVotingId === movie.id ? 'Processing...' : 'Yes'}
                       </Button>
                       <Button
@@ -587,7 +588,7 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
                         className="flex-1 bg-red-600 hover:bg-red-700 text-white border-0"
                         size="lg"
                       >
-                        <ThumbsDown size={20} className="mr-2" />
+                        <ThumbsDownIcon size={20} className="mr-2" />
                         {isPending && currentVotingId === movie.id ? 'Processing...' : 'No'}
                       </Button>
                     </div>
