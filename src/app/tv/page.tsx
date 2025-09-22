@@ -339,11 +339,11 @@ export default function TVPage() {
           variant="ghost" 
           size="sm"
           onClick={() => router.back()} 
-          className="mr-3 p-2 bg-white hover:bg-white/10"
+          className="mr-3"
         >
           <ArrowLeft size={18} />
         </Button>
-        <h1 className="text-xl font-semibold text-white">Back to TV Shows</h1>
+        <h1 className="text-xl font-semibold text-white">Vote on TV Shows</h1>
       </div>
       <div className="flex items-center mt-10 mb-6">
         <Button 
