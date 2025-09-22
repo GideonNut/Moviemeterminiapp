@@ -598,11 +598,6 @@ export default function MoviesPage() {
                        {isPending && currentVotingId === movie.id && (
                          <span className="text-yellow-400 text-sm">Confirming...</span>
                        )}
-                       {voteAttempts[movie.id]?.show && (
-                         <span className="text-yellow-400 text-sm">
-                           You've already voted on this movie
-                         </span>
-                       )}
                      </div>
                    </div>
                  </div>
