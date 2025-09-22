@@ -5,14 +5,15 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const movieId = searchParams.get('movieId');
+    const isTVShow = searchParams.get('isTVShow') === 'true';
 
     if (movieId) {
-      // If movieId is provided, return comments for that specific movie
+      // If movieId is provided, return comments for that specific movie/show
       const comments = await getMovieComments(movieId);
       return NextResponse.json(comments);
     }
     
-    // If no movieId is provided, return latest comments across all movies
+    // If no movieId is provided, return latest comments across all movies/shows
     const latestComments = await Comment.aggregate([
       {
         $lookup: {
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
       case 'add':
         if (!movieId || !content) {
           return NextResponse.json(
-            { error: 'Movie ID and content are required' },
+            { error: 'ID and content are required' },
             { status: 400 }
           );
         }
