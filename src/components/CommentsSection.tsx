@@ -172,7 +172,32 @@ export default function CommentsSection({ movieId }: CommentsSectionProps) {
   };
 
   useEffect(() => {
-    fetchComments();
+    let mounted = true;
+    
+    const loadComments = async () => {
+      try {
+        const response = await fetch(`/api/comments?movieId=${movieId}`);
+        if (response.ok && mounted) {
+          const data = await response.json();
+          setComments(data);
+        }
+      } catch (error) {
+        console.error('Error fetching comments:', error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadComments();
+
+    // Cleanup function
+    return () => {
+      mounted = false;
+      setComments([]);
+      setLoading(true);
+    };
   }, [movieId]);
 
   return (
