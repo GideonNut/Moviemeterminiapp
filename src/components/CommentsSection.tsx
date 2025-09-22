@@ -25,6 +25,7 @@ interface Comment {
 
 interface CommentsSectionProps {
   movieId: string;
+  isTVShow?: boolean;
 }
 
 function formatAddress(address: string): string {
