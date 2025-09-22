@@ -27,6 +27,7 @@ interface TVShow {
     yes: number;
     no: number;
   };
+  commentCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -429,6 +430,11 @@ export default function TVDetailPage({ params }: { params: Promise<{ id: string 
         {/* Comments Section - reuse with tvShow.id */}
         <div className="mt-5">
           <CommentsSection movieId={tvShow.id} />
+        </div>
+
+        {/* Comments Section */}
+        <div className="mt-5">
+          <CommentsSection movieId={tvShow.id} isTVShow={true} />
         </div>
 
         {/* Related TV Shows */}
