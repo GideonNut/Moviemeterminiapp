@@ -1,8 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardTitle, CardDescription } from "~/components/ui/card";
 import { Button } from "~/components/ui/Button";
 import Image from "next/image";
+import Link from "next/link";
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
 import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance, useWalletClient } from "wagmi";
 import { encodeFunctionData } from "viem";
@@ -24,6 +25,7 @@ interface TVShow {
     yes: number;
     no: number;
   };
+  commentCount?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -433,18 +435,34 @@ export default function TVPage() {
                 {/* TV Show Info & Voting */}
                 <div className="p-6 flex flex-col justify-between text-left">
                   <div>
-                    <CardTitle className="text-lg font-semibold mb-3 line-clamp-2">
-                      {tvShow.title}
-                    </CardTitle>
-                    <CardDescription className="text-sm text-muted-foreground mb-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <CardTitle className="text-lg font-semibold line-clamp-2 flex-1">
+                        {tvShow.title}
+                      </CardTitle>
+                    </div>
+                    <CardDescription className="text-sm text-white/60 mb-4">
                       <span className="truncate block">{tvShow.genres && tvShow.genres.length > 0 ? tvShow.genres[0] : ''} {tvShow.releaseYear ? tvShow.releaseYear : ''}</span>
                     </CardDescription>
                     
                     {/* TV Show Description */}
-                    <div className="text-sm text-muted-foreground mb-4 line-clamp-3">
+                    <div className="text-sm text-white/70 mb-4 line-clamp-3">
                       {tvShow.description || 'No description available'}
                     </div>
                     
+                    <Link 
+                      href={`/tv/${tvShow.id}`}
+                      className="inline-block mb-4"
+                      onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                    >
+                      <Button 
+                        variant="link" 
+                        size="sm" 
+                        className="p-0 text-left underline text-sm"
+                      >
+                        View More Details
+                      </Button>
+                    </Link>
+
                     {/* Vote Counts Display */}
                     <div className="flex items-center gap-6 text-sm text-muted-foreground mb-4">
                       <span className="flex items-center gap-2 min-w-0">
@@ -454,6 +472,9 @@ export default function TVPage() {
                       <span className="flex items-center gap-2 min-w-0">
                         <ThumbsDownIcon size={16} className="flex-shrink-0" />
                         <span className="font-medium whitespace-nowrap">No: {tvShow.votes.no}</span>
+                      </span>
+                      <span className="flex items-center gap-2 min-w-0 border-l border-white/10 pl-6">
+                        <span className="font-medium whitespace-nowrap">💬 {tvShow.commentCount || 0}</span>
                       </span>
                     </div>
                   </div>
