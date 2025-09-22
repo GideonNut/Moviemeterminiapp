@@ -524,15 +524,6 @@ export default function TVPage() {
                       )}
                     </div>
                   </div>
-                  
-                  {/* Voted Already Message */}
-                  {votes[tvShow.id] && (
-                    <div className="mt-3 text-center">
-                      <span className="text-sm font-medium bg-accent text-accent-foreground px-3 py-1 rounded-full">
-                        You've voted already on this TV show
-                      </span>
-                    </div>
-                  )}
                 </div>
               </div>
             </CardContent>
