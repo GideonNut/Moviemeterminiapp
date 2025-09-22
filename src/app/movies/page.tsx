@@ -398,7 +398,7 @@ export default function MoviesPage() {
           variant="ghost" 
           size="sm"
           onClick={() => router.back()} 
-          className="mr-3 p-2 bg-white hover:bg-white/10"
+          className="mr-3"
         >
           <ArrowLeft size={18} />
         </Button>
