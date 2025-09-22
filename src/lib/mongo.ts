@@ -98,6 +98,7 @@ interface IComment extends Document {
   address: string;
   content: string;
   timestamp: Date;
+  isTVShow?: boolean;
   likes: string[];
   replies: Array<{
     address: string;
@@ -114,6 +115,7 @@ const commentSchema = new mongoose.Schema<IComment>({
   address: { type: String, required: true, index: true },
   content: { type: String, required: true, maxlength: 1000 },
   timestamp: { type: Date, default: Date.now },
+  isTVShow: { type: Boolean, default: false },
   likes: [{ type: String }], // Array of addresses who liked the comment
   replies: [{
     address: { type: String, required: true },
