@@ -13,6 +13,7 @@ interface IMovie extends Document {
     yes: number;
     no: number;
   };
+  commentCount?: number;
   createdAt: Date;
   updatedAt: Date;
   isTVShow?: boolean;
@@ -29,6 +30,7 @@ const movieSchema = new mongoose.Schema<IMovie>({
     yes: { type: Number, default: 0 },
     no: { type: Number, default: 0 }
   },
+  commentCount: { type: Number, default: 0 },
   isTVShow: { type: Boolean, default: false }
 }, {
   timestamps: true
@@ -370,7 +372,18 @@ export async function getAllMovies(): Promise<IMovie[]> {
 export async function getTVShows(): Promise<IMovie[]> {
   try {
     await ensureConnection();
-    return await MovieModel.find({ isTVShow: true }).sort({ createdAt: -1 });
+    const tvShows = await MovieModel.find({ isTVShow: true }).lean().sort({ createdAt: -1 });
+    
+    // Get comment counts for each TV show and update them
+    const tvShowsWithComments = await Promise.all(tvShows.map(async (tvShow) => {
+      const commentCount = await CommentModel.countDocuments({ movieId: tvShow._id });
+      return {
+        ...tvShow,
+        commentCount
+      } as IMovie;
+    }));
+
+    return tvShowsWithComments;
   } catch (error) {
     console.error("Error getting TV shows:", error);
     throw new Error(`Failed to get TV shows: ${error instanceof Error ? error.message : 'Unknown error'}`);
