@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Users, Flame, ArrowLeft, RefreshCw, Loader2, Award } from "lucide-react";
-import {  TrophyIcon } from '~/components/icons'
+import { TrophyIcon } from '~/components/icons';
 import { useAccount } from "wagmi";
 import Header from "~/components/Header";
 
@@ -187,7 +187,7 @@ export default function LeaderboardsPage() {
     return (
       <main className="min-h-screen">
         <div className="max-w-2xl mx-auto px-4 pb-20">
-          <Header showSearch={true} />
+          <Header showSearch={false} />
           <div className="flex items-center mt-10 mb-6">
             <button 
               onClick={handleBack}
@@ -213,7 +213,7 @@ export default function LeaderboardsPage() {
     return (
       <main className="min-h-screen">
         <div className="max-w-2xl mx-auto px-4 pb-20">
-          <Header showSearch={true} />
+          <Header showSearch={false} />
           <div className="flex items-center mt-10 mb-6">
             <button 
               onClick={handleBack}
@@ -247,7 +247,7 @@ export default function LeaderboardsPage() {
   return (
     <main className="min-h-screen">
       <div className="max-w-2xl mx-auto px-4 pb-20">
-        <Header showSearch={true} />
+        <Header showSearch={false} />
         
         {/* Page Header */}
         <div className="flex items-center mt-10 mb-6">
