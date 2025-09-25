@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { Film } from "lucide-react"; // Keep Film from Lucide for now
 import { HomeIcon, TvIcon, GiftIcon } from './icons';
 
 
