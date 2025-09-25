@@ -291,7 +291,7 @@ export default function CommentsSection({ movieId }: CommentsSectionProps) {
                           {formatTime(comment.timestamp)}
                         </span>
                       </div>
-                      <p className="text-white/80 text-sm leading-relaxed break-words">
+                      <p className="text-white text-sm leading-relaxed break-words">
                         {comment.content}
                       </p>
                     </div>
@@ -395,7 +395,7 @@ export default function CommentsSection({ movieId }: CommentsSectionProps) {
                                 {formatTime(reply.timestamp)}
                               </span>
                             </div>
-                            <p className="text-white/70 text-xs leading-relaxed break-words">
+                            <p className="text-white/90 text-xs leading-relaxed break-words">
                               {reply.content}
                             </p>
                           </div>
