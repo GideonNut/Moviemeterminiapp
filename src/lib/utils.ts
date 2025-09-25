@@ -18,16 +18,26 @@ export function formatCELOBalance(balance: bigint | string): string {
  * Check if user has sufficient CELO for gas fees
  * Celo gas fees are typically around 0.001-0.01 CELO per transaction
  */
-export function hasSufficientCELOForGas(balance: bigint | string): boolean {
-  const balanceBigInt = typeof balance === 'string' ? BigInt(balance) : balance;
+export function hasSufficientCELOForGas(balance: { value: bigint } | bigint | string | undefined): boolean {
+  if (!balance) return false;
+  
+  const balanceBigInt = typeof balance === 'object' && 'value' in balance 
+    ? balance.value 
+    : typeof balance === 'string' 
+      ? BigInt(balance) 
+      : balance;
+  
   // Minimum 0.01 CELO for gas fees (with some buffer)
   const minimumRequired = BigInt(10_000_000_000_000_000); // 0.01 CELO in wei
   return balanceBigInt >= minimumRequired;
 }
 
+// Default placeholder image for when no poster is available
+const DEFAULT_POSTER_URL = 'https://placehold.co/400x600/1a1a1a/818181?text=No+Poster';
+
 // Utility function to ensure poster URLs are full URLs
-export function ensureFullPosterUrl(posterUrl: string | undefined | null): string | undefined {
-  if (!posterUrl) return undefined;
+export function ensureFullPosterUrl(posterUrl: string | undefined | null): string {
+  if (!posterUrl) return DEFAULT_POSTER_URL;
   
   // If it's already a full URL, return as-is
   if (posterUrl.startsWith('http://') || posterUrl.startsWith('https://')) {
