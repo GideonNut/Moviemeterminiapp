@@ -11,7 +11,7 @@ import { encodeFunctionData } from "viem";
 import { getDataSuffix, submitReferral } from "@divvi/referral-sdk";
 import { useRouter } from "next/navigation";
 import Header from "~/components/Header";
-import { ArrowLeft, RefreshCw, Film, Tv } from "lucide-react";
+import { ArrowLeft, RefreshCw, Film, Tv, MessageSquare } from "lucide-react";
 import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl } from "~/lib/utils";
 import { ThumbsDownIcon, ThumbsUpIcon } from "~/components/icons";
 import { HorizontalMovieCardSkeleton } from "~/components/MovieCardSkeleton";
@@ -364,6 +364,11 @@ export default function MediaPage() {
                           <CardDescription className="line-clamp-2 mb-2">
                             {item.description}
                           </CardDescription>
+                          {/* Comments count */}
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <MessageSquare size={14} />
+                            <span>{item.commentCount ?? 0} comments</span>
+                          </div>
                         </div>
                         <WatchlistButton movieId={item.id} />
                       </div>
@@ -376,7 +381,7 @@ export default function MediaPage() {
                             disabled={!!votes[item.id] || currentVotingId === item.id || isSwitchingNetwork}
                             className={`px-3 py-1 h-8 gap-1 ${
                               votes[item.id] === 'yes' 
-                                ? 'bg-green-600 hover:bg-green-600'
+                                ? 'bg-primary hover:bg-primary text-primary-foreground'
                                 : 'bg-transparent hover:bg-accent'
                             }`}
                           >
