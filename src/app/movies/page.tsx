@@ -394,7 +394,7 @@ export default function MediaPage() {
                             disabled={!!votes[item.id] || currentVotingId === item.id || isSwitchingNetwork}
                             className={`px-3 py-1 h-8 gap-1 ${
                               votes[item.id] === 'no'
-                                ? 'bg-red-600 hover:bg-red-600'
+                                ? 'bg-primary hover:bg-primary text-primary-foreground'
                                 : 'bg-transparent hover:bg-accent'
                             }`}
                           >
