@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { HomeIcon, TvIcon, GiftIcon } from './icons';
 
+import { Film } from 'lucide-react';
+
 
 export default function BottomNav() {
   return (
