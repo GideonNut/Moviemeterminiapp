@@ -6,6 +6,7 @@ import { TrophyIcon } from '~/components/icons';
 import { useAccount } from "wagmi";
 import Header from "~/components/Header";
 import { Button } from "~/components/ui/Button";
+import { Skeleton } from "~/components/ui/Skeleton";
 
 interface TopVoter {
   rank: number;
@@ -201,10 +202,63 @@ export default function LeaderboardsPage() {
             <h1 className="text-xl font-semibold text-foreground">Leaderboards</h1>
           </div>
 
-          <div className="flex justify-center items-center py-20">
-            <div className="flex items-center space-x-2">
-              <Loader2 className="animate-spin" size={24} />
-              <span className="text-muted-foreground">Loading leaderboard data...</span>
+          {/* Hero skeleton */}
+          <div className="text-center mb-6">
+            <div className="flex items-center justify-center mb-4">
+              <Skeleton className="h-8 w-8 rounded-full mr-3" />
+              <Skeleton className="h-7 w-40" />
+            </div>
+            <div className="space-y-2 max-w-lg mx-auto">
+              <Skeleton className="h-4 w-2/3 mx-auto" />
+              <div className="flex justify-center gap-6 text-sm">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            </div>
+          </div>
+
+          {/* Tabs skeleton */}
+          <div className="flex gap-2 mb-6">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-9 flex-1" />
+            ))}
+          </div>
+
+          {/* Leaderboard rows skeleton */}
+          <div className="bg-card rounded-lg border border-border overflow-hidden">
+            <div className="bg-popover px-4 py-3 border-b border-border">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Skeleton className="h-5 w-5 rounded mr-2" />
+                  <Skeleton className="h-5 w-32" />
+                </div>
+                <Skeleton className="h-5 w-5 rounded" />
+              </div>
+              <Skeleton className="h-3 w-56 mt-2" />
+            </div>
+
+            <div className="divide-y divide-border/50">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 flex items-center justify-center">
+                      <Skeleton className="h-5 w-10" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Skeleton className="h-6 w-6 rounded-full" />
+                        <Skeleton className="h-4 w-40" />
+                        <Skeleton className="h-4 w-10 rounded" />
+                      </div>
+                      <Skeleton className="h-3 w-64" />
+                    </div>
+                    <div className="text-right">
+                      <Skeleton className="h-5 w-12 ml-auto" />
+                      <Skeleton className="h-3 w-16 mt-1 ml-auto" />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
