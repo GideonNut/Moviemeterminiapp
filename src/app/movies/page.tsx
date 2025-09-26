@@ -312,12 +312,7 @@ export default function MediaPage() {
         </div>
 
         {/* Content */}
-        {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <RefreshCw className="w-6 h-6 animate-spin text-foreground mr-2" />
-            <span className="text-foreground">Loading media...</span>
-          </div>
-        ) : media.length === 0 ? (
+        {media.length === 0 ? (
           <div className="text-center py-20">
             <Film className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">No movies or TV shows available.</p>
