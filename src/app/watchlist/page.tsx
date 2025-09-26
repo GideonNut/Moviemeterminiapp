@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Bell, BellOff, RefreshCw, Heart } from "lucide-react";
 import { useAccount } from "wagmi";
 import { ensureFullPosterUrl } from "~/lib/utils";
+import { Skeleton } from "~/components/ui/Skeleton";
 
 interface Movie {
   id: string;
@@ -111,6 +112,7 @@ export default function WatchlistPage() {
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto px-4">
+        <Header showSearch={true} />
         <div className="flex items-center mb-6 mt-5">
           <Button 
             variant="ghost" 
@@ -123,11 +125,49 @@ export default function WatchlistPage() {
           <h1 className="text-xl font-semibold text-foreground">My Watchlist</h1>
         </div>
 
-        <div className="flex items-center justify-center py-12">
-          <div className="text-center">
-            <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-muted-foreground" />
-            <p className="text-muted-foreground">Loading your watchlist...</p>
+        {/* Stats skeleton */}
+        <div className="mb-6 p-4 rounded-lg border border-border bg-card">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-5 w-5 rounded" />
+            <Skeleton className="h-4 w-48" />
           </div>
+        </div>
+
+        {/* Watchlist item skeletons */}
+        <div className="space-y-4">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="bg-card text-foreground border border-border overflow-hidden rounded">
+              <div className="p-0">
+                <div className="flex">
+                  {/* Poster skeleton */}
+                  <div className="w-24 h-36 relative flex-shrink-0 overflow-hidden">
+                    <Skeleton className="w-full h-full" />
+                  </div>
+
+                  {/* Content skeleton */}
+                  <div className="flex-1 p-4 flex flex-col justify-between text-left">
+                    <div>
+                      <div className="mb-1">
+                        <Skeleton className="h-5 w-2/3" />
+                      </div>
+                      <div className="mb-3">
+                        <Skeleton className="h-3 w-40" />
+                      </div>
+                      <div className="mb-3 space-y-1">
+                        <Skeleton className="h-3 w-full" />
+                        <Skeleton className="h-3 w-3/4" />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-8 flex-1" />
+                      <Skeleton className="h-8 w-9" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
