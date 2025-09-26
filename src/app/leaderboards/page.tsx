@@ -188,7 +188,7 @@ export default function LeaderboardsPage() {
       <main className="min-h-screen">
         <div className="max-w-2xl mx-auto px-4 pb-20">
           <Header showSearch={false} />
-          <div className="flex items-center mt-10 mb-6">
+          <div className="flex items-center mt-4 mb-4">
             <button 
               onClick={handleBack}
               className="mr-3 p-2 rounded-md outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
@@ -214,7 +214,7 @@ export default function LeaderboardsPage() {
       <main className="min-h-screen">
         <div className="max-w-2xl mx-auto px-4 pb-20">
           <Header showSearch={false} />
-          <div className="flex items-center mt-10 mb-6">
+          <div className="flex items-center mt-4 mb-4">
             <button 
               onClick={handleBack}
               className="mr-3 p-2 rounded-md outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
@@ -250,7 +250,7 @@ export default function LeaderboardsPage() {
         <Header showSearch={false} />
         
         {/* Page Header */}
-        <div className="flex items-center mt-10 mb-6">
+        <div className="flex items-center mt-4 mb-4">
           <button 
             onClick={handleBack}
             className="mr-3 p-2 rounded-md outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
@@ -261,7 +261,7 @@ export default function LeaderboardsPage() {
         </div>
 
         {/* Hero Section */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div className="flex items-center justify-center mb-4">
             <TrophyIcon className="mr-3 text-accent-foreground" size={32} />
             <h2 className="text-2xl font-bold text-foreground">Top Performers</h2>
