@@ -14,6 +14,7 @@ import Header from "~/components/Header";
 import { ArrowLeft, RefreshCw, Film, Tv } from "lucide-react";
 import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl } from "~/lib/utils";
 import { ThumbsDownIcon, ThumbsUpIcon } from "~/components/icons";
+import { HorizontalMovieCardSkeleton } from "~/components/MovieCardSkeleton";
 
 interface Media {
   id: string;
@@ -301,18 +302,30 @@ export default function MediaPage() {
         <Header showSearch={false} />
         
         {/* Page Header */}
-        <div className="flex items-center mt-10 mb-6">
-          <button 
+        <div className="flex items-center mb-6">
+          <Button 
+            variant="ghost" 
+            size="sm"
             onClick={handleBack}
-            className="mr-3 p-2 rounded-md outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+            className="mr-3 p-2"
           >
             <ArrowLeft size={18} />
-          </button>
+          </Button>
           <h1 className="text-xl font-semibold text-foreground">Rate Movies</h1>
         </div>
 
         {/* Content */}
-        {media.length === 0 ? (
+        {loading ? (
+          <div className="grid gap-4">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <Card key={index} className="overflow-hidden bg-card">
+                <CardContent className="p-0">
+                  <HorizontalMovieCardSkeleton />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : media.length === 0 ? (
           <div className="text-center py-20">
             <Film className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">No movies or TV shows available.</p>
