@@ -101,3 +101,46 @@ export function MovieCardSkeleton() {
     </div>
   );
 }
+
+// Skeleton for the horizontal card layout used in /movies page
+export function HorizontalMovieCardSkeleton() {
+  return (
+    <div className="overflow-hidden bg-card">
+      <div className="flex">
+        {/* Poster Skeleton */}
+        <div className="relative w-[120px] h-[180px] flex-shrink-0">
+          <Skeleton className="w-full h-full" />
+        </div>
+
+        {/* Content Skeleton */}
+        <div className="flex-1 p-4">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1">
+              {/* Title */}
+              <div className="mb-1">
+                <Skeleton className="h-5 w-3/4" />
+              </div>
+              {/* Description */}
+              <div className="mb-2 space-y-1">
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-2/3" />
+              </div>
+            </div>
+            {/* Watchlist button skeleton */}
+            <Skeleton className="h-8 w-8 rounded" />
+          </div>
+
+          {/* Vote buttons skeleton */}
+          <div className="flex items-center justify-between mt-2">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-8 w-16 rounded" />
+              <Skeleton className="h-8 w-16 rounded" />
+            </div>
+            {/* Status skeleton */}
+            <Skeleton className="h-4 w-20" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
