@@ -5,6 +5,7 @@ import { Users, Flame, ArrowLeft, RefreshCw, Loader2, Award } from "lucide-react
 import { TrophyIcon } from '~/components/icons';
 import { useAccount } from "wagmi";
 import Header from "~/components/Header";
+import { Button } from "~/components/ui/Button";
 
 interface TopVoter {
   rank: number;
@@ -188,13 +189,15 @@ export default function LeaderboardsPage() {
       <main className="min-h-screen">
         <div className="max-w-2xl mx-auto px-4 pb-20">
           <Header showSearch={false} />
-          <div className="flex items-center mt-4 mb-4">
-            <button 
+          <div className="flex items-center mb-6">
+            <Button 
+              variant="ghost" 
+              size="sm"
               onClick={handleBack}
-              className="mr-3 p-2 rounded-md outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+              className="mr-3 p-2"
             >
               <ArrowLeft size={18} />
-            </button>
+            </Button>
             <h1 className="text-xl font-semibold text-foreground">Leaderboards</h1>
           </div>
 
@@ -214,13 +217,15 @@ export default function LeaderboardsPage() {
       <main className="min-h-screen">
         <div className="max-w-2xl mx-auto px-4 pb-20">
           <Header showSearch={false} />
-          <div className="flex items-center mt-4 mb-4">
-            <button 
+          <div className="flex items-center mb-6">
+            <Button 
+              variant="ghost" 
+              size="sm"
               onClick={handleBack}
-              className="mr-3 p-2 rounded-md outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+              className="mr-3 p-2"
             >
               <ArrowLeft size={18} />
-            </button>
+            </Button>
             <h1 className="text-xl font-semibold text-foreground">Leaderboards</h1>
           </div>
 
@@ -246,17 +251,19 @@ export default function LeaderboardsPage() {
 
   return (
     <main className="min-h-screen">
-      <div className="max-w-2xl mx-auto px-4 pb-20">
+        <div className="max-w-2xl mx-auto px-4 pb-20">
         <Header showSearch={false} />
         
         {/* Page Header */}
-        <div className="flex items-center mt-4 mb-4">
-          <button 
+        <div className="flex items-center mb-6">
+          <Button 
+            variant="ghost" 
+            size="sm"
             onClick={handleBack}
-            className="mr-3 p-2 rounded-md outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+            className="mr-3 p-2"
           >
             <ArrowLeft size={18} />
-          </button>
+          </Button>
           <h1 className="text-xl font-semibold text-foreground">Leaderboards</h1>
         </div>
 
