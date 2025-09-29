@@ -2,6 +2,8 @@
 
 import { MovieCard, CompactMovieCard } from "~/components/MovieCard";
 import { MovieCardSkeleton, CompactMovieCardSkeleton } from "~/components/MovieCardSkeleton";
+import { OnboardingScreen } from "~/components/OnboardingScreen";
+import { useOnboarding } from "~/hooks/onboarding";
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -40,6 +42,8 @@ interface Movie {
 }
 
 export default function DiscoverPage() {
+  const { hasSeenOnboarding, completeOnboarding, isLoading: onboardingLoading } = useOnboarding();
+  
   const [isVoting, setIsVoting] = useState(false);
   const [votingMovies, setVotingMovies] = useState<Set<string>>(new Set());
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -80,6 +84,20 @@ export default function DiscoverPage() {
 
   // Auto-switch to Celo when wallet connects
   const [isSwitchingNetwork, setIsSwitchingNetwork] = useState(false);
+
+  // Show onboarding loading screen
+  if (onboardingLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-2 border-white/20 border-t-white rounded-full"></div>
+      </div>
+    );
+  }
+
+  // Show onboarding screen if user hasn't seen it
+  if (!hasSeenOnboarding) {
+    return <OnboardingScreen onComplete={completeOnboarding} />;
+  }
   
   useEffect(() => {
     if (wagmiConnected && currentChainId !== 42220 && currentChainId !== 44787) {
@@ -416,9 +434,6 @@ export default function DiscoverPage() {
 
   return (
     <div className="min-h-screen relative bg-[#0A0A0A] pb-10 overflow-x-hidden">
-
-   
- 
       {/* Top Header */}
       <Header showSearch={true} onSearch={handleSearch} movies={movies} />
 
