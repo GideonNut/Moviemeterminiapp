@@ -42,6 +42,7 @@ interface Movie {
 }
 
 export default function DiscoverPage() {
+  // All hooks must be called at the top level, before any conditional logic
   const { hasSeenOnboarding, completeOnboarding, isLoading: onboardingLoading } = useOnboarding();
   
   const [isVoting, setIsVoting] = useState(false);
@@ -85,20 +86,7 @@ export default function DiscoverPage() {
   // Auto-switch to Celo when wallet connects
   const [isSwitchingNetwork, setIsSwitchingNetwork] = useState(false);
 
-  // Show onboarding loading screen
-  if (onboardingLoading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-2 border-white/20 border-t-white rounded-full"></div>
-      </div>
-    );
-  }
-
-  // Show onboarding screen if user hasn't seen it
-  if (!hasSeenOnboarding) {
-    return <OnboardingScreen onComplete={completeOnboarding} />;
-  }
-  
+  // All useEffect hooks must also be called at the top level
   useEffect(() => {
     if (wagmiConnected && currentChainId !== 42220 && currentChainId !== 44787) {
       setIsSwitchingNetwork(true);
@@ -135,8 +123,6 @@ export default function DiscoverPage() {
         console.error("Error fetching comments:", error);
       });
   }, []);
-
-  // Derive connection directly from wagmi
 
   // Prepare Divvi referral tag once wallet is connected
   useEffect(() => {
@@ -276,6 +262,21 @@ export default function DiscoverPage() {
       alert(errorMessage);
     }
   }, [error, currentVotingId]);
+
+  // Now handle the conditional rendering AFTER all hooks have been called
+  // Show onboarding loading screen
+  if (onboardingLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-2 border-white/20 border-t-white rounded-full"></div>
+      </div>
+    );
+  }
+
+  // Show onboarding screen if user hasn't seen it
+  if (!hasSeenOnboarding) {
+    return <OnboardingScreen onComplete={completeOnboarding} />;
+  }
 
   const handleVote = async (movieId: string, vote: 'yes' | 'no') => {
     console.log('Main page: handleVote called with:', movieId, vote);
