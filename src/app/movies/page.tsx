@@ -380,7 +380,7 @@ export default function MediaPage() {
                             <Button
                               onClick={() => handleVote(item.id, 'yes', item.isTVShow || false)}
                               disabled={!!votes[item.id] || currentVotingId === item.id}
-                              className={`px-3 py-1 h-9 gap-2 font-semibold border bg-background hover:bg-accent ${
+                              className={`px-3 py-1 h-9 gap-2 font-semibold border bg-background hover:bg-accent text-white ${
                                 votes[item.id] === 'yes' ? 'ring-1 ring-border' : ''
                               }`}
                             >
@@ -394,7 +394,7 @@ export default function MediaPage() {
                             <Button
                               onClick={() => handleVote(item.id, 'no', item.isTVShow || false)}
                               disabled={!!votes[item.id] || currentVotingId === item.id}
-                              className={`px-3 py-1 h-9 gap-2 font-semibold border bg-background hover:bg-accent ${
+                              className={`px-3 py-1 h-9 gap-2 font-semibold border bg-background hover:bg-accent text-white ${
                                 votes[item.id] === 'no' ? 'ring-1 ring-border' : ''
                               }`}
                             >
