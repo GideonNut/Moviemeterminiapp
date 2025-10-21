@@ -24,6 +24,8 @@ export async function POST(request: NextRequest) {
 
     const secretKey = process.env.THIRDWEB_SECRET_KEY;
     const fromAddress = process.env.THIRDWEB_FROM_ADDRESS;
+    const vaultAccessToken = process.env.THIRDWEB_VAULT_ACCESS_TOKEN;
+    const walletAccessToken = process.env.THIRDWEB_WALLET_ACCESS_TOKEN;
     const contractAddress = process.env.NEXT_PUBLIC_VOTE_CONTRACT_ADDRESS || process.env.VOTE_CONTRACT_ADDRESS;
     const chainId = Number(process.env.NEXT_PUBLIC_CHAIN_ID || 42220);
 
@@ -37,12 +39,27 @@ export async function POST(request: NextRequest) {
       return Response.json({ success: false, error: "Server missing VOTE_CONTRACT_ADDRESS" }, { status: 500 });
     }
 
+    // Build headers dynamically based on available tokens
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      "x-secret-key": secretKey,
+    };
+
+    // Add authentication token (prefer vault, fallback to wallet)
+    if (vaultAccessToken) {
+      headers["x-vault-access-token"] = vaultAccessToken;
+    } else if (walletAccessToken) {
+      headers["x-wallet-access-token"] = walletAccessToken;
+    } else {
+      return Response.json({ 
+        success: false, 
+        error: "Server missing THIRDWEB_VAULT_ACCESS_TOKEN or THIRDWEB_WALLET_ACCESS_TOKEN" 
+      }, { status: 500 });
+    }
+
     const thirdwebResponse = await fetch("https://api.thirdweb.com/v1/contracts/write", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-secret-key": secretKey,
-      },
+      headers,
       body: JSON.stringify({
         calls: isBatch
           ? (titles as string[]).map((t) => ({
