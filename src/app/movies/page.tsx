@@ -380,10 +380,13 @@ export default function MediaPage() {
                             <Button
                               onClick={() => handleVote(item.id, 'yes', item.isTVShow || false)}
                               disabled={!!votes[item.id] || currentVotingId === item.id}
-                              className={`px-3 py-1 h-9 gap-2 font-semibold border bg-background hover:bg-accent text-white ${
+                              className={`relative overflow-hidden px-3 py-1 h-9 gap-2 font-semibold border bg-background hover:bg-accent text-white ${
                                 votes[item.id] === 'yes' ? 'ring-1 ring-border' : ''
                               }`}
                             >
+                              {votes[item.id] === 'yes' && (
+                                <span className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/30 via-white/10 to-transparent" />
+                              )}
                               <ThumbsUpIcon size={16} />
                               <span>Yes</span>
                             </Button>
@@ -394,10 +397,13 @@ export default function MediaPage() {
                             <Button
                               onClick={() => handleVote(item.id, 'no', item.isTVShow || false)}
                               disabled={!!votes[item.id] || currentVotingId === item.id}
-                              className={`px-3 py-1 h-9 gap-2 font-semibold border bg-background hover:bg-accent text-white ${
+                              className={`relative overflow-hidden px-3 py-1 h-9 gap-2 font-semibold border bg-background hover:bg-accent text-white ${
                                 votes[item.id] === 'no' ? 'ring-1 ring-border' : ''
                               }`}
                             >
+                              {votes[item.id] === 'no' && (
+                                <span className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/30 via-white/10 to-transparent" />
+                              )}
                               <ThumbsDownIcon size={16} />
                               <span>No</span>
                             </Button>
