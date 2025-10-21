@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "~/components/ui/Button";
 import ScrollToTop from "~/components/ScrollToTop";
-import { useAccount, useChainId, useSwitchChain, useWriteContract } from "wagmi";
+import { useAccount, useChainId, useSwitchChain, useWriteContract, useConnect } from "wagmi";
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
 
 export default function AdminPage() {
@@ -26,6 +26,7 @@ export default function AdminPage() {
   const currentChainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const { writeContract, data: txHash, isPending, error: walletWriteError } = useWriteContract();
+  const { connect, connectors } = useConnect();
   const [walletMessage, setWalletMessage] = useState<string>("");
 
   // Function to add multiple movies on-chain using wallet
@@ -468,6 +469,38 @@ export default function AdminPage() {
           <p className="text-sm text-white/60 mb-3">
             This calls the smart contract directly from your browser wallet on Celo (chainId 42220).
           </p>
+          
+          {/* Connect Wallet Button */}
+          {!isConnected ? (
+            <div className="mb-4">
+              <Button
+                onClick={() => {
+                  const connector = connectors[0]; // Use first available connector
+                  if (connector) {
+                    connect({ connector });
+                  }
+                }}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Connect Wallet
+              </Button>
+              <p className="text-sm text-white/60 mt-2">
+                Connect your wallet to add movies on-chain
+              </p>
+            </div>
+          ) : (
+            <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+              <p className="text-sm text-green-400">
+                ✅ Wallet Connected: {address?.slice(0, 6)}...{address?.slice(-4)}
+              </p>
+              {currentChainId !== 42220 && (
+                <p className="text-sm text-yellow-400 mt-1">
+                  ⚠️ Please switch to Celo network (chainId: 42220)
+                </p>
+              )}
+            </div>
+          )}
+          
           <div className="flex items-center gap-2">
             <Button
               onClick={async () => {
@@ -495,7 +528,7 @@ export default function AdminPage() {
                   setWalletMessage((e as Error).message || "Failed to submit transaction.");
                 }
               }}
-              disabled={isPending}
+              disabled={isPending || !isConnected}
               className=""
             >
               {isPending ? "Submitting..." : "Add On-Chain with Wallet"}
