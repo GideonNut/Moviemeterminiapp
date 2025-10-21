@@ -28,6 +28,44 @@ export default function AdminPage() {
   const { writeContract, data: txHash, isPending, error: walletWriteError } = useWriteContract();
   const [walletMessage, setWalletMessage] = useState<string>("");
 
+  // Function to add multiple movies on-chain using wallet
+  const addMoviesOnChain = async (titles: string[]) => {
+    if (!isConnected) {
+      setWalletMessage("Connect your wallet first.");
+      return;
+    }
+    
+    try {
+      // Switch to Celo if needed
+      if (currentChainId !== 42220) {
+        await switchChainAsync({ chainId: 42220 });
+      }
+      
+      setWalletMessage(`Adding ${titles.length} movies on-chain...`);
+      
+      // Add movies one by one (since writeContract doesn't support batch)
+      for (let i = 0; i < titles.length; i++) {
+        const title = titles[i];
+        try {
+          await writeContract({
+            address: VOTE_CONTRACT_ADDRESS,
+            abi: VOTE_CONTRACT_ABI,
+            functionName: 'addMovie',
+            args: [title.trim()],
+          });
+          setWalletMessage(`Added ${i + 1}/${titles.length}: ${title}`);
+        } catch (error) {
+          setWalletMessage(`Failed to add "${title}": ${(error as Error).message}`);
+          break;
+        }
+      }
+      
+      setWalletMessage(`✅ Successfully added ${titles.length} movies on-chain!`);
+    } catch (error) {
+      setWalletMessage(`❌ Error: ${(error as Error).message}`);
+    }
+  };
+
   const handleRetract = async () => {
     if (!confirm("Are you sure you want to retract all movies imported in the last 48 hours?")) {
       return;
@@ -144,24 +182,9 @@ export default function AdminPage() {
       if (result.success) {
         setImportStatus(`✅ Successfully imported ${result.imported} trending movies!`);
         if (result.titles && Array.isArray(result.titles) && result.titles.length > 0) {
-          const doOnChain = confirm(`Add ${result.titles.length} imported movies on-chain via Thirdweb now?`);
+          const doOnChain = confirm(`Add ${result.titles.length} imported movies on-chain now?`);
           if (doOnChain) {
-            try {
-              const thirdwebRes = await fetch('/api/thirdweb', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'addMovies', titles: result.titles })
-              });
-              const twData = await thirdwebRes.json();
-              if (!thirdwebRes.ok || !twData.success) {
-                alert(`Thirdweb batch add failed: ${twData?.error || 'Unknown error'}`);
-              } else {
-                alert('Batch on-chain add submitted via Thirdweb.');
-              }
-            } catch (e) {
-              console.error('Thirdweb batch add error:', e);
-              alert('Failed to call Thirdweb batch API.');
-            }
+            await addMoviesOnChain(result.titles);
           }
         }
       } else {
@@ -217,24 +240,9 @@ export default function AdminPage() {
       if (result.success) {
         setImportStatus(`✅ Successfully imported ${result.imported} movies for "${query}"!`);
         if (result.titles && Array.isArray(result.titles) && result.titles.length > 0) {
-          const doOnChain = confirm(`Add ${result.titles.length} imported movies on-chain via Thirdweb now?`);
+          const doOnChain = confirm(`Add ${result.titles.length} imported movies on-chain now?`);
           if (doOnChain) {
-            try {
-              const thirdwebRes = await fetch('/api/thirdweb', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'addMovies', titles: result.titles })
-              });
-              const twData = await thirdwebRes.json();
-              if (!thirdwebRes.ok || !twData.success) {
-                alert(`Thirdweb batch add failed: ${twData?.error || 'Unknown error'}`);
-              } else {
-                alert('Batch on-chain add submitted via Thirdweb.');
-              }
-            } catch (e) {
-              console.error('Thirdweb batch add error:', e);
-              alert('Failed to call Thirdweb batch API.');
-            }
+            await addMoviesOnChain(result.titles);
           }
         }
       } else {
