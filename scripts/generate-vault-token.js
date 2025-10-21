@@ -53,17 +53,29 @@ async function generateVaultToken() {
     console.error("1. THIRDWEB_SECRET_KEY environment variable set");
     console.error("2. THIRDWEB_FROM_ADDRESS environment variable set");
     console.error("3. @thirdweb-dev/vault-sdk package installed");
+    console.error("\n💡 You can set them temporarily like this:");
+    console.error("$env:THIRDWEB_SECRET_KEY='your_secret_key'");
+    console.error("$env:THIRDWEB_FROM_ADDRESS='your_wallet_address'");
+    console.error("node scripts/generate-vault-token.js");
   }
 }
 
 // Check environment variables
 if (!process.env.THIRDWEB_SECRET_KEY) {
   console.error("❌ THIRDWEB_SECRET_KEY environment variable is required");
+  console.error("\n💡 Set it temporarily in PowerShell:");
+  console.error("$env:THIRDWEB_SECRET_KEY='your_secret_key_here'");
+  console.error("$env:THIRDWEB_FROM_ADDRESS='your_wallet_address_here'");
+  console.error("node scripts/generate-vault-token.js");
   process.exit(1);
 }
 
 if (!process.env.THIRDWEB_FROM_ADDRESS) {
   console.error("❌ THIRDWEB_FROM_ADDRESS environment variable is required");
+  console.error("\n💡 Set it temporarily in PowerShell:");
+  console.error("$env:THIRDWEB_SECRET_KEY='your_secret_key_here'");
+  console.error("$env:THIRDWEB_FROM_ADDRESS='your_wallet_address_here'");
+  console.error("node scripts/generate-vault-token.js");
   process.exit(1);
 }
 
