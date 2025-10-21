@@ -375,32 +375,34 @@ export default function MediaPage() {
 
                       {/* Vote buttons */}
                       <div className="flex items-center justify-between mt-2">
-                        <div className="flex items-center gap-2">
-                          <Button
-                            onClick={() => handleVote(item.id, 'yes', item.isTVShow || false)}
-                            disabled={!!votes[item.id] || currentVotingId === item.id}
-                            className={`px-3 py-1 h-8 gap-1 ${
-                              votes[item.id] === 'yes' 
-                                ? 'bg-primary hover:bg-primary text-primary-foreground'
-                                : 'bg-transparent hover:bg-accent'
-                            }`}
-                          >
-                            <ThumbsUpIcon size={14} />
-                            <span>{item.votes.yes}</span>
-                          </Button>
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              onClick={() => handleVote(item.id, 'yes', item.isTVShow || false)}
+                              disabled={!!votes[item.id] || currentVotingId === item.id}
+                              className={`px-3 py-1 h-9 gap-2 font-semibold border bg-background hover:bg-accent ${
+                                votes[item.id] === 'yes' ? 'ring-1 ring-border' : ''
+                              }`}
+                            >
+                              <ThumbsUpIcon size={16} />
+                              <span>Yes</span>
+                            </Button>
+                            <span className="text-sm font-semibold text-foreground">{item.votes.yes}</span>
+                          </div>
 
-                          <Button
-                            onClick={() => handleVote(item.id, 'no', item.isTVShow || false)}
-                            disabled={!!votes[item.id] || currentVotingId === item.id}
-                            className={`px-3 py-1 h-8 gap-1 ${
-                              votes[item.id] === 'no'
-                                ? 'bg-primary hover:bg-primary text-primary-foreground'
-                                : 'bg-transparent hover:bg-accent'
-                            }`}
-                          >
-                            <ThumbsDownIcon size={14} />
-                            <span>{item.votes.no}</span>
-                          </Button>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              onClick={() => handleVote(item.id, 'no', item.isTVShow || false)}
+                              disabled={!!votes[item.id] || currentVotingId === item.id}
+                              className={`px-3 py-1 h-9 gap-2 font-semibold border bg-background hover:bg-accent ${
+                                votes[item.id] === 'no' ? 'ring-1 ring-border' : ''
+                              }`}
+                            >
+                              <ThumbsDownIcon size={16} />
+                              <span>No</span>
+                            </Button>
+                            <span className="text-sm font-semibold text-foreground">{item.votes.no}</span>
+                          </div>
                         </div>
 
                         {/* Vote status */}
