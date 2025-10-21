@@ -36,6 +36,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@tabler/icons-react": "^3.35.0",
     "@tanstack/react-query": "^5.61.0",
+    "@thirdweb-dev/vault-sdk": "^0.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dotenv": "^16.4.7",
