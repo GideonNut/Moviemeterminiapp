@@ -473,17 +473,17 @@ export default function AdminPage() {
           {/* Connect Wallet Button */}
           {!isConnected ? (
             <div className="mb-4">
-              <Button
-                onClick={() => {
-                  const connector = connectors[0]; // Use first available connector
-                  if (connector) {
-                    connect({ connector });
-                  }
-                }}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                Connect Wallet
-              </Button>
+              <div className="space-y-2">
+                {connectors.map((connector) => (
+                  <Button
+                    key={connector.uid}
+                    onClick={() => connect({ connector })}
+                    className="w-full bg-blue-600 hover:bg-blue-700"
+                  >
+                    Connect {connector.name}
+                  </Button>
+                ))}
+              </div>
               <p className="text-sm text-white/60 mt-2">
                 Connect your wallet to add movies on-chain
               </p>
