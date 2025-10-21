@@ -1,0 +1,12 @@
+{
+  "chainId": "42220",
+  "from": "0x261E0428106b3800eeb8f0F958F92F36Ab801E60",
+  "transactions": [
+    {
+      "type": "contractCall",
+      "contractAddress": "0x6d83eF793A7e82BFa20B57a60907F85c06fB8828",
+      "method": "function addMovie(string _title)",
+      "params": ["My Test Movie"]
+    }
+  ]
+}
