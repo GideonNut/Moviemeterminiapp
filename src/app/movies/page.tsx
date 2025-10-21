@@ -378,7 +378,7 @@ export default function MediaPage() {
                         <div className="flex items-center gap-2">
                           <Button
                             onClick={() => handleVote(item.id, 'yes', item.isTVShow || false)}
-                            disabled={!!votes[item.id] || currentVotingId === item.id || isSwitchingNetwork}
+                            disabled={!!votes[item.id] || currentVotingId === item.id}
                             className={`px-3 py-1 h-8 gap-1 ${
                               votes[item.id] === 'yes' 
                                 ? 'bg-primary hover:bg-primary text-primary-foreground'
@@ -391,7 +391,7 @@ export default function MediaPage() {
 
                           <Button
                             onClick={() => handleVote(item.id, 'no', item.isTVShow || false)}
-                            disabled={!!votes[item.id] || currentVotingId === item.id || isSwitchingNetwork}
+                            disabled={!!votes[item.id] || currentVotingId === item.id}
                             className={`px-3 py-1 h-8 gap-1 ${
                               votes[item.id] === 'no'
                                 ? 'bg-primary hover:bg-primary text-primary-foreground'
