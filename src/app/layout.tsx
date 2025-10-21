@@ -3,9 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "~/components/providers/Providers";
 import { APP_NAME, APP_DESCRIPTION } from "~/lib/constants";
-
-import BottomNav from "~/components/BottomNav";
-import FarcasterReady from "~/components/FarcasterReady";
+import { ConditionalLayout } from "~/components/ConditionalLayout";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,10 +22,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <div className="min-h-screen">
           <Providers>
-            <FarcasterReady />
-          
-            <main className="pt-32 pb-16">{children}</main>
-            <BottomNav />
+            <ConditionalLayout>{children}</ConditionalLayout>
           </Providers>
         </div>
       </body>
