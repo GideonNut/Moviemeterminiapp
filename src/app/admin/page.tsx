@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "~/components/ui/Button";
 import ScrollToTop from "~/components/ScrollToTop";
+import { useAccount, useChainId, useSwitchChain, useWriteContract } from "wagmi";
+import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -18,6 +20,13 @@ export default function AdminPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [isRetracting, setIsRetracting] = useState(false);
   const [contentCounts, setContentCounts] = useState({ movies: 0, tvShows: 0 });
+
+  // Wallet state
+  const { address, isConnected } = useAccount();
+  const currentChainId = useChainId();
+  const { switchChainAsync } = useSwitchChain();
+  const { writeContract, data: txHash, isPending, error: walletWriteError } = useWriteContract();
+  const [walletMessage, setWalletMessage] = useState<string>("");
 
   const handleRetract = async () => {
     if (!confirm("Are you sure you want to retract all movies imported in the last 48 hours?")) {
@@ -444,6 +453,62 @@ export default function AdminPage() {
             {message}
           </div>
         )}
+
+        {/* On-chain add via connected wallet */}
+        <div className="mt-6 border-t border-white/10 pt-6">
+          <h3 className="text-lg font-semibold mb-3 text-white">Add On-Chain (Connected Wallet)</h3>
+          <p className="text-sm text-white/60 mb-3">
+            This calls the smart contract directly from your browser wallet on Celo (chainId 42220).
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={async () => {
+                setWalletMessage("");
+                if (!title.trim()) {
+                  setWalletMessage("Enter a title above first.");
+                  return;
+                }
+                if (!isConnected) {
+                  setWalletMessage("Connect your wallet first.");
+                  return;
+                }
+                try {
+                  if (currentChainId !== 42220) {
+                    await switchChainAsync({ chainId: 42220 });
+                  }
+                  await writeContract({
+                    address: VOTE_CONTRACT_ADDRESS,
+                    abi: VOTE_CONTRACT_ABI,
+                    functionName: 'addMovie',
+                    args: [title.trim()],
+                  });
+                  setWalletMessage("Transaction submitted. Check your wallet for confirmation.");
+                } catch (e) {
+                  setWalletMessage((e as Error).message || "Failed to submit transaction.");
+                }
+              }}
+              disabled={isPending}
+              className=""
+            >
+              {isPending ? "Submitting..." : "Add On-Chain with Wallet"}
+            </Button>
+            {txHash && (
+              <a
+                href={`https://celoscan.io/tx/${txHash}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-400 text-sm underline"
+              >
+                View Tx
+              </a>
+            )}
+          </div>
+          {(walletMessage || walletWriteError) && (
+            <div className="mt-3 p-3 rounded bg-[#2D2D33] text-white/80 text-sm">
+              {walletMessage || walletWriteError?.message}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="container mx-auto px-4 py-8 mt-10">
