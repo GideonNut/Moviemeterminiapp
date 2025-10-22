@@ -481,7 +481,7 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
               {/* Title and Watchlist Button Row */}
               <div className="flex items-start justify-between mb-4">
                 <h1 className="text-3xl md:text-4xl font-bold text-white flex-1">{movie.title}</h1>
-                <WatchlistButton movieId={movie.id} size="default" className="ml-4 flex-shrink-0" showText={true} />
+                <WatchlistButton movieId={movie.id} movieTitle={movie.title} size="default" className="ml-4 flex-shrink-0" showText={true} />
               </div>
               
               {/* Meta Info */}
