@@ -8,7 +8,8 @@ export async function POST() {
     // Find and delete movies created in the last 48 hours
     const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
     const result = await Movie.deleteMany({
-      createdAt: { $gte: fortyEightHoursAgo }
+      createdAt: { $gte: fortyEightHoursAgo },
+      isTVShow: { $ne: true }
     });
 
     return NextResponse.json({ 
