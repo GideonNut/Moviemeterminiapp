@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addToWatchlist, removeFromWatchlist, getUserWatchlist, isInWatchlist } from '~/lib/mongo';
+import { lookupFidByCustodyAddress } from '~/lib/farcaster';
+import { sendFrameNotification } from '~/lib/notifs';
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,7 +33,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { address, movieId } = await request.json();
+    const { address, movieId, movieTitle } = await request.json();
 
     if (!address || !movieId) {
       return NextResponse.json(
@@ -41,6 +43,24 @@ export async function POST(request: NextRequest) {
     }
 
     await addToWatchlist(address, movieId);
+    
+    // Try to send notification if user has Farcaster account
+    try {
+      const fid = await lookupFidByCustodyAddress(address);
+      if (fid) {
+        const title = "Movie Added to Watchlist";
+        const body = movieTitle 
+          ? `"${movieTitle}" has been added to your watchlist!`
+          : "A movie has been added to your watchlist!";
+        
+        await sendFrameNotification({ fid, title, body });
+        console.log(`Notification sent to FID ${fid} for watchlist addition`);
+      }
+    } catch (notificationError) {
+      // Don't fail the request if notification fails
+      console.log('Could not send notification for watchlist addition:', notificationError);
+    }
+    
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error('Error adding to watchlist:', error);
