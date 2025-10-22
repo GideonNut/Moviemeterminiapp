@@ -7,6 +7,7 @@ import { cn } from "~/lib/utils";
 
 interface WatchlistButtonProps {
   movieId: string;
+  movieTitle?: string;
   size?: "sm" | "default" | "lg";
   className?: string;
   showText?: boolean;
@@ -14,6 +15,7 @@ interface WatchlistButtonProps {
 
 export default function WatchlistButton({ 
   movieId, 
+  movieTitle,
   size = "sm", 
   className = "",
   showText = false 
@@ -75,7 +77,7 @@ export default function WatchlistButton({
         const response = await fetch('/api/watchlist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ address, movieId }),
+          body: JSON.stringify({ address, movieId, movieTitle }),
         });
         
         if (response.ok) {
