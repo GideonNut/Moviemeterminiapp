@@ -29,6 +29,28 @@ export default function AdminPage() {
   const { connect, connectors } = useConnect();
   const [walletMessage, setWalletMessage] = useState<string>("");
 
+  // Function to reset content IDs to sequential
+  const resetContentIds = async () => {
+    try {
+      const response = await fetch("/api/movies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reset" }),
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        console.log("✅ Content IDs reset successfully!");
+        // Refresh content counts
+        fetchContentCounts();
+      } else {
+        console.error("❌ Failed to reset content IDs:", result.error);
+      }
+    } catch (error) {
+      console.error("❌ Error resetting content IDs:", error);
+    }
+  };
+
   // Function to add multiple movies/TV shows on-chain using wallet
   const addContentOnChain = async (titles: string[], contentType: 'movies' | 'tv') => {
     if (!isConnected) {
@@ -62,6 +84,12 @@ export default function AdminPage() {
       }
       
       setWalletMessage(`✅ Successfully added ${titles.length} ${contentType} on-chain!`);
+      
+      // Automatically reset content IDs after on-chain addition
+      setWalletMessage(`🔄 Resetting content IDs to match on-chain order...`);
+      await resetContentIds();
+      setWalletMessage(`✅ Content IDs reset! Database now matches on-chain movie order.`);
+      
     } catch (error) {
       setWalletMessage(`❌ Error: ${(error as Error).message}`);
     }
@@ -174,6 +202,11 @@ export default function AdminPage() {
               alert(`On-chain add failed: ${errMsg}`);
             } else {
               alert(`On-chain add submitted via Thirdweb for ${contentType.toLowerCase()}.`);
+              
+              // Automatically reset content IDs after on-chain addition
+              setMessage(`🔄 Resetting content IDs to match on-chain order...`);
+              await resetContentIds();
+              setMessage(`✅ Content IDs reset! Database now matches on-chain movie order.`);
             }
           } catch (err) {
             console.error("Thirdweb add error:", err);
@@ -561,6 +594,11 @@ export default function AdminPage() {
                     args: [title.trim()],
                   });
                   setWalletMessage(`${mediaType} transaction submitted. Check your wallet for confirmation.`);
+                  
+                  // Automatically reset content IDs after on-chain addition
+                  setWalletMessage(`🔄 Resetting content IDs to match on-chain order...`);
+                  await resetContentIds();
+                  setWalletMessage(`✅ Content IDs reset! Database now matches on-chain movie order.`);
                 } catch (e) {
                   setWalletMessage((e as Error).message || "Failed to submit transaction.");
                 }
