@@ -29,8 +29,8 @@ export default function AdminPage() {
   const { connect, connectors } = useConnect();
   const [walletMessage, setWalletMessage] = useState<string>("");
 
-  // Function to add multiple movies on-chain using wallet
-  const addMoviesOnChain = async (titles: string[]) => {
+  // Function to add multiple movies/TV shows on-chain using wallet
+  const addContentOnChain = async (titles: string[], contentType: 'movies' | 'tv') => {
     if (!isConnected) {
       setWalletMessage("Connect your wallet first.");
       return;
@@ -42,9 +42,9 @@ export default function AdminPage() {
         await switchChainAsync({ chainId: 42220 });
       }
       
-      setWalletMessage(`Adding ${titles.length} movies on-chain...`);
+      setWalletMessage(`Adding ${titles.length} ${contentType} on-chain...`);
       
-      // Add movies one by one (since writeContract doesn't support batch)
+      // Add content one by one (since writeContract doesn't support batch)
       for (let i = 0; i < titles.length; i++) {
         const title = titles[i];
         try {
@@ -61,14 +61,14 @@ export default function AdminPage() {
         }
       }
       
-      setWalletMessage(`✅ Successfully added ${titles.length} movies on-chain!`);
+      setWalletMessage(`✅ Successfully added ${titles.length} ${contentType} on-chain!`);
     } catch (error) {
       setWalletMessage(`❌ Error: ${(error as Error).message}`);
     }
   };
 
   const handleRetract = async () => {
-    if (!confirm("Are you sure you want to retract all movies imported in the last 48 hours?")) {
+    if (!confirm("Are you sure you want to retract all movies imported in the last 48 hours? (Movies only)")) {
       return;
     }
     
@@ -89,6 +89,31 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Error retracting movies:', error);
       setMessage("Error retracting movies. Please try again.");
+    } finally {
+      setIsRetracting(false);
+    }
+  };
+
+  const handleRetractTV = async () => {
+    if (!confirm("Are you sure you want to retract all TV shows imported in the last 48 hours? (TV shows only)")) {
+      return;
+    }
+    setIsRetracting(true);
+    try {
+      const response = await fetch("/api/tv/retract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setMessage(`Successfully retracted ${data.deletedCount} recently imported TV shows`);
+        router.refresh();
+      } else {
+        setMessage("Error retracting TV shows: " + (data.error || "Unknown error"));
+      }
+    } catch (error) {
+      console.error('Error retracting TV shows:', error);
+      setMessage("Error retracting TV shows. Please try again.");
     } finally {
       setIsRetracting(false);
     }
@@ -133,27 +158,26 @@ export default function AdminPage() {
         // Refresh the movies list
         router.refresh();
 
-        // Prompt to add to contract via Thirdweb (movies only)
-        if (!isTVShow) {
-          const confirmChainAdd = confirm("Add this movie on-chain via Thirdweb now? You will use your configured relayer.");
-          if (confirmChainAdd) {
-            try {
-              const thirdwebRes = await fetch("/api/thirdweb", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ action: "addMovie", title })
-              });
-              const thirdwebData = await thirdwebRes.json();
-              if (!thirdwebRes.ok || !thirdwebData.success) {
-                const errMsg = thirdwebData?.error || "Thirdweb add failed";
-                alert(`On-chain add failed: ${errMsg}`);
-              } else {
-                alert("On-chain add submitted via Thirdweb.");
-              }
-            } catch (err) {
-              console.error("Thirdweb add error:", err);
-              alert("Failed to call Thirdweb API.");
+        // Prompt to add to contract via Thirdweb (both movies and TV shows)
+        const contentType = isTVShow ? "TV Show" : "Movie";
+        const confirmChainAdd = confirm(`Add this ${contentType.toLowerCase()} on-chain via Thirdweb now? You will use your configured relayer.`);
+        if (confirmChainAdd) {
+          try {
+            const thirdwebRes = await fetch("/api/thirdweb", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "addMovie", title })
+            });
+            const thirdwebData = await thirdwebRes.json();
+            if (!thirdwebRes.ok || !thirdwebData.success) {
+              const errMsg = thirdwebData?.error || "Thirdweb add failed";
+              alert(`On-chain add failed: ${errMsg}`);
+            } else {
+              alert(`On-chain add submitted via Thirdweb for ${contentType.toLowerCase()}.`);
             }
+          } catch (err) {
+            console.error("Thirdweb add error:", err);
+            alert("Failed to call Thirdweb API.");
           }
         }
       } else {
@@ -185,7 +209,7 @@ export default function AdminPage() {
         if (result.titles && Array.isArray(result.titles) && result.titles.length > 0) {
           const doOnChain = confirm(`Add ${result.titles.length} imported movies on-chain now?`);
           if (doOnChain) {
-            await addMoviesOnChain(result.titles);
+            await addContentOnChain(result.titles, 'movies');
           }
         }
       } else {
@@ -213,6 +237,12 @@ export default function AdminPage() {
       
       if (result.success) {
         setImportStatus(`✅ Successfully imported ${result.imported} trending TV shows!`);
+        if (result.titles && Array.isArray(result.titles) && result.titles.length > 0) {
+          const doOnChain = confirm(`Add ${result.titles.length} imported TV shows on-chain now?`);
+          if (doOnChain) {
+            await addContentOnChain(result.titles, 'tv');
+          }
+        }
       } else {
         setImportStatus(`❌ Import failed: ${result.error}`);
       }
@@ -243,7 +273,7 @@ export default function AdminPage() {
         if (result.titles && Array.isArray(result.titles) && result.titles.length > 0) {
           const doOnChain = confirm(`Add ${result.titles.length} imported movies on-chain now?`);
           if (doOnChain) {
-            await addMoviesOnChain(result.titles);
+            await addContentOnChain(result.titles, 'movies');
           }
         }
       } else {
@@ -273,6 +303,12 @@ export default function AdminPage() {
       
       if (result.success) {
         setImportStatus(`✅ Successfully imported ${result.imported} TV shows for "${query}"!`);
+        if (result.titles && Array.isArray(result.titles) && result.titles.length > 0) {
+          const doOnChain = confirm(`Add ${result.titles.length} imported TV shows on-chain now?`);
+          if (doOnChain) {
+            await addContentOnChain(result.titles, 'tv');
+          }
+        }
       } else {
         setImportStatus(`❌ Import failed: ${result.error}`);
       }
@@ -467,7 +503,7 @@ export default function AdminPage() {
         <div className="mt-6 border-t border-white/10 pt-6">
           <h3 className="text-lg font-semibold mb-3 text-white">Add On-Chain (Connected Wallet)</h3>
           <p className="text-sm text-white/60 mb-3">
-            This calls the smart contract directly from your browser wallet on Celo (chainId 42220).
+            This calls the smart contract directly from your browser wallet on Celo (chainId 42220). Works for both movies and TV shows.
           </p>
           
           {/* Connect Wallet Button */}
@@ -485,7 +521,7 @@ export default function AdminPage() {
                 ))}
               </div>
               <p className="text-sm text-white/60 mt-2">
-                Connect your wallet to add movies on-chain
+                Connect your wallet to add movies and TV shows on-chain
               </p>
             </div>
           ) : (
@@ -517,13 +553,14 @@ export default function AdminPage() {
                   if (currentChainId !== 42220) {
                     await switchChainAsync({ chainId: 42220 });
                   }
+                  const mediaType = isTVShow ? "TV Show" : "Movie";
                   await writeContract({
                     address: VOTE_CONTRACT_ADDRESS,
                     abi: VOTE_CONTRACT_ABI,
                     functionName: 'addMovie',
                     args: [title.trim()],
                   });
-                  setWalletMessage("Transaction submitted. Check your wallet for confirmation.");
+                  setWalletMessage(`${mediaType} transaction submitted. Check your wallet for confirmation.`);
                 } catch (e) {
                   setWalletMessage((e as Error).message || "Failed to submit transaction.");
                 }
@@ -531,7 +568,7 @@ export default function AdminPage() {
               disabled={isPending || !isConnected}
               className=""
             >
-              {isPending ? "Submitting..." : "Add On-Chain with Wallet"}
+              {isPending ? "Submitting..." : `Add ${isTVShow ? 'TV Show' : 'Movie'} On-Chain with Wallet`}
             </Button>
             {txHash && (
               <a
@@ -610,6 +647,14 @@ export default function AdminPage() {
                 className="w-full mt-4"
               >
                 {isRetracting ? "Retracting..." : "Retract Recent Imports"}
+              </Button>
+              <Button 
+                onClick={handleRetractTV}
+                disabled={isRetracting}
+                variant="destructive"
+                className="w-full mt-2"
+              >
+                {isRetracting ? "Retracting..." : "Retract Recent TV Imports"}
               </Button>
             </div>
           </div>
