@@ -4,6 +4,7 @@ import { Button } from "~/components/ui/Button";
 import { Bell, BellOff, RefreshCw } from "lucide-react";
 import { useAccount } from "wagmi";
 import { cn } from "~/lib/utils";
+import { Skeleton } from "~/components/ui/Skeleton";
 
 interface WatchlistButtonProps {
   movieId: string;
@@ -112,15 +113,13 @@ export default function WatchlistButton({
 
   if (checking) {
     return (
-      <Button
-        variant="default"
-        size={size}
-        disabled
-        className={`p-2 ${className}`}
-      >
-        <RefreshCw size={16} className="animate-spin" />
-        
-      </Button>
+      <Skeleton 
+        className={cn(
+          "rounded-md",
+          size === "sm" ? "w-8 h-8" : size === "lg" ? "w-12 h-12" : "w-10 h-10",
+          className
+        )}
+      />
     );
   }
 
