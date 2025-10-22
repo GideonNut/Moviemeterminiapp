@@ -370,7 +370,7 @@ export default function MediaPage() {
                             <span>{item.commentCount ?? 0} comments</span>
                           </div>
                         </div>
-                        <WatchlistButton movieId={item.id} />
+                        <WatchlistButton movieId={item.id} movieTitle={item.title} />
                       </div>
 
                       {/* Vote buttons */}
