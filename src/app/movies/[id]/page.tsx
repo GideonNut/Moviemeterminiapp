@@ -8,7 +8,7 @@ import Link from "next/link";
 import Header from "~/components/Header";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Calendar, Clock,  Star, Play, RefreshCw } from "lucide-react";
-import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance, useWalletClient } from "wagmi";
+import { useAccount, useChainId, useSwitchChain, useBalance, useWalletClient } from "wagmi";
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
 import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl } from "~/lib/utils";
 import WatchlistButton from "~/components/WatchlistButton";
@@ -48,13 +48,7 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
   const { switchChainAsync } = useSwitchChain();
   const { data: walletClient } = useWalletClient();
   
-  // Use the proper Wagmi hook for smart contract interactions
-  const { 
-    data: hash, 
-    isPending,
-    writeContract,
-    error
-  } = useWriteContract();
+  // Use walletClient.sendTransaction for miniapp compatibility
 
   // Get CELO balance for gas fees
   const { data: celoBalance } = useBalance({
@@ -170,17 +164,26 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
     }
     
     setCurrentVotingId(movieId);
-    setTxStatus((prev) => ({ ...prev, [movieId]: 'pending' }));
+    setTxStatus((prev) => ({ ...prev, [movieId]: 'Submitting vote...' }));
     
     try {
       if (!isConnected || !address) throw new Error("Wallet not connected");
 
+      // Check gas balance
+      if (!hasSufficientCELOForGas(celoBalance)) {
+        alert('Insufficient CELO for gas fees. Get some CELO from the faucet to vote.');
+        setCurrentVotingId(null);
+        setTxStatus((prev) => ({ ...prev, [movieId]: '' }));
+        return;
+      }
+
       const movieIdBigInt = BigInt(parseInt(movieId, 10));
+      const voteValue = vote === 'yes';
 
       // Set the vote immediately to prevent double-clicking
       setVotes((prev) => ({ ...prev, [movieId]: vote }));
 
-      // Build calldata with Divvi referral tag and send raw transaction
+      // Use walletClient.sendTransaction for miniapp compatibility
       const calldata = encodeFunctionData({
         abi: VOTE_CONTRACT_ABI,
         functionName: 'vote',
@@ -234,81 +237,14 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
       setTxStatus((prev) => ({ ...prev, [movieId]: 'error' }));
       setCurrentVotingId(null);
       
-      // Show error to user (you can add a toast notification here)
+      // Show error to user
       alert(errorMessage);
     }
   };
 
-  // Handle transaction state changes
-  useEffect(() => {
-    if (hash && currentVotingId) {
-      // Transaction was sent successfully
-      console.log('Transaction hash:', hash);
-      
-      // Update the transaction status to success
-      setTxStatus((prev) => ({ ...prev, [currentVotingId]: 'success' }));
-      
-      // Save vote to MongoDB
-      if (address && votes[currentVotingId]) {
-        fetch('/api/movies', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'vote',
-            id: currentVotingId,
-            type: votes[currentVotingId],
-            userAddress: address
-          })
-        }).then(response => {
-          if (!response.ok) {
-            return response.json().then(errorData => {
-              throw new Error(errorData.error || 'Failed to save vote');
-            });
-          }
-        }).catch(error => {
-          console.error('Failed to save vote to MongoDB:', error);
-          // Use the error handling function
-          handleVoteSaveError(currentVotingId, votes[currentVotingId]!);
-        });
-      }
-      
-      // Clear the current voting ID
-      setCurrentVotingId(null);
-      
-      // Refresh movie to get updated vote counts
-      setTimeout(() => fetchMovie(), 1000);
-    }
-  }, [hash, currentVotingId, address, votes]);
+  // Handle transaction success - now handled directly in handleVote function
 
-  // Handle errors from the contract
-  useEffect(() => {
-    if (error && currentVotingId) {
-      console.error('Contract error:', error);
-      
-      // Revert the vote if the contract call failed
-      setVotes((prev) => ({ ...prev, [currentVotingId]: null }));
-      
-      // Provide specific error messages based on the error
-      let errorMessage = 'Transaction failed';
-      if (error.message?.includes('insufficient funds') || error.message?.includes('insufficient balance')) {
-        errorMessage = 'Insufficient CELO for gas fees. Please ensure you have enough CELO to cover transaction costs.';
-      } else if (error.message?.includes('user rejected')) {
-        errorMessage = 'Transaction was cancelled';
-      } else if (error.message?.includes('execution reverted')) {
-        errorMessage = 'Smart contract execution failed. This could mean:\n\n1. The movie ID does not exist on the contract\n2. The contract has an error\n3. You have already voted on this movie\n\nPlease check if the movie exists on the contract first.';
-      } else if (error.message?.includes('gas')) {
-        errorMessage = 'Gas estimation failed. Please try again.';
-      }
-      
-      // Update the status for the specific movie being voted on
-      setTxStatus((prev) => ({ ...prev, [currentVotingId]: 'error' }));
-      
-      // Clear the current voting ID
-      setCurrentVotingId(null);
-      
-      alert(errorMessage);
-    }
-  }, [error, currentVotingId]);
+  // Handle errors - now handled directly in handleVote function
 
   // Handle MongoDB vote save errors
   const handleVoteSaveError = async (movieId: string, vote: 'yes' | 'no') => {
@@ -575,21 +511,21 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
                     <div className="flex gap-4">
                       <Button
                         onClick={() => handleVote(movie.id, 'yes')}
-                        disabled={isPending || currentVotingId === movie.id}
+                        disabled={currentVotingId === movie.id}
                         className="flex-1 bg-green-600 hover:bg-green-700 text-white border-0"
                         size="lg"
                       >
                         <ThumbsUpIcon size={20} className="mr-2" />
-                        {isPending && currentVotingId === movie.id ? 'Processing...' : 'Yes'}
+                        {currentVotingId === movie.id ? 'Processing...' : 'Yes'}
                       </Button>
                       <Button
                         onClick={() => handleVote(movie.id, 'no')}
-                        disabled={isPending || currentVotingId === movie.id}
+                        disabled={currentVotingId === movie.id}
                         className="flex-1 bg-red-600 hover:bg-red-700 text-white border-0"
                         size="lg"
                       >
                         <ThumbsDownIcon size={20} className="mr-2" />
-                        {isPending && currentVotingId === movie.id ? 'Processing...' : 'No'}
+                        {currentVotingId === movie.id ? 'Processing...' : 'No'}
                       </Button>
                     </div>
                   )}
