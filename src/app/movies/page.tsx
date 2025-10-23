@@ -6,7 +6,7 @@ import { Card, CardContent, CardTitle, CardDescription } from "~/components/ui/c
 import { Button } from "~/components/ui/Button";
 import Image from "next/image";
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
-import { useAccount, useChainId, useSwitchChain, useWriteContract, useBalance, useReadContract, useWalletClient } from "wagmi";
+import { useAccount, useChainId, useSwitchChain, useBalance, useReadContract, useWalletClient } from "wagmi";
 import { encodeFunctionData } from "viem";
 import { getDataSuffix, submitReferral } from "@divvi/referral-sdk";
 import { useRouter } from "next/navigation";
@@ -48,12 +48,7 @@ export default function MediaPage() {
   const { switchChainAsync } = useSwitchChain();
   const { data: walletClient } = useWalletClient();
   
-  const { 
-    data: hash, 
-    isPending,
-    writeContract,
-    error
-  } = useWriteContract();
+  // Remove writeContract since we'll use walletClient.sendTransaction
   
   const { data: celoBalance } = useBalance({
     address,
@@ -233,15 +228,26 @@ export default function MediaPage() {
         return;
       }
 
-      const voteValue = vote === 'yes';
-      const args: [bigint, boolean] = [BigInt(id), voteValue];
+      const movieIdBigInt = BigInt(parseInt(id, 10));
 
-      writeContract({
-        address: VOTE_CONTRACT_ADDRESS,
+      // Build calldata with Divvi referral tag and send raw transaction
+      const calldata = encodeFunctionData({
         abi: VOTE_CONTRACT_ABI,
         functionName: 'vote',
-        args
+        args: [movieIdBigInt, vote === 'yes']
       });
+      const dataWithTag = referralTag ? (calldata + referralTag.slice(2)) : calldata;
+      if (!walletClient) throw new Error('Wallet client unavailable');
+      const txHash = await walletClient.sendTransaction({
+        account: address!,
+        to: VOTE_CONTRACT_ADDRESS,
+        data: dataWithTag as `0x${string}`,
+        value: 0n
+      });
+
+      // Submit referral to Divvi
+      const chainId = await walletClient.getChainId();
+      submitReferral({ txHash, chainId }).catch((e) => console.error('Divvi submitReferral failed:', e));
 
       // Save vote to database
       const apiEndpoint = isTVShow ? '/api/tv' : '/api/movies';
