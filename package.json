@@ -41,6 +41,7 @@
     "clsx": "^2.1.1",
     "dotenv": "^16.4.7",
     "embla-carousel-react": "^8.6.0",
+    "firebase": "^12.5.0",
     "lucide-react": "^0.469.0",
     "mipd": "^0.0.7",
     "mongoose": "^8.17.1",
