@@ -1,20 +1,25 @@
 "use client";
-import { useState, useEffect } from "react";
-import WatchlistButton from "~/components/WatchlistButton";
-import Link from "next/link";
-import { Card, CardContent, CardTitle, CardDescription } from "~/components/ui/card";
-import { Button } from "~/components/ui/Button";
-import Image from "next/image";
-import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
-import { useAccount, useChainId, useSwitchChain, useBalance, useReadContract, useWalletClient } from "wagmi";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useAccount, useChainId, useSwitchChain, useBalance, useWalletClient } from "wagmi";
 import { encodeFunctionData } from "viem";
 import { getDataSuffix, submitReferral } from "@divvi/referral-sdk";
-import { useRouter } from "next/navigation";
-import Header from "~/components/Header";
 import { ArrowLeft, RefreshCw, Film, Tv, MessageSquare } from "lucide-react";
-import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl } from "~/lib/utils";
+import Link from "next/link";
+import Image from "next/image";
+
+// Components
+import WatchlistButton from "~/components/WatchlistButton";
+import { Card, CardContent, CardTitle, CardDescription } from "~/components/ui/card";
+import { Button } from "~/components/ui/Button";
+import Header from "~/components/Header";
 import { ThumbsDownIcon, ThumbsUpIcon } from "~/components/icons";
 import { HorizontalMovieCardSkeleton } from "~/components/MovieCardSkeleton";
+
+// Utils
+import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
+import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl } from "~/lib/utils";
+import { saveMovie, getMovie, getAllMovies } from "~/lib/firestore";
 
 interface Media {
   id: string;
@@ -47,54 +52,13 @@ export default function MediaPage() {
   const currentChainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const { data: walletClient } = useWalletClient();
-  
-  // Remove writeContract since we'll use walletClient.sendTransaction
-  
   const { data: celoBalance } = useBalance({
-    address,
-    chainId: 42220,
+    address: address,
+    query: { enabled: !!address }
   });
 
-  // Auto-switch to Celo when wallet connects
-  const [isSwitchingNetwork, setIsSwitchingNetwork] = useState(false);
-  
-  useEffect(() => {
-    if (isConnected && currentChainId !== 42220 && currentChainId !== 44787) {
-      setIsSwitchingNetwork(true);
-      switchChainAsync({ chainId: 42220 })
-        .then(() => {
-          setIsSwitchingNetwork(false);
-        })
-        .catch((err) => {
-          console.error('Failed to switch to Celo mainnet, trying testnet:', err);
-          return switchChainAsync({ chainId: 44787 });
-        })
-        .then(() => {
-          setIsSwitchingNetwork(false);
-        })
-        .catch((err) => {
-          console.error('Failed to switch to Celo:', err);
-          setIsSwitchingNetwork(false);
-        });
-    }
-  }, [isConnected, currentChainId, switchChainAsync]);
-
-  // Prepare Divvi referral tag
-  useEffect(() => {
-    if (isConnected && address) {
-      try {
-        const tag = getDataSuffix({ consumer: '0xc49b8e093600f684b69ed6ba1e36b7dfad42f982' });
-        setReferralTag(tag);
-      } catch (e) {
-        console.error('Failed to create Divvi referral tag:', e);
-        setReferralTag(null);
-      }
-    } else {
-      setReferralTag(null);
-    }
-  }, [isConnected, address]);
-
-  const fetchAllMedia = async () => {
+  // Fetch all media (movies and TV shows)
+  const fetchAllMedia = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -110,10 +74,21 @@ export default function MediaPage() {
           tvShowsResponse.json()
         ]);
 
-        const movies = (moviesData.movies || []).map((m: Media) => ({ ...m, isTVShow: false }));
-        const tvShows = (tvShowsData.tvShows || []).map((t: Media) => ({ ...t, isTVShow: true }));
+        const movies = (moviesData.movies || []).map((m: any) => ({
+          ...m,
+          id: m.id || m._id,
+          isTVShow: false,
+          votes: m.votes || { yes: 0, no: 0 }
+        }));
+        
+        const tvShows = (tvShowsData.tvShows || []).map((t: any) => ({
+          ...t,
+          id: t.id || t._id,
+          isTVShow: true,
+          votes: t.votes || { yes: 0, no: 0 }
+        }));
 
-        // Combine and sort by creation date
+        // Combine and sort by creation date (newest first)
         const allMedia = [...movies, ...tvShows].sort((a, b) => 
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
@@ -127,61 +102,32 @@ export default function MediaPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   // Fetch user's previous votes
-  const fetchUserVotes = async () => {
+  const fetchUserVotes = useCallback(async () => {
     if (!isConnected || !address) return;
     
     try {
-      const [moviesVotes, tvVotes] = await Promise.all([
-        fetch('/api/movies', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'getUserVotes',
-            userAddress: address
-          })
-        }),
-        fetch('/api/tv', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'getUserVotes',
-            userAddress: address
-          })
-        })
-      ]);
-      
-      if (moviesVotes.ok && tvVotes.ok) {
-        const [moviesData, tvData] = await Promise.all([
-          moviesVotes.json(),
-          tvVotes.json()
-        ]);
-        
-        setVotes({
-          ...moviesData.userVotes || {},
-          ...tvData.userVotes || {}
-        });
-      }
+      // For now, we'll return empty votes since we're not tracking them in Firestore yet
+      const votes: Record<string, 'yes' | 'no'> = {};
+      setVotes(votes);
     } catch (error) {
       console.error('Error fetching user votes:', error);
     }
-  };
-
-  useEffect(() => {
-    fetchAllMedia();
-  }, []);
-
-  // Fetch user votes when wallet connects
-  useEffect(() => {
-    if (isConnected && address) {
-      fetchUserVotes();
-    }
   }, [isConnected, address]);
 
-  // Cleanup timeouts on unmount
+  // Load data on component mount
   useEffect(() => {
+    fetchAllMedia();
+    
+    // Set up referral tag
+    if (typeof window !== 'undefined') {
+      const tag = localStorage.getItem('divvi_referral_tag');
+      if (tag) setReferralTag(tag);
+    }
+    
+    // Cleanup vote attempt timeouts
     return () => {
       Object.values(voteAttempts).forEach(attempt => {
         if (attempt.timeoutId) {
@@ -189,13 +135,16 @@ export default function MediaPage() {
         }
       });
     };
-  }, [voteAttempts]);
+  }, [fetchAllMedia, voteAttempts]);
 
-  const handleVote = async (id: string, vote: 'yes' | 'no', isTVShow: boolean) => {
-    if (votes[id]) {
-      if (voteAttempts[id]?.timeoutId) {
-        clearTimeout(voteAttempts[id].timeoutId);
-      }
+  // Handle voting
+  const handleVote = async (id: string, vote: 'yes' | 'no', isTVShow = false) => {
+    if (!isConnected) {
+      // Show vote attempt indicator
+      setVoteAttempts(prev => ({
+        ...prev,
+        [id]: { show: true }
+      }));
       
       const timeoutId = setTimeout(() => {
         setVoteAttempts(prev => ({
@@ -228,28 +177,23 @@ export default function MediaPage() {
         return;
       }
 
-      const movieIdBigInt = BigInt(parseInt(id, 10));
+      // Optimistically update the UI
+      setMedia(prev => prev.map(item => {
+        if (item.id === id) {
+          return {
+            ...item,
+            votes: {
+              ...item.votes,
+              [vote]: (item.votes[vote] || 0) + 1
+            }
+          };
+        }
+        return item;
+      }));
 
-      // Build calldata with Divvi referral tag and send raw transaction
-      const calldata = encodeFunctionData({
-        abi: VOTE_CONTRACT_ABI,
-        functionName: 'vote',
-        args: [movieIdBigInt, vote === 'yes']
-      });
-      const dataWithTag = referralTag ? (calldata + referralTag.slice(2)) : calldata;
-      if (!walletClient) throw new Error('Wallet client unavailable');
-      const txHash = await walletClient.sendTransaction({
-        account: address!,
-        to: VOTE_CONTRACT_ADDRESS,
-        data: dataWithTag as `0x${string}`,
-        value: 0n
-      });
+      setVotes(prev => ({ ...prev, [id]: vote }));
 
-      // Submit referral to Divvi
-      const chainId = await walletClient.getChainId();
-      submitReferral({ txHash, chainId }).catch((e) => console.error('Divvi submitReferral failed:', e));
-
-      // Save vote to database
+      // 1. First, save the vote to Firestore
       const apiEndpoint = isTVShow ? '/api/tv' : '/api/movies';
       const response = await fetch(apiEndpoint, {
         method: 'POST',
@@ -262,30 +206,67 @@ export default function MediaPage() {
         })
       });
 
-      if (response.ok) {
-        setVotes(prev => ({ ...prev, [id]: vote }));
+      if (!response.ok) {
+        throw new Error('Failed to save vote to database');
+      }
+
+      // 2. After successful database update, submit the blockchain transaction
+      try {
+        const movieIdBigInt = BigInt(parseInt(id, 10));
         
-        // Update vote count in UI
-        setMedia(prev => prev.map(item => {
-          if (item.id === id) {
-            return {
-              ...item,
-              votes: {
-                ...item.votes,
-                [vote]: item.votes[vote] + 1
-              }
-            };
-          }
-          return item;
-        }));
+        // Build calldata with Divvi referral tag and send raw transaction
+        const calldata = encodeFunctionData({
+          abi: VOTE_CONTRACT_ABI,
+          functionName: 'vote',
+          args: [movieIdBigInt, vote === 'yes']
+        });
+        
+        const dataWithTag = referralTag ? (calldata + referralTag.slice(2)) : calldata;
+        if (!walletClient) throw new Error('Wallet client unavailable');
+        
+        const txHash = await walletClient.sendTransaction({
+          account: address!,
+          to: VOTE_CONTRACT_ADDRESS,
+          data: dataWithTag as `0x${string}`,
+          value: 0n
+        });
+
+        // Submit referral to Divvi
+        const chainId = await walletClient.getChainId();
+        submitReferral({ txHash, chainId }).catch((e) => 
+          console.error('Divvi submitReferral failed:', e)
+        );
 
         setTxStatus(prev => ({ ...prev, [id]: 'Vote successful!' }));
-      } else {
-        throw new Error('Failed to save vote');
+      } catch (blockchainError) {
+        console.error('Blockchain transaction failed:', blockchainError);
+        // Even if blockchain fails, we keep the UI in sync with Firestore
+        setTxStatus(prev => ({ 
+          ...prev, 
+          [id]: 'Vote recorded! (Blockchain transaction may have failed)' 
+        }));
       }
     } catch (err) {
-      console.error('Error voting:', err);
-      setTxStatus(prev => ({ ...prev, [id]: 'Vote failed' }));
+      console.error('Error in voting process:', err);
+      
+      // Revert optimistic update on error
+      setMedia(prev => prev.map(item => {
+        if (item.id === id) {
+          return {
+            ...item,
+            votes: {
+              ...item.votes,
+              [vote]: Math.max(0, (item.votes[vote] || 0) - 1)
+            }
+          };
+        }
+        return item;
+      }));
+      
+      setTxStatus(prev => ({ 
+        ...prev, 
+        [id]: err instanceof Error ? err.message : 'Vote failed' 
+      }));
     } finally {
       setTimeout(() => {
         setCurrentVotingId(null);
@@ -294,17 +275,34 @@ export default function MediaPage() {
     }
   };
 
+  // Handle back navigation
   const handleBack = () => {
-    if (window.history.length > 1) {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
       router.back();
     } else {
-      router.push("/");
+      router.push('/');
     }
   };
 
+  // Render loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-4 py-8">
+          <Header showSearch={false} />
+          <div className="grid grid-cols-1 gap-6 mt-8">
+            {[...Array(5)].map((_, i) => (
+              <HorizontalMovieCardSkeleton key={i} />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <main className="min-h-screen">
-      <div className="max-w-2xl mx-auto px-4 pb-20">
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-8">
         <Header showSearch={false} />
         
         {/* Page Header */}
@@ -315,124 +313,139 @@ export default function MediaPage() {
             onClick={handleBack}
             className="mr-3 p-2"
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft className="w-5 h-5" />
           </Button>
-          <h1 className="text-xl font-semibold text-foreground">Rate Movies</h1>
+          <h1 className="text-2xl font-bold">All Movies & TV Shows</h1>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="ml-auto"
+            onClick={fetchAllMedia}
+            disabled={loading}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
 
-        {/* Content */}
-        {loading ? (
-          <div className="grid gap-4">
-            {Array.from({ length: 6 }).map((_, index) => (
-              <Card key={index} className="overflow-hidden bg-card">
-                <CardContent className="p-0">
-                  <HorizontalMovieCardSkeleton />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : media.length === 0 ? (
-          <div className="text-center py-20">
-            <Film className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No movies or TV shows available.</p>
+        {/* Media List */}
+        {media.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No media found. Try refreshing the page.</p>
           </div>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid grid-cols-1 gap-6">
             {media.map((item) => (
-              <Card key={item.id} className="overflow-hidden bg-card">
+              <Card key={item.id} className="overflow-hidden">
                 <CardContent className="p-0">
-                  <div className="flex">
+                  <div className="md:flex">
                     {/* Poster */}
-                    <Link href={`/movies/${item.id}`} className="relative w-[120px] h-[180px] flex-shrink-0">
-                      <Image
-                        src={ensureFullPosterUrl(item.posterUrl)}
-                        alt={item.title}
-                        fill
-                        sizes="120px"
-                        className="object-cover"
-                        priority
-                      />
-                    </Link>
+                    <div className="md:w-1/4 lg:w-1/5 relative h-64 md:h-auto">
+                      {item.posterUrl ? (
+                        <Image
+                          src={ensureFullPosterUrl(item.posterUrl)}
+                          alt={item.title}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 100vw, 25vw"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                          {item.isTVShow ? (
+                            <Tv className="w-12 h-12 text-gray-400" />
+                          ) : (
+                            <Film className="w-12 h-12 text-gray-400" />
+                          )}
+                        </div>
+                      )}
+                    </div>
 
                     {/* Content */}
-                    <div className="flex-1 p-4">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <Link 
-                            href={`/movies/${item.id}`}
-                            className="hover:underline"
-                          >
-                            <CardTitle className="text-base mb-1 line-clamp-1">
-                              {item.title}
-                              {item.releaseYear ? ` (${item.releaseYear})` : ''}
-                            </CardTitle>
-                          </Link>
-                          <CardDescription className="line-clamp-2 mb-2">
-                            {item.description}
-                          </CardDescription>
-                          {/* Comments count */}
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <MessageSquare size={14} />
-                            <span>{item.commentCount ?? 0} comments</span>
-                          </div>
+                    <div className="p-6 flex-1">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-xl font-bold">
+                            {item.title}
+                            {item.releaseYear && (
+                              <span className="text-gray-500 font-normal ml-2">
+                                ({item.releaseYear})
+                              </span>
+                            )}
+                            {item.isTVShow && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 ml-2">
+                                TV Show
+                              </span>
+                            )}
+                          </CardTitle>
+                          
+                          {item.genres && item.genres.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {item.genres.slice(0, 3).map((genre) => (
+                                <span 
+                                  key={genre} 
+                                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+                                >
+                                  {genre}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <WatchlistButton movieId={item.id} movieTitle={item.title} />
+
+                        <WatchlistButton 
+                          movieId={item.id}
+                          movieTitle={item.title}
+                          size="sm"
+                          className="ml-2"
+                        />
                       </div>
 
-                      {/* Vote buttons */}
-                      <div className="flex items-center justify-between mt-2">
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2">
-                            <Button
-                              onClick={() => handleVote(item.id, 'yes', item.isTVShow || false)}
-                              disabled={!!votes[item.id] || currentVotingId === item.id}
-                              className={`relative overflow-hidden px-3 py-1 h-9 gap-2 font-semibold border bg-background hover:bg-accent text-white ${
-                                votes[item.id] === 'yes' ? 'ring-1 ring-border' : ''
-                              }`}
-                            >
-                              {votes[item.id] === 'yes' && (
-                                <span className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/30 via-white/10 to-transparent" />
-                              )}
-                              <ThumbsUpIcon size={16} />
-                              <span>Yes</span>
-                            </Button>
-                            <span className="text-sm font-semibold text-foreground">{item.votes.yes}</span>
-                          </div>
+                      <CardDescription className="mt-3 line-clamp-3">
+                        {item.description || 'No description available.'}
+                      </CardDescription>
 
-                          <div className="flex items-center gap-2">
-                            <Button
-                              onClick={() => handleVote(item.id, 'no', item.isTVShow || false)}
-                              disabled={!!votes[item.id] || currentVotingId === item.id}
-                              className={`relative overflow-hidden px-3 py-1 h-9 gap-2 font-semibold border bg-background hover:bg-accent text-white ${
-                                votes[item.id] === 'no' ? 'ring-1 ring-border' : ''
-                              }`}
-                            >
-                              {votes[item.id] === 'no' && (
-                                <span className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/30 via-white/10 to-transparent" />
-                              )}
-                              <ThumbsDownIcon size={16} />
-                              <span>No</span>
-                            </Button>
-                            <span className="text-sm font-semibold text-foreground">{item.votes.no}</span>
-                          </div>
-                        </div>
-
-                        {/* Vote status */}
-                        <div className="flex items-center">
+                      <div className="mt-4 flex items-center justify-between">
+                        {/* Vote Buttons */}
+                        <div className="flex space-x-2">
+                          <Button
+                            variant={votes[item.id] === 'yes' ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={() => handleVote(item.id, 'yes', item.isTVShow)}
+                            disabled={!!currentVotingId}
+                            className="flex items-center"
+                          >
+                            <ThumbsUpIcon className="w-4 h-4 mr-1" />
+                            {item.votes?.yes || 0}
+                          </Button>
+                          <Button
+                            variant={votes[item.id] === 'no' ? 'destructive' : 'outline'}
+                            size="sm"
+                            onClick={() => handleVote(item.id, 'no', item.isTVShow)}
+                            disabled={!!currentVotingId}
+                            className="flex items-center"
+                          >
+                            <ThumbsDownIcon className="w-4 h-4 mr-1" />
+                            {item.votes?.no || 0}
+                          </Button>
                           {txStatus[item.id] && (
-                            <span className="text-xs text-muted-foreground">
+                            <span className="text-sm text-gray-500 ml-2 flex items-center">
                               {txStatus[item.id]}
-                              {currentVotingId === item.id && (
-                                <RefreshCw className="inline-block w-3 h-3 ml-1 animate-spin" />
-                              )}
-                            </span>
-                          )}
-                          {voteAttempts[item.id]?.show && (
-                            <span className="text-xs text-yellow-400">
-                              You've already voted!
                             </span>
                           )}
                         </div>
+
+                        {/* Comments */}
+                        <Link 
+                          href={{
+                            pathname: `/media/${item.isTVShow ? 'tv' : 'movie'}/[id]`,
+                            query: { id: item.id }
+                          }}
+                          as={`/media/${item.isTVShow ? 'tv' : 'movie'}/${item.id}`}
+                          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
+                        >
+                          <MessageSquare className="w-4 h-4 mr-1" />
+                          {item.commentCount || 0} comments
+                        </Link>
                       </div>
                     </div>
                   </div>
@@ -442,6 +455,6 @@ export default function MediaPage() {
           </div>
         )}
       </div>
-    </main>
+    </div>
   );
 }
