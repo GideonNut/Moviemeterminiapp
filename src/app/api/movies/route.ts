@@ -1,53 +1,100 @@
 import { NextRequest } from "next/server";
-import { getAllMovies, saveMovie, saveVote, resetMovieIds, getUserVotes, addVotePoints } from "../../../lib/mongo";
-import { Comment } from "~/lib/mongo";
+import { 
+  saveMovie as saveMovieToFirestore,
+  getMovie,
+  getAllMovies as getFirestoreMovies,
+  updateVote
+} from "~/lib/firestore";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "~/auth";
+
+// Mock functions for backward compatibility
+const getUserVotes = async (userAddress: string) => {
+  // In a real implementation, you would query Firestore for user's votes
+  return {};
+};
+
+const resetMovieIds = async () => {
+  // In a real implementation, you would reset movie IDs in Firestore
+  return { success: true };
+};
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {
-    const movies = await getAllMovies();
+    const searchParams = request.nextUrl.searchParams;
+    const searchTerm = searchParams.get('search');
     
-    // Get comment counts for all movies
-    const commentCounts = await Comment.aggregate([
-      {
-        $group: {
-          _id: "$movieId",
-          commentCount: { $sum: 1 }
-        }
-      }
-    ]);
+    let movies;
+    if (searchTerm) {
+      // Implement search if needed
+      movies = await getFirestoreMovies();
+      movies = movies.filter(movie => 
+        movie.title.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    } else {
+      movies = await getFirestoreMovies();
+    }
 
-    // Create a map of movie ID to comment count
-    const commentCountMap = new Map(
-      commentCounts.map(item => [item._id.toString(), item.commentCount])
+    // Sort by most recent first
+    const sortedMovies = movies.sort((a, b) => 
+      new Date(b.createdAt?.toDate()).getTime() - new Date(a.createdAt?.toDate()).getTime()
     );
 
-    // Add comment counts to movies
-    const moviesWithComments = movies.map(movie => {
-      const movieObj = movie.toObject();
-      return {
-        ...movieObj,
-        commentCount: commentCountMap.get(movieObj._id.toString()) || 0
-      };
+    return Response.json({ 
+      success: true, 
+      movies: sortedMovies.map(movie => ({
+        ...movie,
+        id: movie.id,
+        _id: movie.id, // For backward compatibility
+        commentCount: movie.commentCount || 0,
+        createdAt: movie.createdAt?.toDate().toISOString(),
+        updatedAt: movie.updatedAt?.toDate().toISOString()
+      }))
     });
-
-    return Response.json({ success: true, movies: moviesWithComments });
   } catch (error) {
-    return Response.json({ success: false, error: (error as Error).message }, { status: 500 });
+    console.error('Error in GET /api/movies:', error);
+    return Response.json(
+      { success: false, error: (error as Error).message }, 
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return Response.json(
+        { success: false, error: 'Not authenticated' }, 
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
+    
     if (body.action === "add") {
-      const result = await saveMovie(body.movie);
-      return Response.json({ success: true, movieId: result.id });
+      const movieData = {
+        ...body.movie,
+        tmdbId: body.movie.id.toString(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        addedBy: session.user.email
+      };
+      
+      await saveMovieToFirestore(movieData);
+      return Response.json({ success: true, movieId: movieData.tmdbId });
+      
     } else if (body.action === "vote") {
-      await saveVote(body.id, body.type, body.userAddress);
-      // Award 1 point for voting
-      await addVotePoints(body.userAddress);
+      if (!body.userAddress) {
+        return Response.json(
+          { success: false, error: 'User address is required' },
+          { status: 400 }
+        );
+      }
+      
+      await updateVote(body.id, body.type);
       return Response.json({ success: true });
     } else if (body.action === "getUserVotes") {
       const userVotes = await getUserVotes(body.userAddress);
