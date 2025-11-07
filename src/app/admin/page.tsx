@@ -29,25 +29,25 @@ export default function AdminPage() {
   const { connect, connectors } = useConnect();
   const [walletMessage, setWalletMessage] = useState<string>("");
 
-  // Function to reset content IDs to sequential
+  // Function to reset content IDs (not needed for Firestore but kept for backward compatibility)
   const resetContentIds = async () => {
     try {
-      const response = await fetch("/api/movies", {
+      const response = await fetch("/api/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "reset" }),
+        body: JSON.stringify({ action: "reset-ids" }),
       });
       
       const result = await response.json();
       if (result.success) {
-        console.log("✅ Content IDs reset successfully!");
+        setMessage(result.message || "✅ Content IDs reset successfully!");
         // Refresh content counts
         fetchContentCounts();
       } else {
-        console.error("❌ Failed to reset content IDs:", result.error);
+        setMessage(`❌ Failed to reset content IDs: ${result.error}`);
       }
     } catch (error) {
-      console.error("❌ Error resetting content IDs:", error);
+      setMessage(`❌ Error resetting content IDs: ${(error as Error).message}`);
     }
   };
 
@@ -95,55 +95,107 @@ export default function AdminPage() {
     }
   };
 
+  // Function to retract recent content
   const handleRetract = async () => {
-    if (!confirm("Are you sure you want to retract all movies imported in the last 48 hours? (Movies only)")) {
+    if (!confirm("Are you sure you want to retract all content imported in the last 48 hours?")) {
       return;
     }
     
     setIsRetracting(true);
+    setMessage("Retracting recent content...");
+    
     try {
-      const response = await fetch("/api/movies/retract", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
-      });
+      // Retract both movies and TV shows
+      const [moviesResponse, tvResponse] = await Promise.all([
+        fetch("/api/admin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: 'retract-recent', type: 'movies' })
+        }),
+        fetch("/api/admin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: 'retract-recent', type: 'tv' })
+        })
+      ]);
       
-      const data = await response.json();
-      if (data.success) {
-        setMessage(`Successfully retracted ${data.deletedCount} recently imported movies`);
-        router.refresh();
+      const moviesResult = await moviesResponse.json();
+      const tvResult = await tvResponse.json();
+      
+      if (moviesResult.success && tvResult.success) {
+        const total = (moviesResult.count || 0) + (tvResult.count || 0);
+        setMessage(`✅ Successfully retracted ${total} items (${moviesResult.count} movies, ${tvResult.count} TV shows).`);
+        fetchContentCounts();
       } else {
-        setMessage("Error retracting movies: " + (data.error || "Unknown error"));
+        const errors = [];
+        if (!moviesResult.success) errors.push(`Movies: ${moviesResult.error}`);
+        if (!tvResult.success) errors.push(`TV Shows: ${tvResult.error}`);
+        setMessage(`❌ Failed to retract: ${errors.join('; ')}`);
       }
     } catch (error) {
-      console.error('Error retracting movies:', error);
-      setMessage("Error retracting movies. Please try again.");
+      setMessage(`❌ Error during retraction: ${(error as Error).message}`);
     } finally {
       setIsRetracting(false);
     }
   };
 
+  // Function to retract only TV shows
   const handleRetractTV = async () => {
-    if (!confirm("Are you sure you want to retract all TV shows imported in the last 48 hours? (TV shows only)")) {
+    if (!confirm("Are you sure you want to retract TV shows imported in the last 48 hours?")) {
       return;
     }
+    
     setIsRetracting(true);
+    setMessage("Retracting recent TV shows...");
+    
     try {
-      const response = await fetch("/api/tv/retract", {
+      const response = await fetch("/api/admin", {
         method: "POST",
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: 'retract-recent', type: 'tv' })
       });
-      const data = await response.json();
-      if (data.success) {
-        setMessage(`Successfully retracted ${data.deletedCount} recently imported TV shows`);
-        router.refresh();
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setMessage(`✅ Successfully retracted ${result.count || 0} TV shows.`);
+        fetchContentCounts();
       } else {
-        setMessage("Error retracting TV shows: " + (data.error || "Unknown error"));
+        setMessage(`❌ Failed to retract TV shows: ${result.error}`);
       }
     } catch (error) {
-      console.error('Error retracting TV shows:', error);
-      setMessage("Error retracting TV shows. Please try again.");
+      setMessage(`❌ Error during TV show retraction: ${(error as Error).message}`);
     } finally {
       setIsRetracting(false);
+    }
+  };
+
+  // Function to fix poster URLs for movies and TV shows
+  const fixPosterUrls = async () => {
+    if (!confirm("This will scan and fix poster URLs for all movies and TV shows. Continue?")) {
+      return;
+    }
+    
+    setIsImporting(true);
+    setImportStatus("Fixing poster URLs...");
+    
+    try {
+      const response = await fetch("/api/fix-poster-urls", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setImportStatus(`✅ Successfully fixed poster URLs for ${result.updatedCount || 0} items.`);
+      } else {
+        setImportStatus(`❌ Failed to fix poster URLs: ${result.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      setImportStatus(`❌ Error fixing poster URLs: ${(error as Error).message}`);
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -156,7 +208,7 @@ export default function AdminPage() {
 
     setIsLoading(true);
     try {
-      const res = await fetch("/api/movies", {
+      const res = await fetch("/api/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -229,10 +281,10 @@ export default function AdminPage() {
     setImportStatus("Importing trending movies...");
     
     try {
-      const response = await fetch("/api/import/tmdb", {
+      const response = await fetch("/api/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "trending", page: 1, mediaType: "movie" }),
+        body: JSON.stringify({ action: "import-trending", type: "movies" }),
       });
       
       const result = await response.json();
@@ -260,10 +312,10 @@ export default function AdminPage() {
     setImportStatus("Importing trending TV shows...");
     
     try {
-      const response = await fetch("/api/import/tmdb", {
+      const response = await fetch("/api/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "trending", page: 1, mediaType: "tv" }),
+        body: JSON.stringify({ action: "import-trending", type: "tv" }),
       });
       
       const result = await response.json();
@@ -293,10 +345,10 @@ export default function AdminPage() {
     setImportStatus(`Searching for "${query}"...`);
     
     try {
-      const response = await fetch("/api/import/tmdb", {
+      const response = await fetch("/api/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "search", query: query.trim(), page: 1, mediaType: "movie" }),
+        body: JSON.stringify({ action: "import-search", query: query.trim(), type: "movies" }),
       });
       
       const result = await response.json();
@@ -326,10 +378,10 @@ export default function AdminPage() {
     setImportStatus(`Searching for TV shows "${query}"...`);
     
     try {
-      const response = await fetch("/api/import/tmdb", {
+      const response = await fetch("/api/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "search", query: query.trim(), page: 1, mediaType: "tv" }),
+        body: JSON.stringify({ action: "import-search", query: query.trim(), type: "tv" }),
       });
       
       const result = await response.json();
@@ -359,36 +411,16 @@ export default function AdminPage() {
     
     try {
       // Get all content from database
-      const [moviesResponse, tvShowsResponse] = await Promise.all([
-        fetch("/api/movies"),
-        fetch("/api/tv")
-      ]);
+      const response = await fetch("/api/admin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sync-content" }),
+      });
       
-      const moviesData = await moviesResponse.json();
-      const tvShowsData = await tvShowsResponse.json();
+      const data = await response.json();
       
-      if (moviesData.success && tvShowsData.success) {
-        const allContent = [
-          ...(moviesData.movies || []),
-          ...(tvShowsData.tvShows || [])
-        ];
-        
-        let syncedCount = 0;
-        
-        // For each content item, add it to the contract if it doesn't exist
-        for (const content of allContent) {
-          try {
-            // This would call the smart contract to add the content
-            // For now, we'll just show the process
-            const contentType = content.isTVShow ? 'TV Show' : 'Movie';
-            console.log(`Syncing ${contentType} ID ${content.id}: ${content.title}`);
-            syncedCount++;
-          } catch (error) {
-            console.error(`Failed to sync content ${content.id}:`, error);
-          }
-        }
-        
-        setImportStatus(`✅ Synced ${syncedCount} content items to smart contract! Check the voting pages for details.`);
+      if (data.success) {
+        setImportStatus(`✅ Synced ${data.syncedCount} content items to smart contract! Check the voting pages for details.`);
       } else {
         setImportStatus("❌ Failed to get content from database");
       }
@@ -402,48 +434,47 @@ export default function AdminPage() {
   // Function to fetch content counts
   const fetchContentCounts = async () => {
     try {
-      const [moviesResponse, tvShowsResponse] = await Promise.all([
-        fetch("/api/movies"),
-        fetch("/api/tv")
-      ]);
-      
-      const moviesData = await moviesResponse.json();
-      const tvShowsData = await tvShowsResponse.json();
-      
-      if (moviesData.success && tvShowsData.success) {
+      const response = await fetch("/api/admin");
+      const data = await response.json();
+      if (data.success) {
         setContentCounts({
-          movies: moviesData.movies?.length || 0,
-          tvShows: tvShowsData.tvShows?.length || 0
+          movies: data.counts?.movies || 0,
+          tvShows: data.counts?.tvShows || 0
         });
       }
     } catch (error) {
-      console.error('Error fetching content counts:', error);
+      console.error("Error fetching content counts:", error);
     }
   };
 
-  // Function to fix existing poster URLs
-  const fixPosterUrls = async () => {
+  // Function to handle bulk import
+  const handleBulkImport = async (items: any[], type: 'movies' | 'tv') => {
     setIsImporting(true);
-    setImportStatus("Fixing existing poster URLs...");
+    setImportStatus(`Starting import of ${items.length} ${type}...`);
     
     try {
-      const response = await fetch("/api/fix-poster-urls", {
+      const response = await fetch("/api/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "fix" }),
+        body: JSON.stringify({ 
+          action: 'import',
+          items: items.map(item => ({
+            ...item,
+            id: item.id?.toString() || Math.random().toString(36).substring(2, 15)
+          })),
+          type
+        }),
       });
       
       const result = await response.json();
-      
       if (result.success) {
-        setImportStatus(`✅ Successfully fixed ${result.fixedCount} poster URLs!`);
-        // Refresh content counts
+        setImportStatus(`✅ Successfully imported ${result.count} ${type}!`);
         fetchContentCounts();
       } else {
-        setImportStatus(`❌ Failed to fix poster URLs: ${result.error}`);
+        setImportStatus(`❌ Failed to import: ${result.error}`);
       }
     } catch (error) {
-      setImportStatus(`❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`);
+      setImportStatus(`❌ Error during import: ${(error as Error).message}`);
     } finally {
       setIsImporting(false);
     }
@@ -689,10 +720,10 @@ export default function AdminPage() {
               <Button 
                 onClick={handleRetractTV}
                 disabled={isRetracting}
-                variant="destructive"
+                variant="outline"
                 className="w-full mt-2"
               >
-                {isRetracting ? "Retracting..." : "Retract Recent TV Imports"}
+                {isRetracting ? "Retracting..." : "Retract Recent TV Shows"}
               </Button>
             </div>
           </div>
