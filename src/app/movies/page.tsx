@@ -300,6 +300,44 @@ export default function MediaPage() {
     );
   }
 
+  // Skeleton loader component
+  const SkeletonMediaCard = () => (
+    <Card className="overflow-hidden">
+      <CardContent className="p-0">
+        <div className="md:flex animate-pulse">
+          {/* Skeleton Poster */}
+          <div className="md:w-1/4 lg:w-1/5 relative h-64 md:h-48 bg-gray-200">
+            <div className="w-full h-full bg-gray-300" />
+          </div>
+          
+          {/* Skeleton Content */}
+          <div className="p-6 flex-1">
+            <div className="space-y-4">
+              <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              <div className="flex space-x-2">
+                <div className="h-6 w-20 bg-gray-200 rounded"></div>
+                <div className="h-6 w-20 bg-gray-200 rounded"></div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-3 bg-gray-200 rounded w-full"></div>
+                <div className="h-3 bg-gray-200 rounded w-5/6"></div>
+                <div className="h-3 bg-gray-200 rounded w-4/6"></div>
+              </div>
+              <div className="flex justify-between items-center pt-2">
+                <div className="flex space-x-2">
+                  <div className="h-9 w-20 bg-gray-200 rounded"></div>
+                  <div className="h-9 w-20 bg-gray-200 rounded"></div>
+                </div>
+                <div className="h-9 w-24 bg-gray-200 rounded"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
@@ -329,7 +367,13 @@ export default function MediaPage() {
         </div>
 
         {/* Media List */}
-        {media.length === 0 ? (
+        {loading ? (
+          <div className="space-y-6">
+            {[1, 2, 3].map((i) => (
+              <SkeletonMediaCard key={`skeleton-${i}`} />
+            ))}
+          </div>
+        ) : media.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-gray-500">No media found. Try refreshing the page.</p>
           </div>
