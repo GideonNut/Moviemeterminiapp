@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "~/components/ui/Button";
 import ScrollToTop from "~/components/ScrollToTop";
-import { useAccount, useChainId, useSwitchChain, useWriteContract, useConnect } from "wagmi";
+import { useAccount, useChainId, useSwitchChain, useWriteContract, useConnect, useDisconnect } from "wagmi";
+import { injected } from 'wagmi/connectors';
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
 
 export default function AdminPage() {
@@ -20,14 +21,53 @@ export default function AdminPage() {
   const [isImporting, setIsImporting] = useState(false);
   const [isRetracting, setIsRetracting] = useState(false);
   const [contentCounts, setContentCounts] = useState({ movies: 0, tvShows: 0 });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQueryTV, setSearchQueryTV] = useState("");
 
   // Wallet state
   const { address, isConnected } = useAccount();
   const currentChainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const { writeContract, data: txHash, isPending, error: walletWriteError } = useWriteContract();
-  const { connect, connectors } = useConnect();
+  const { disconnect } = useDisconnect();
+  const { connect, connectors, error: connectError } = useConnect({
+    mutation: {
+      onSuccess: () => {
+        console.log('Wallet connected successfully');
+        setWalletMessage('Wallet connected successfully');
+        setIsDisconnected(false);
+      },
+      onError: (error: Error) => {
+        console.error('Connection error:', error);
+        setWalletMessage(`Connection error: ${error.message}`);
+      }
+    }
+  });
   const [walletMessage, setWalletMessage] = useState<string>("");
+  const [isDisconnected, setIsDisconnected] = useState(false);
+
+  // Log available connectors on mount
+  useEffect(() => {
+    console.log('Available connectors:', connectors);
+    if (connectError) {
+      console.error('Connection error:', connectError);
+      setWalletMessage(`Connection error: ${connectError.message}`);
+    }
+  }, [connectors, connectError]);
+
+  // Handle wallet disconnect
+  const handleDisconnect = async () => {
+    try {
+      await disconnect();
+      setIsDisconnected(true);
+      setWalletMessage("Wallet disconnected successfully");
+      // Force a re-render to show the connect buttons
+      window.location.reload();
+    } catch (error) {
+      console.error('Error disconnecting wallet:', error);
+      setWalletMessage(`Error disconnecting wallet: ${(error as Error).message}`);
+    }
+  };
 
   // Function to reset content IDs (not needed for Firestore but kept for backward compatibility)
   const resetContentIds = async () => {
@@ -277,14 +317,26 @@ export default function AdminPage() {
   };
 
   const importTrending = async () => {
+    if (!address) {
+      setImportStatus("❌ Please connect your wallet first");
+      return;
+    }
+
     setIsImporting(true);
     setImportStatus("Importing trending movies...");
     
     try {
       const response = await fetch("/api/admin", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "import-trending", type: "movies" }),
+        headers: { 
+          "Content-Type": "application/json",
+          "X-Wallet-Address": address // Include wallet address in headers
+        },
+        body: JSON.stringify({ 
+          action: "import-trending", 
+          type: "movies",
+          walletAddress: address // Also include in body for backward compatibility
+        }),
       });
       
       const result = await response.json();
@@ -308,15 +360,38 @@ export default function AdminPage() {
   };
 
   const importTrendingTV = async () => {
+    if (!address) {
+      setImportStatus("❌ Please connect your wallet first");
+      return;
+    }
+
     setIsImporting(true);
     setImportStatus("Importing trending TV shows...");
     
     try {
       const response = await fetch("/api/admin", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "import-trending", type: "tv" }),
+        headers: { 
+          "Content-Type": "application/json",
+          "X-Wallet-Address": address // Include wallet address in headers
+        },
+        body: JSON.stringify({ 
+          action: "import-trending", 
+          type: "tv",
+          walletAddress: address // Also include in body for backward compatibility
+        }),
       });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        try {
+          const errorData = JSON.parse(errorText);
+          throw new Error(errorData.error || 'Failed to import TV shows');
+        } catch (e) {
+          throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+        }
+      }
       
       const result = await response.json();
       
@@ -329,10 +404,11 @@ export default function AdminPage() {
           }
         }
       } else {
-        setImportStatus(`❌ Import failed: ${result.error}`);
+        setImportStatus(`❌ Import failed: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {
       setImportStatus(`❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`);
+      console.error('Error in importTrendingTV:', error);
     } finally {
       setIsImporting(false);
     }
@@ -433,14 +509,27 @@ export default function AdminPage() {
 
   // Function to fetch content counts
   const fetchContentCounts = async () => {
+    console.log('Fetching content counts...');
     try {
       const response = await fetch("/api/admin");
+      if (!response.ok) {
+        console.error('Failed to fetch counts. Status:', response.status);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        return;
+      }
+      
       const data = await response.json();
-      if (data.success) {
+      console.log('Counts response:', JSON.stringify(data, null, 2));
+      
+      if (data.success && data.counts) {
+        console.log(`Setting counts - Movies: ${data.counts.movies || 0}, TV Shows: ${data.counts.tvShows || 0}`);
         setContentCounts({
-          movies: data.counts?.movies || 0,
-          tvShows: data.counts?.tvShows || 0
+          movies: data.counts.movies || 0,
+          tvShows: data.counts.tvShows || 0
         });
+      } else {
+        console.error('Invalid response format:', data);
       }
     } catch (error) {
       console.error("Error fetching content counts:", error);
@@ -574,30 +663,54 @@ export default function AdminPage() {
           {!isConnected ? (
             <div className="mb-4">
               <div className="space-y-2">
-                {connectors.map((connector) => (
-                  <Button
-                    key={connector.uid}
-                    onClick={() => connect({ connector })}
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                  >
-                    Connect {connector.name}
-                  </Button>
-                ))}
+                {connectors.map((connector) => {
+                  console.log('Rendering connector:', connector.name, connector);
+                  return (
+                    <Button
+                      key={connector.uid}
+                      onClick={async () => {
+                        console.log('Connecting with:', connector.name);
+                        try {
+                          await connect({ connector });
+                          console.log('Connect function called successfully');
+                        } catch (error) {
+                          console.error('Error in connect click handler:', error);
+                          setWalletMessage(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                        }
+                      }}
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                    >
+                      Connect {connector.name}
+                    </Button>
+                  );
+                })}
               </div>
               <p className="text-sm text-white/60 mt-2">
                 Connect your wallet to add movies and TV shows on-chain
               </p>
             </div>
           ) : (
-            <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-              <p className="text-sm text-green-400">
-                ✅ Wallet Connected: {address?.slice(0, 6)}...{address?.slice(-4)}
-              </p>
-              {currentChainId !== 42220 && (
-                <p className="text-sm text-yellow-400 mt-1">
-                  ⚠️ Please switch to Celo network (chainId: 42220)
-                </p>
-              )}
+            <div className="mb-4">
+              <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg mb-2">
+                <div className="flex justify-between items-center">
+                  <p className="text-sm text-green-400">
+                    ✅ Wallet Connected: {address?.slice(0, 6)}...{address?.slice(-4)}
+                  </p>
+                  <Button
+                    onClick={handleDisconnect}
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                  >
+                    Disconnect
+                  </Button>
+                </div>
+                {currentChainId !== 42220 && (
+                  <p className="text-sm text-yellow-400 mt-2">
+                    ⚠️ Please switch to Celo network (chainId: 42220)
+                  </p>
+                )}
+              </div>
             </div>
           )}
           
@@ -679,9 +792,13 @@ export default function AdminPage() {
                 <label className="block text-sm font-medium text-white/70">Search & Import Movies</label>
                 <div className="flex gap-2">
                   <input
+                    id="movie-search"
+                    name="movieSearch"
                     type="text"
                     placeholder="e.g., Avengers, Batman, etc."
                     className="flex-1 p-2 rounded bg-[#2D2D33] text-white border border-white/10 focus:border-blue-500 focus:outline-none"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyPress={(e) => {
                       if (e.key === "Enter") {
                         const target = e.target as HTMLInputElement;
@@ -745,9 +862,13 @@ export default function AdminPage() {
                 <label className="block text-sm font-medium text-white/70">Search & Import TV Shows</label>
                 <div className="flex gap-2">
                   <input
+                    id="tv-search"
+                    name="tvSearch"
                     type="text"
                     placeholder="e.g., Breaking Bad, Stranger Things, etc."
                     className="flex-1 p-2 rounded bg-[#2D2D33] text-white border border-white/10 focus:border-purple-500 focus:outline-none"
+                    value={searchQueryTV}
+                    onChange={(e) => setSearchQueryTV(e.target.value)}
                     onKeyPress={(e) => {
                       if (e.key === "Enter") {
                         const target = e.target as HTMLInputElement;
@@ -802,12 +923,12 @@ export default function AdminPage() {
           <div className="bg-[#18181B] p-6 rounded-lg shadow-md">
             <h2 className="text-xl font-semibold mb-4 text-white">🗄️ Database Status</h2>
             <p className="text-white/70">
-              MongoDB connection and TMDb API integration are configured.
+              Firestore database and TMDb API integration are configured.
             </p>
             <div className="mt-4 space-y-2 text-sm text-white/70">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>MongoDB: Connected</span>
+                <span>Firestore: Connected</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
