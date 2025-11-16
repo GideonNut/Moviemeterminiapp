@@ -6,7 +6,8 @@ import {
   searchTVShows, 
   mapTmdbToNewMovie 
 } from "~/lib/tmdb";
-import { saveMovie } from "~/lib/mongo";
+import { adminDb } from "~/lib/firebase-admin";
+import { Timestamp } from "firebase-admin/firestore";
 
 export const runtime = "nodejs";
 
@@ -38,12 +39,25 @@ export async function POST(request: NextRequest) {
       isTVShow: mediaType === "tv"
     }));
 
-    // Persist in Mongo and collect titles
+    // Persist in Firestore and collect titles
     const importedTitles: string[] = [];
+    const batch = adminDb.batch();
+    const collection = adminDb.collection(newContent[0].isTVShow ? 'tvShows' : 'movies');
+    
     for (const item of newContent) {
-      await saveMovie(item);
+      const docRef = collection.doc();
+      const data = {
+        ...item,
+        votes: { yes: 0, no: 0 },
+        commentCount: 0,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+      batch.set(docRef, data);
       if (item.title) importedTitles.push(item.title);
     }
+    
+    await batch.commit();
 
     const mediaTypeLabel = mediaType === "tv" ? "TV shows" : "movies";
     return Response.json({ 
