@@ -14,7 +14,7 @@ import {
 
 const MOVIES_COLLECTION = 'movies';
 
-interface MovieData {
+export interface MovieData {
   id: string;
   title: string;
   description: string;
