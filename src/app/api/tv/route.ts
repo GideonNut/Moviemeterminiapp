@@ -22,36 +22,41 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const searchTerm = searchParams.get('search');
     
-    let tvShows;
+    let tvShows = await getAllTVShows();
+    
+    // Filter by search term if provided
     if (searchTerm) {
-      // Implement search if needed
-      tvShows = await getAllTVShows();
       tvShows = tvShows.filter(show => 
-        show.title.toLowerCase().includes(searchTerm.toLowerCase())
+        show.title?.toLowerCase().includes(searchTerm.toLowerCase())
       );
-    } else {
-      tvShows = await getAllTVShows();
     }
 
-    // Sort by most recent first
-    const sortedShows = tvShows.sort((a, b) => 
-      new Date(b.createdAt?.toDate()).getTime() - new Date(a.createdAt?.toDate()).getTime()
-    );
-
-    return Response.json({ 
-      success: true, 
-      tvShows: sortedShows.map(show => ({
+    // Sort by most recent first and ensure proper data structure
+    const sortedShows = tvShows
+      .filter((show): show is TVShowData & { id: string; _id?: string } => Boolean(show && show.title))
+      .sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
+        return dateB.getTime() - dateA.getTime();
+      })
+      .map(show => ({
         ...show,
-        id: show.id,
-        _id: show.id, // For backward compatibility
+        id: show.id || show._id || '',
+        _id: show.id || show._id || '', // For backward compatibility
+        isTVShow: true,
         commentCount: show.commentCount || 0,
-        createdAt: show.createdAt?.toDate().toISOString(),
-        updatedAt: show.updatedAt?.toDate().toISOString(),
+        votes: show.votes || { yes: 0, no: 0 },
+        createdAt: show.createdAt?.toDate ? show.createdAt.toDate().toISOString() : new Date().toISOString(),
+        updatedAt: show.updatedAt?.toDate ? show.updatedAt.toDate().toISOString() : new Date().toISOString(),
         firstAirDate: show.firstAirDate,
         lastAirDate: show.lastAirDate,
         numberOfSeasons: show.numberOfSeasons,
         numberOfEpisodes: show.numberOfEpisodes
-      }))
+      }));
+
+    return Response.json({ 
+      success: true, 
+      tvShows: sortedShows 
     });
   } catch (error) {
     console.error('Error in GET /api/tv:', error);
