@@ -58,40 +58,97 @@ const transports = {
   [unichain.id]: http(unichain.rpcUrls.default.http[0]),
 };
 
-export const config = createConfig({
-  chains: [celoChain, celoAlfajoresChain, base, optimism, degen, unichain],
-  transports,
-  connectors: [
-    farcasterFrame(),
-    metaMask(),
+// Helper function to check if we're in a browser environment
+const isBrowser = typeof window !== 'undefined';
+
+// Function to detect MetaMask or other injected providers
+const getConnectors = () => {
+  const connectors = [];
+
+  // Add MetaMask connector first if available
+  if (isBrowser && (window.ethereum?.isMetaMask || window.ethereum?.providers?.some((p: any) => p.isMetaMask))) {
+    connectors.push(
+      metaMask({
+        dappMetadata: {
+          name: APP_NAME,
+          url: APP_URL,
+          iconUrl: APP_ICON_URL,
+        },
+        // shimDisconnect is not a valid option for metaMask connector
+        // It's automatically handled by wagmi internally
+      })
+    );
+  }
+
+  // Add Coinbase Wallet
+  connectors.push(
     coinbaseWallet({
       appName: APP_NAME,
       appLogoUrl: APP_ICON_URL,
-    }),
-    injected({
-      target: 'metaMask',
-    }),
-  ],
+    })
+  );
+
+  // Add Farcaster Frame
+  connectors.push(farcasterFrame());
+
+  // Add generic injected connector as fallback
+  if (isBrowser && window.ethereum) {
+    connectors.push(
+      injected({
+        target: 'metaMask',
+        // Remove the name as it's not a valid property
+      })
+    );
+  }
+
+  return connectors;
+};
+
+export const config = createConfig({
+  chains: [celoChain, celoAlfajoresChain, base, optimism, degen, unichain],
+  transports,
+  connectors: getConnectors(),
+  ssr: true, // Enable server-side rendering support
 });
 
-// Custom hook for auto-connecting to Warpcast
+// Custom hook for auto-connecting to wallet
 function useAutoConnect() {
   const { connect, connectors } = useConnect();
-  const { isConnected } = useAccount();
+  const { isConnected, isReconnecting } = useAccount();
 
   useEffect(() => {
     const autoConnect = async () => {
-      if (!isConnected && connectors?.[0]) {
-        try {
-          await connect({ connector: connectors[0] });
-        } catch (error) {
-          console.error("Error auto-connecting to Warpcast:", error);
+      // Skip if already connected or still reconnecting
+      if (isConnected || isReconnecting) return;
+      
+      // Skip if not in browser or no connectors available
+      if (!isBrowser || !connectors?.length) return;
+
+      try {
+        console.log('Attempting to auto-connect to wallet...');
+        
+        // Find the first ready connector that matches MetaMask if available
+        const connector = connectors.find(c => 
+          c.ready && 
+          (c.id === 'metaMask' || c.name === 'MetaMask')
+        ) || connectors.find(c => c.ready);
+        
+        if (connector) {
+          console.log(`Auto-connecting with ${connector.name}...`);
+          await connect({ connector });
         }
+      } catch (error) {
+        console.error('Auto-connect error:', error);
       }
     };
 
-    autoConnect();
-  }, [isConnected, connect, connectors]);
+    // Add a small delay to ensure window.ethereum is available
+    const timer = setTimeout(() => {
+      autoConnect();
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [isConnected, isReconnecting, connect, connectors]);
 }
 
 // Wrapper component that provides auto-connection
