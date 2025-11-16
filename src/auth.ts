@@ -9,7 +9,16 @@ declare module "next-auth" {
       email?: string;
       name?: string;
       image?: string;
+      address?: string;
     };
+  }
+  
+  interface User {
+    id: string;
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+    address?: string | null;
   }
 }
 
@@ -44,19 +53,23 @@ export const authOptions: AuthOptions = {
           type: "text",
           placeholder: "0x0",
         },
+        address: {
+          label: "Wallet Address",
+          type: "text",
+          placeholder: "0x...",
+        },
         // In a production app with a server, these should be fetched from
         // your Farcaster data indexer rather than have them accepted as part
         // of credentials.
-        // question: should these natively use the Neynar API?
         name: {
           label: "Name",
           type: "text",
-          placeholder: "0x0",
+          placeholder: "Your Name",
         },
         pfp: {
-          label: "Pfp",
+          label: "Profile Picture",
           type: "text",
-          placeholder: "0x0",
+          placeholder: "https://...",
         },
       },
       async authorize(credentials, req) {
@@ -66,46 +79,109 @@ export const authOptions: AuthOptions = {
           return null;
         }
 
+        // Get the wallet address from the credentials
+        const walletAddress = (credentials?.address as string)?.toLowerCase()?.trim();
+        if (!walletAddress) {
+          console.error('Wallet address is required');
+          return null;
+        }
+
         const appClient = createAppClient({
           ethereum: viemConnector(),
         });
 
         const domain = getDomainFromUrl(process.env.NEXTAUTH_URL);
 
-        const verifyResponse = await appClient.verifySignInMessage({
-          message: credentials?.message as string,
-          signature: credentials?.signature as `0x${string}`,
-          domain,
-          nonce: csrfToken,
-        });
-        const { success, fid } = verifyResponse;
+        try {
+          const verifyResponse = await appClient.verifySignInMessage({
+            message: credentials?.message as string,
+            signature: credentials?.signature as `0x${string}`,
+            domain,
+            nonce: csrfToken,
+          });
+          
+          if (!verifyResponse.success) {
+            console.error('Failed to verify sign in message');
+            return null;
+          }
 
-        if (!success) {
+          return {
+            id: verifyResponse.fid.toString(),
+            address: walletAddress,
+            name: credentials?.name as string || '',
+            image: credentials?.pfp as string || '',
+          };
+        } catch (error) {
+          console.error('Error during sign in verification:', error);
           return null;
         }
-
-        return {
-          id: fid.toString(),
-        };
       },
     }),
   ],
+  secret: process.env.NEXTAUTH_SECRET,
+  session: {
+    strategy: 'jwt',  // Use JWT strategy for better compatibility with server components
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
   callbacks: {
-    session: async ({ session, token }) => {
+    async session({ session, token, user }) {
+      console.log('Session callback - Token:', JSON.stringify(token, null, 2));
+      
       if (session?.user) {
-        session.user.fid = parseInt(token.sub ?? '');
+        // Set FID from token.sub (which comes from user.id)
+        session.user.fid = parseInt(token.sub || '0');
+        
+        // Ensure wallet address is properly set from token or user
+        if (token.address) {
+          session.user.address = token.address as string;
+        } else if (user?.address) {
+          // Fallback to user object if token doesn't have address
+          session.user.address = user.address as string;
+        } else if (token.sub) {
+          // If we have a token.sub but no address, use it as a fallback
+          session.user.address = token.sub;
+        }
+        
+        // Add other user properties from token or user with proper type handling
+        if (token.name || user?.name) {
+          session.user.name = (token.name as string) || user?.name || undefined;
+        }
+        if (token.email || user?.email) {
+          session.user.email = (token.email as string) || user?.email || undefined;
+        }
+        if (token.image || user?.image) {
+          session.user.image = (token.image as string) || user?.image || undefined;
+        }
+        
+        console.log('Session user after update:', JSON.stringify(session.user, null, 2));
       }
       return session;
+    },
+    async jwt({ token, user, account, profile }) {
+      console.log('JWT callback - User:', JSON.stringify(user, null, 2));
+      
+      // Initial sign in
+      if (user) {
+        token.address = (user as any)?.address?.toLowerCase() || '';
+        token.name = user.name;
+        token.email = user.email;
+        token.image = user.image;
+        
+        console.log('JWT token after user sign in:', JSON.stringify(token, null, 2));
+      }
+      
+      return token;
     },
   },
   cookies: {
     sessionToken: {
-      name: `next-auth.session-token`,
+      name: `__Secure-next-auth.session-token`,
       options: {
         httpOnly: true,
-        sameSite: "none",
-        path: "/",
-        secure: true
+        sameSite: 'lax',  // Changed from 'none' to 'lax' for better security
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',  // Only set secure in production
+        domain: process.env.NODE_ENV === 'production' ? '.yourdomain.com' : undefined
       }
     },
     callbackUrl: {
