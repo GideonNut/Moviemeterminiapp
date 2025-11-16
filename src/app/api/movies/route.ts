@@ -3,7 +3,8 @@ import {
   saveMovie as saveMovieToFirestore,
   getMovie,
   getAllMovies as getFirestoreMovies,
-  updateVote
+  updateVote,
+  type MovieData
 } from "~/lib/firestore";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "~/auth";
@@ -26,32 +27,36 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const searchTerm = searchParams.get('search');
     
-    let movies;
+    let movies = await getFirestoreMovies();
+    
+    // Filter by search term if provided
     if (searchTerm) {
-      // Implement search if needed
-      movies = await getFirestoreMovies();
       movies = movies.filter(movie => 
-        movie.title.toLowerCase().includes(searchTerm.toLowerCase())
+        movie.title?.toLowerCase().includes(searchTerm.toLowerCase())
       );
-    } else {
-      movies = await getFirestoreMovies();
     }
 
-    // Sort by most recent first
-    const sortedMovies = movies.sort((a, b) => 
-      new Date(b.createdAt?.toDate()).getTime() - new Date(a.createdAt?.toDate()).getTime()
-    );
+    // Sort by most recent first and ensure proper data structure
+    const sortedMovies = movies
+      .filter((movie): movie is MovieData & { id: string; _id?: string; title?: string } => Boolean(movie && movie?.title)) // Filter out any invalid entries
+      .sort((a, b) => {
+        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
+        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
+        return dateB.getTime() - dateA.getTime();
+      })
+      .map(movie => ({
+        ...movie,
+        id: movie.id || movie._id || '',
+        _id: movie.id || movie._id || '', // For backward compatibility
+        commentCount: movie.commentCount || 0,
+        votes: movie.votes || { yes: 0, no: 0 },
+        createdAt: movie.createdAt?.toDate ? movie.createdAt.toDate().toISOString() : new Date().toISOString(),
+        updatedAt: movie.updatedAt?.toDate ? movie.updatedAt.toDate().toISOString() : new Date().toISOString()
+      }));
 
     return Response.json({ 
       success: true, 
-      movies: sortedMovies.map(movie => ({
-        ...movie,
-        id: movie.id,
-        _id: movie.id, // For backward compatibility
-        commentCount: movie.commentCount || 0,
-        createdAt: movie.createdAt?.toDate().toISOString(),
-        updatedAt: movie.updatedAt?.toDate().toISOString()
-      }))
+      movies: sortedMovies 
     });
   } catch (error) {
     console.error('Error in GET /api/movies:', error);
