@@ -4,6 +4,19 @@ import { authOptions } from "~/auth";
 import { adminDb } from "~/lib/firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
 
+// Extend the session type to include wallet address
+declare module "next-auth" {
+  interface Session {
+    user: {
+      fid: number;
+      email?: string;
+      name?: string;
+      image?: string;
+      address?: string;
+    };
+  }
+}
+
 export const runtime = "nodejs";
 
 // Helper function to get Firestore collection reference
@@ -12,16 +25,30 @@ const getContentCollection = (isTVShow: boolean) =>
 
 export async function GET() {
   try {
+    console.log('Admin GET request received');
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    
+    // Debug log the session
+    console.log('Session in admin route:', JSON.stringify(session, null, 2));
+    
+    // Check for wallet authentication
+    if (!session?.user?.address) {
+      console.error('No wallet address in session. User might not be authenticated.');
       return Response.json(
-        { success: false, error: 'Not authenticated' }, 
+        { 
+          success: false, 
+          error: 'Wallet not connected',
+          sessionExists: !!session,
+          hasUser: !!(session?.user),
+          hasAddress: !!(session?.user?.address)
+        }, 
         { status: 401 }
       );
     }
 
-    // Only allow admin users
-    if (session.user.email !== process.env.ADMIN_EMAIL) {
+    // Only allow specific wallet addresses (add your admin wallet addresses here)
+    const ADMIN_WALLETS = (process.env.ADMIN_WALLETS || '').split(',').map(addr => addr.toLowerCase().trim());
+    if (!ADMIN_WALLETS.includes(session.user.address.toLowerCase())) {
       return Response.json(
         { success: false, error: 'Not authorized' },
         { status: 403 }
@@ -30,15 +57,15 @@ export async function GET() {
 
     // Get counts for movies and TV shows
     const [moviesSnapshot, tvShowsSnapshot] = await Promise.all([
-      adminDb.collection('movies').count().get(),
-      adminDb.collection('tvShows').count().get()
+      adminDb.collection('movies').get(),
+      adminDb.collection('tvShows').get()
     ]);
 
     return Response.json({
       success: true,
       counts: {
-        movies: moviesSnapshot.data().count,
-        tvShows: tvShowsSnapshot.data().count
+        movies: moviesSnapshot.size,
+        tvShows: tvShowsSnapshot.size
       }
     });
   } catch (error) {
@@ -52,27 +79,81 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('Admin POST request received');
+    
+    // First parse the request body to get the wallet address
+    const requestBody = await request.json().catch(() => ({}));
+    const headers = request.headers;
+    
+    // Get the session
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    console.log('Session in admin POST:', JSON.stringify(session, null, 2));
+    
+    // Get wallet address from headers, then body, then session
+    const walletAddress = (
+      headers.get('x-wallet-address') || 
+      requestBody?.walletAddress ||
+      session?.user?.address ||
+      ''
+    ).toLowerCase().trim();
+
+    // Log the wallet address source for debugging
+    console.log('Wallet address source:', {
+      fromHeader: !!headers.get('x-wallet-address'),
+      fromBody: !!requestBody?.walletAddress,
+      fromSession: !!session?.user?.address,
+      finalAddress: walletAddress || 'none'
+    });
+
+    // Check for wallet authentication
+    if (!walletAddress) {
       return Response.json(
-        { success: false, error: 'Not authenticated' }, 
+        { 
+          success: false, 
+          error: 'Wallet address is required',
+          sessionExists: !!session,
+          hasUser: !!(session?.user),
+          hasAddress: !!(session?.user?.address)
+        }, 
         { status: 401 }
       );
     }
 
-    // Only allow admin users
-    if (session.user.email !== process.env.ADMIN_EMAIL) {
+    // Only allow specific wallet addresses
+    const ADMIN_WALLETS = (process.env.ADMIN_WALLETS || '')
+      .split(',')
+      .map(addr => addr.toLowerCase().trim())
+      .filter(Boolean);
+
+    console.log('Admin wallets:', ADMIN_WALLETS);
+    console.log('Request from wallet:', walletAddress);
+    console.log('Is wallet in admin list?', ADMIN_WALLETS.includes(walletAddress));
+
+    if (ADMIN_WALLETS.length === 0) {
+      console.error('No admin wallets configured. Please set ADMIN_WALLETS environment variable.');
       return Response.json(
-        { success: false, error: 'Not authorized' },
+        { success: false, error: 'Admin configuration error' },
+        { status: 500 }
+      );
+    }
+
+    if (!ADMIN_WALLETS.includes(walletAddress)) {
+      console.warn(`Unauthorized access attempt from wallet: ${walletAddress}`);
+      return Response.json(
+        { 
+          success: false, 
+          error: 'Not authorized',
+          yourAddress: walletAddress,
+          adminWallets: ADMIN_WALLETS
+        },
         { status: 403 }
       );
     }
 
-    const body = await request.json();
-    
-    if (body.action === 'import') {
+    // Use the already parsed request body
+    if (requestBody.action === 'import') {
       // Handle bulk import
-      const { items, type } = body;
+      const { items, type } = requestBody;
       const collection = getContentCollection(type === 'tv');
       const batch = adminDb.batch();
       
@@ -85,7 +166,7 @@ export async function POST(request: NextRequest) {
           commentCount: 0,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
-          addedBy: session.user.email
+          addedBy: session?.user?.email || walletAddress || 'unknown'
         };
         batch.set(ref, data, { merge: true });
       });
@@ -93,7 +174,41 @@ export async function POST(request: NextRequest) {
       await batch.commit();
       return Response.json({ success: true, count: items.length });
       
-    } else if (body.action === 'reset-ids') {
+    } else if (requestBody.action === 'add-movie') {
+      const { title, description, releaseYear, posterUrl, isTVShow } = requestBody as {
+        title: string;
+        description: string;
+        releaseYear?: string;
+        posterUrl?: string;
+        isTVShow?: boolean;
+      };
+      
+      if (!title || !description) {
+        return Response.json(
+          { success: false, error: 'Title and description are required' },
+          { status: 400 }
+        );
+      }
+      
+      const collection = getContentCollection(!!isTVShow);
+      const docRef = await collection.add({
+        title,
+        description,
+        releaseYear: releaseYear || null,
+        posterUrl: posterUrl || null,
+        isTVShow: !!isTVShow,
+        votes: { yes: 0, no: 0 },
+        commentCount: 0,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      });
+      
+      return Response.json({
+        success: true,
+        id: docRef.id
+      });
+      
+    } else if (requestBody.action === 'reset-ids') {
       // Reset IDs to be sequential (if needed)
       // Note: Firestore uses auto-generated IDs, so this might not be necessary
       return Response.json({ 
@@ -101,9 +216,9 @@ export async function POST(request: NextRequest) {
         message: 'Firestore uses auto-generated IDs. No reset needed.' 
       });
       
-    } else if (body.action === 'retract-recent') {
+    } else if (requestBody.action === 'retract-recent') {
       // Retract recently added content (last 48 hours)
-      const { type } = body;
+      const { type } = requestBody;
       const collection = getContentCollection(type === 'tv');
       const cutoff = new Date();
       cutoff.setHours(cutoff.getHours() - 48);
@@ -122,6 +237,37 @@ export async function POST(request: NextRequest) {
         success: true, 
         count: snapshot.size,
         message: `Successfully retracted ${snapshot.size} items`
+      });
+    } else if (requestBody.action === 'import-trending') {
+      const { type = 'movies' } = requestBody as { type?: 'movies' | 'tv' };
+      
+      // Import trending content from TMDB
+      const response = await fetch(`${process.env.NEXTAUTH_URL}/api/import/tmdb`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode: 'trending',
+          mediaType: type,
+          page: 1
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        return Response.json(
+          { 
+            success: false, 
+            error: result.error || 'Failed to import trending content' 
+          },
+          { status: response.status }
+        );
+      }
+      
+      return Response.json({
+        success: true,
+        imported: result.imported || 0,
+        titles: result.titles || []
       });
     }
     
