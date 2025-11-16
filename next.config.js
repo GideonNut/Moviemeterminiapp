@@ -1,8 +1,50 @@
 /** @type {import('next').NextConfig} */
+const isDev = process.env.NODE_ENV !== 'production';
+
+const securityHeaders = [
+  {
+    key: 'Content-Security-Policy',
+    value: [
+      "default-src 'self'",
+      // Allow 'unsafe-eval' in development for Next.js hot reloading
+      `script-src 'self' 'unsafe-inline' 'unsafe-eval' ${isDev ? 'data: blob:' : ''} https: http:`,
+      "style-src 'self' 'unsafe-inline' https: http:",
+      "img-src 'self' data: blob: https: http:",
+      "font-src 'self' data: https: http:",
+      `connect-src 'self' ${isDev ? 'ws: wss:' : ''} https: http:`,
+      "media-src 'self' data: blob: https: http:",
+      "frame-src 'self' https: http:",
+      // Required for webpack hot reload in development
+      ...(isDev ? ["worker-src 'self' blob:"] : [])
+    ].join('; ')
+  },
+  {
+    key: 'X-Content-Type-Options',
+    value: 'nosniff'
+  },
+  {
+    key: 'X-Frame-Options',
+    value: 'SAMEORIGIN'
+  },
+  {
+    key: 'X-XSS-Protection',
+    value: '1; mode=block'
+  }
+];
+
 const nextConfig = {
   reactStrictMode: true,
   experimental: {
     typedRoutes: true,
+  },
+  async headers() {
+    return [
+      {
+        // Apply these headers to all routes
+        source: '/:path*',
+        headers: securityHeaders,
+      },
+    ];
   },
   images: {
     remotePatterns: [
