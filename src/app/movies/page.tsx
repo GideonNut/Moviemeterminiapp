@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useAccount, useChainId, useSwitchChain, useBalance, useWalletClient } from "wagmi";
 import { encodeFunctionData } from "viem";
 import { getDataSuffix, submitReferral } from "@divvi/referral-sdk";
-import { ArrowLeft, RefreshCw, Film, Tv, MessageSquare } from "lucide-react";
+import { ArrowLeft, RefreshCw, Film, Tv, MessageSquare, Star } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -21,26 +21,12 @@ import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContra
 import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl } from "~/lib/utils";
 import { saveMovie, getMovie, getAllMovies } from "~/lib/firestore";
 
-interface Media {
-  id: string;
-  title: string;
-  description: string;
-  posterUrl?: string;
-  releaseYear?: string;
-  genres?: string[];
-  votes: {
-    yes: number;
-    no: number;
-  };
-  commentCount?: number;
-  createdAt: string;
-  updatedAt: string;
-  isTVShow?: boolean;
-}
+// Types
+import type { Media, Movie, TVShow } from "~/types";
 
 export default function MediaPage() {
   const router = useRouter();
-  const [media, setMedia] = useState<Media[]>([]);
+  const [media, setMedia] = useState<Array<Movie | TVShow>>([]);
   const [loading, setLoading] = useState(true);
   const [votes, setVotes] = useState<{ [id: string]: 'yes' | 'no' | null }>({});
   const [txStatus, setTxStatus] = useState<{ [id: string]: string }>({});
@@ -62,6 +48,21 @@ export default function MediaPage() {
     try {
       setLoading(true);
       
+      // Helper function to process media items
+      const processMedia = (items: any[], isTVShow = false) => {
+        return (items || []).map((item: any) => ({
+          ...item,
+          id: item.id || item._id,
+          isTVShow,
+          votes: item.votes || { yes: 0, no: 0 },
+          commentCount: item.commentCount || 0,
+          releaseYear: item.releaseYear || null,
+          genres: item.genres || [],
+          createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+          updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date()
+        }));
+      };
+      
       // Fetch both movies and TV shows
       const [moviesResponse, tvShowsResponse] = await Promise.all([
         fetch('/api/movies'),
@@ -74,24 +75,13 @@ export default function MediaPage() {
           tvShowsResponse.json()
         ]);
 
-        const movies = (moviesData.movies || []).map((m: any) => ({
-          ...m,
-          id: m.id || m._id,
-          isTVShow: false,
-          votes: m.votes || { yes: 0, no: 0 }
-        }));
-        
-        const tvShows = (tvShowsData.tvShows || []).map((t: any) => ({
-          ...t,
-          id: t.id || t._id,
-          isTVShow: true,
-          votes: t.votes || { yes: 0, no: 0 }
-        }));
+        const movies = processMedia(moviesData.movies || [], false) as Movie[];
+        const tvShows = processMedia(tvShowsData.tvShows || [], true) as TVShow[];
 
         // Combine and sort by creation date (newest first)
         const allMedia = [...movies, ...tvShows].sort((a, b) => 
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
+        ) as Array<Movie | TVShow>;
 
         setMedia(allMedia);
       } else {
@@ -138,7 +128,7 @@ export default function MediaPage() {
   }, [fetchAllMedia, voteAttempts]);
 
   // Handle voting
-  const handleVote = async (id: string, vote: 'yes' | 'no', isTVShow = false) => {
+  const handleVote = async (id: string, vote: 'yes' | 'no', isTVShow: boolean = false) => {
     if (!isConnected) {
       // Show vote attempt indicator
       setVoteAttempts(prev => ({
@@ -300,203 +290,178 @@ export default function MediaPage() {
     );
   }
 
-  // Skeleton loader component
-  const SkeletonMediaCard = () => (
-    <Card className="overflow-hidden">
-      <CardContent className="p-0">
-        <div className="md:flex animate-pulse">
-          {/* Skeleton Poster */}
-          <div className="md:w-1/4 lg:w-1/5 relative h-64 md:h-48 bg-gray-200">
-            <div className="w-full h-full bg-gray-300" />
-          </div>
-          
-          {/* Skeleton Content */}
-          <div className="p-6 flex-1">
-            <div className="space-y-4">
-              <div className="h-6 bg-gray-200 rounded w-3/4"></div>
-              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-              <div className="flex space-x-2">
-                <div className="h-6 w-20 bg-gray-200 rounded"></div>
-                <div className="h-6 w-20 bg-gray-200 rounded"></div>
-              </div>
-              <div className="space-y-2">
-                <div className="h-3 bg-gray-200 rounded w-full"></div>
-                <div className="h-3 bg-gray-200 rounded w-5/6"></div>
-                <div className="h-3 bg-gray-200 rounded w-4/6"></div>
-              </div>
-              <div className="flex justify-between items-center pt-2">
-                <div className="flex space-x-2">
-                  <div className="h-9 w-20 bg-gray-200 rounded"></div>
-                  <div className="h-9 w-20 bg-gray-200 rounded"></div>
-                </div>
-                <div className="h-9 w-24 bg-gray-200 rounded"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
-        <Header showSearch={false} />
-        
-        {/* Page Header */}
-        <div className="flex items-center mb-6">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={handleBack}
-            className="mr-3 p-2"
+    <div className="max-w-2xl mx-auto px-4">
+      {/* Page Header */}
+      <Header showSearch={false} />
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.back()}
+            className="rounded-full"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-2xl font-bold">All Movies & TV Shows</h1>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="ml-auto"
-            onClick={fetchAllMedia}
-            disabled={loading}
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          <h1 className="text-2xl font-bold">Movies & TV Shows</h1>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={fetchAllMedia}
+          disabled={loading}
+          className="flex items-center space-x-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <span>Refresh</span>
+        </Button>
+      </div>
 
-        {/* Media List */}
+      {/* Media Grid */}
+      <div className="space-y-4">
         {loading ? (
-          <div className="space-y-6">
-            {[1, 2, 3].map((i) => (
-              <SkeletonMediaCard key={`skeleton-${i}`} />
-            ))}
-          </div>
-        ) : media.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500">No media found. Try refreshing the page.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-6">
-            {media.map((item) => (
-              <Card key={item.id} className="overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="md:flex">
-                    {/* Poster */}
-                    <div className="md:w-1/4 lg:w-1/5 relative h-64 md:h-auto">
-                      {item.posterUrl ? (
-                        <Image
-                          src={ensureFullPosterUrl(item.posterUrl)}
-                          alt={item.title}
-                          fill
-                          className="object-cover"
-                          sizes="(max-width: 768px) 100vw, 25vw"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                          {item.isTVShow ? (
-                            <Tv className="w-12 h-12 text-gray-400" />
-                          ) : (
-                            <Film className="w-12 h-12 text-gray-400" />
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-6 flex-1">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <CardTitle className="text-xl font-bold">
-                            {item.title}
-                            {item.releaseYear && (
-                              <span className="text-gray-500 font-normal ml-2">
-                                ({item.releaseYear})
-                              </span>
-                            )}
-                            {item.isTVShow && (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 ml-2">
-                                TV Show
-                              </span>
-                            )}
-                          </CardTitle>
-                          
-                          {item.genres && item.genres.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {item.genres.slice(0, 3).map((genre) => (
-                                <span 
-                                  key={genre} 
-                                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
-                                >
-                                  {genre}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        <WatchlistButton 
-                          movieId={item.id}
-                          movieTitle={item.title}
-                          size="sm"
-                          className="ml-2"
-                        />
-                      </div>
-
-                      <CardDescription className="mt-3 line-clamp-3">
-                        {item.description || 'No description available.'}
-                      </CardDescription>
-
-                      <div className="mt-4 flex items-center justify-between">
-                        {/* Vote Buttons */}
-                        <div className="flex space-x-2">
-                          <Button
-                            variant={votes[item.id] === 'yes' ? 'default' : 'outline'}
-                            size="sm"
-                            onClick={() => handleVote(item.id, 'yes', item.isTVShow)}
-                            disabled={!!currentVotingId}
-                            className="flex items-center"
-                          >
-                            <ThumbsUpIcon className="w-4 h-4 mr-1" />
-                            {item.votes?.yes || 0}
-                          </Button>
-                          <Button
-                            variant={votes[item.id] === 'no' ? 'destructive' : 'outline'}
-                            size="sm"
-                            onClick={() => handleVote(item.id, 'no', item.isTVShow)}
-                            disabled={!!currentVotingId}
-                            className="flex items-center"
-                          >
-                            <ThumbsDownIcon className="w-4 h-4 mr-1" />
-                            {item.votes?.no || 0}
-                          </Button>
-                          {txStatus[item.id] && (
-                            <span className="text-sm text-gray-500 ml-2 flex items-center">
-                              {txStatus[item.id]}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Comments */}
-                        <Link 
-                          href={{
-                            pathname: `/media/${item.isTVShow ? 'tv' : 'movie'}/[id]`,
-                            query: { id: item.id }
-                          }}
-                          as={`/media/${item.isTVShow ? 'tv' : 'movie'}/${item.id}`}
-                          className="inline-flex items-center text-sm text-gray-500 hover:text-gray-700"
-                        >
-                          <MessageSquare className="w-4 h-4 mr-1" />
-                          {item.commentCount || 0} comments
-                        </Link>
-                      </div>
-                    </div>
+          // Skeleton Loaders
+          <div className="space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <Card key={i} className="animate-pulse">
+                <div className="h-48 bg-muted rounded-t-lg" />
+                <CardContent className="p-4">
+                  <div className="h-6 bg-muted rounded w-3/4 mb-2" />
+                  <div className="h-4 bg-muted rounded w-1/2 mb-4" />
+                  <div className="flex justify-between">
+                    <div className="h-8 bg-muted rounded-full w-24" />
+                    <div className="h-8 bg-muted rounded-full w-8" />
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
+        ) : media.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No media found.</p>
+          </div>
+        ) : (
+          media.map((item) => (
+            <Card key={item.id} className="overflow-hidden">
+              <div className="md:flex">
+                {/* Poster Image */}
+                <div className="relative w-full md:w-32 h-48 md:h-auto flex-shrink-0">
+                  {item.posterUrl ? (
+                    <Image
+                      src={ensureFullPosterUrl(item.posterUrl)}
+                      alt={item.title}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, 128px"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-muted">
+                      {item.isTVShow ? (
+                        <Tv className="h-12 w-12 text-muted-foreground" />
+                      ) : (
+                        <Film className="h-12 w-12 text-muted-foreground" />
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 p-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-lg font-semibold">
+                        {item.title}
+                        {item.releaseYear && (
+                          <span className="text-muted-foreground ml-2 font-normal">
+                            ({new Date(item.releaseYear).getFullYear()})
+                          </span>
+                        )}
+                      </CardTitle>
+                      <div className="flex items-center mt-1 text-sm text-muted-foreground">
+                        {item.isTVShow && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 mr-2">
+                            TV Show
+                          </span>
+                        )}
+                        <div className="flex items-center">
+                          <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 mr-1" />
+                          <span>{
+                            item.votes && (item.votes.yes || item.votes.no) 
+                              ? ((item.votes.yes / (item.votes.yes + item.votes.no)) * 5).toFixed(1)
+                              : 'N/A'
+                          }</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="h-10 w-10 flex items-center justify-center">
+                      <WatchlistButton 
+                        movieId={item.id}
+                        movieTitle={item.title}
+                        size="sm"
+                        className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground"
+                      />
+                    </div>
+                  </div>
+
+                  {item.description && (
+                    <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
+                      {item.description}
+                    </p>
+                  )}
+
+                  <div className="mt-4 flex items-center justify-between">
+                    <div className="flex space-x-2">
+                      <Button
+                        variant={votes[item.id] === 'yes' ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-8 px-3 text-xs"
+                        onClick={() => handleVote(item.id, 'yes', item.isTVShow)}
+                        disabled={!!txStatus[item.id] || currentVotingId === item.id}
+                      >
+                        <ThumbsUpIcon className="h-3.5 w-3.5 mr-1.5" />
+                        {item.votes?.yes || 0}
+                      </Button>
+                      <Button
+                        variant={votes[item.id] === 'no' ? 'destructive' : 'outline'}
+                        size="sm"
+                        className="h-8 px-3 text-xs"
+                        onClick={() => handleVote(item.id, 'no', item.isTVShow)}
+                        disabled={!!txStatus[item.id] || currentVotingId === item.id}
+                      >
+                        <ThumbsDownIcon className="h-3.5 w-3.5 mr-1.5" />
+                        {item.votes?.no || 0}
+                      </Button>
+                      <Link 
+                        href={`/media/${item.isTVShow ? 'tv' : 'movie'}/${item.id}` as any}
+                        className="flex items-center h-8 px-3 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
+                        {item.commentCount || 0}
+                      </Link>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-primary"
+                      onClick={() => {
+                        const path = `/media/${item.isTVShow ? 'tv' : 'movie'}/${item.id}` as const;
+                        router.push(path as any);
+                      }}
+                    >
+                      View Details
+                    </Button>
+                  </div>
+
+                  {txStatus[item.id] && (
+                    <p className="mt-2 text-xs text-muted-foreground text-right">
+                      {txStatus[item.id]}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Card>
+          ))
         )}
       </div>
     </div>
