@@ -87,7 +87,7 @@ export const updateVote = async (tmdbId: string, voteType: 'yes' | 'no', userAdd
   
   // If user address is provided, save their vote
   if (userAddress) {
-    await saveUserVote(userAddress, tmdbId, voteType);
+    await saveUserVote(userAddress, tmdbId, voteType, false); // false for movies
   }
 };
 
@@ -184,17 +184,26 @@ export const saveUserVote = async (
 };
 
 /**
- * Gets a user's vote for a specific TV show
- * @param userAddress User's wallet address
- * @param tmdbId TMDB ID of the TV show
+ * Gets a user's vote for a specific movie or TV show
+ * @param userAddress User's wallet address or Farcaster ID
+ * @param tmdbId TMDB ID of the movie or TV show
+ * @param isTVShow Whether to check for a TV show vote (default: false)
  * @returns The user's vote ('yes' or 'no') or null if not voted
  */
-export const getUserVote = async (userAddress: string, tmdbId: string): Promise<'yes' | 'no' | null> => {
+export const getUserVote = async (
+  userAddress: string, 
+  tmdbId: string, 
+  isTVShow: boolean = false
+): Promise<'yes' | 'no' | null> => {
   const voteRef = doc(db, USER_VOTES_COLLECTION, `${userAddress}_${tmdbId}`);
   const voteSnap = await getDoc(voteRef);
   
   if (voteSnap.exists()) {
-    return voteSnap.data().voteType;
+    const voteData = voteSnap.data();
+    // Only return the vote if it matches the requested type (movie or TV show)
+    if (voteData.isTVShow === isTVShow) {
+      return voteData.voteType;
+    }
   }
   
   return null;
@@ -217,6 +226,6 @@ export const updateTVShowVote = async (tmdbId: string, voteType: 'yes' | 'no', u
   
   // If user address is provided, save their vote
   if (userAddress) {
-    await saveUserVote(userAddress, tmdbId, voteType);
+    await saveUserVote(userAddress, tmdbId, voteType, true); // true for TV shows
   }
 };
