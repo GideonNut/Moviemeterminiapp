@@ -93,8 +93,9 @@ export const searchMovies = async (searchTerm: string) => {
   })) as MovieData[];
 };
 
-// TV Shows Collection
+// Collections
 const TV_SHOWS_COLLECTION = 'tvShows';
+const USER_VOTES_COLLECTION = 'userVotes';
 
 export interface TVShowData extends Omit<MovieData, 'isTVShow' | 'tmdbId'> {
   tmdbId: string;
@@ -144,11 +145,60 @@ export const getAllTVShows = async () => {
   })) as TVShowData[];
 };
 
-export const updateTVShowVote = async (tmdbId: string, voteType: 'yes' | 'no') => {
+/**
+ * Saves a user's vote for a TV show
+ * @param userAddress User's wallet address
+ * @param tmdbId TMDB ID of the TV show
+ * @param voteType 'yes' or 'no'
+ * @returns Promise that resolves when the vote is saved
+ */
+export const saveUserVote = async (userAddress: string, tmdbId: string, voteType: 'yes' | 'no'): Promise<void> => {
+  const voteRef = doc(db, USER_VOTES_COLLECTION, `${userAddress}_${tmdbId}`);
+  
+  await setDoc(voteRef, {
+    userAddress,
+    tmdbId,
+    voteType,
+    isTVShow: true,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+};
+
+/**
+ * Gets a user's vote for a specific TV show
+ * @param userAddress User's wallet address
+ * @param tmdbId TMDB ID of the TV show
+ * @returns The user's vote ('yes' or 'no') or null if not voted
+ */
+export const getUserVote = async (userAddress: string, tmdbId: string): Promise<'yes' | 'no' | null> => {
+  const voteRef = doc(db, USER_VOTES_COLLECTION, `${userAddress}_${tmdbId}`);
+  const voteSnap = await getDoc(voteRef);
+  
+  if (voteSnap.exists()) {
+    return voteSnap.data().voteType;
+  }
+  
+  return null;
+};
+
+/**
+ * Updates a TV show's vote count and records the user's vote
+ * @param tmdbId TMDB ID of the TV show
+ * @param voteType 'yes' or 'no'
+ * @param userAddress Optional user's wallet address to track the vote
+ */
+export const updateTVShowVote = async (tmdbId: string, voteType: 'yes' | 'no', userAddress?: string) => {
   const showRef = doc(db, TV_SHOWS_COLLECTION, tmdbId);
   
+  // Update the show's vote count
   await updateDoc(showRef, {
     [`votes.${voteType}`]: increment(1),
     updatedAt: serverTimestamp()
   });
+  
+  // If user address is provided, save their vote
+  if (userAddress) {
+    await saveUserVote(userAddress, tmdbId, voteType);
+  }
 };
