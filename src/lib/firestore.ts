@@ -77,17 +77,29 @@ export const getAllMovies = async () => {
  * @param userAddress Optional user's wallet address to track the vote
  */
 export const updateVote = async (tmdbId: string, voteType: 'yes' | 'no', userAddress?: string) => {
+  console.log('updateVote called with:', { tmdbId, voteType, userAddress });
   const movieRef = doc(db, MOVIES_COLLECTION, tmdbId);
   
-  // Update the movie's vote count
-  await updateDoc(movieRef, {
-    [`votes.${voteType}`]: increment(1),
-    updatedAt: serverTimestamp()
-  });
-  
-  // If user address is provided, save their vote
-  if (userAddress) {
-    await saveUserVote(userAddress, tmdbId, voteType, false); // false for movies
+  try {
+    // Update the movie's vote count
+    console.log('Updating movie vote count...');
+    await updateDoc(movieRef, {
+      [`votes.${voteType}`]: increment(1),
+      updatedAt: serverTimestamp()
+    });
+    console.log('Successfully updated movie vote count');
+    
+    // If user address is provided, save their vote
+    if (userAddress) {
+      console.log('Saving user vote...');
+      await saveUserVote(userAddress, tmdbId, voteType, false); // false for movies
+      console.log('Successfully saved user vote');
+    } else {
+      console.log('No user address provided, skipping user vote save');
+    }
+  } catch (error) {
+    console.error('Error in updateVote:', error);
+    throw error;
   }
 };
 
@@ -171,16 +183,25 @@ export const saveUserVote = async (
   voteType: 'yes' | 'no',
   isTVShow: boolean = false
 ): Promise<void> => {
-  const voteRef = doc(db, USER_VOTES_COLLECTION, `${userAddress}_${tmdbId}`);
+  console.log('saveUserVote called with:', { userAddress, tmdbId, voteType, isTVShow });
+  const voteId = `${userAddress}_${tmdbId}`;
+  const voteRef = doc(db, USER_VOTES_COLLECTION, voteId);
   
-  await setDoc(voteRef, {
-    userAddress,
-    tmdbId,
-    voteType,
-    isTVShow,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp()
-  }, { merge: true });
+  try {
+    console.log('Saving vote to Firestore with ID:', voteId);
+    await setDoc(voteRef, {
+      userAddress,
+      tmdbId,
+      voteType,
+      isTVShow,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    console.log('Successfully saved vote to Firestore');
+  } catch (error) {
+    console.error('Error in saveUserVote:', error);
+    throw error;
+  }
 };
 
 /**
