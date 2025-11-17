@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { useSession } from 'next-auth/react';
 import { Button } from "./ui/Button";
 import Image from 'next/image';
 import { useRouter } from "next/navigation";
@@ -34,15 +36,57 @@ interface MovieCardProps {
 }
 
 // Compact version for carousel display
-export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVotes }: MovieCardProps) {
+export function CompactMovieCard({ movie, onVote, isConnected, userVotes }: MovieCardProps) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const [isVoting, setIsVoting] = useState(false);
   
   const handleVote = async (vote: boolean) => {
-    console.log('CompactMovieCard: handleVote called with:', vote);
-    console.log('CompactMovieCard: isConnected:', isConnected, 'isVoting:', isVoting);
+    const movieId = movie.id || movie._id;
+    if (!movieId) {
+      console.error('No movie ID found:', movie);
+      return;
+    }
     
-    // Call the parent's onVote function instead of making our own API call
-    onVote(vote);
+    if (!session?.user?.fid) {
+      console.error('User not authenticated with Farcaster');
+      // You might want to trigger a sign-in flow here
+      return;
+    }
+
+    console.log('Voting on movie:', movieId, 'with vote:', vote);
+    setIsVoting(true);
+    
+    try {
+      const response = await fetch("/api/movies", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+        },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          action: "vote", 
+          id: movieId, 
+          type: vote ? "yes" : "no"
+        }),
+      });
+      
+      const result = await response.json();
+      console.log('Vote response:', result);
+      
+      if (response.ok) {
+        onVote(vote);
+      } else {
+        console.error('Vote failed:', result.error);
+        // Show error to user
+        alert(result.error || 'Failed to submit vote');
+      }
+    } catch (error) {
+      console.error('Error voting:', error);
+      alert('An error occurred while submitting your vote');
+    } finally {
+      setIsVoting(false);
+    }
   };
 
   const handleClick = () => {
@@ -164,7 +208,10 @@ export function CompactMovieCard({ movie, onVote, isVoting, isConnected, userVot
   );
 }
 
-export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: MovieCardProps) {
+export function MovieCard({ movie, onVote, isConnected, userVotes }: MovieCardProps) {
+  const { data: session } = useSession();
+  const [isVoting, setIsVoting] = useState(false);
+
   const handleVote = async (vote: boolean) => {
     const movieId = movie.id || movie._id;
     if (!movieId) {
@@ -172,30 +219,45 @@ export function MovieCard({ movie, onVote, isVoting, isConnected, userVotes }: M
       return;
     }
     
+    if (!session?.user?.fid) {
+      console.error('User not authenticated with Farcaster');
+      // You might want to trigger a sign-in flow here
+      return;
+    }
+
     console.log('Voting on movie:', movieId, 'with vote:', vote);
+    setIsVoting(true);
     
     try {
       const response = await fetch("/api/movies", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+        },
+        credentials: 'include', // Important for sending cookies with the request
         body: JSON.stringify({ 
           action: "vote", 
           id: movieId, 
-          type: vote ? "yes" : "no",
-          userAddress: "demo-user" // Temporary demo user address
+          type: vote ? "yes" : "no"
+          // No need to send userAddress as it will be taken from the session
         }),
       });
       
       const result = await response.json();
       console.log('Vote response:', result);
       
-      if (result.success) {
+      if (response.ok) {
         onVote(vote);
       } else {
         console.error('Vote failed:', result.error);
+        // Show error to user
+        alert(result.error || 'Failed to submit vote');
       }
     } catch (error) {
       console.error('Error voting:', error);
+      alert('An error occurred while submitting your vote');
+    } finally {
+      setIsVoting(false);
     }
   };
 
