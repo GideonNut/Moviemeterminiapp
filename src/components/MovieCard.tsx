@@ -44,40 +44,61 @@ export function CompactMovieCard({ movie, onVote, isConnected, userVotes }: Movi
   const handleVote = async (vote: boolean) => {
     const movieId = movie.id || movie._id;
     if (!movieId) {
-      console.error('No movie ID found:', movie);
+      const errorMsg = 'No movie ID found in movie object';
+      console.error(errorMsg, movie);
+      alert(errorMsg);
       return;
     }
     
     if (!session?.user?.fid) {
-      console.error('User not authenticated with Farcaster');
+      const errorMsg = 'User not authenticated with Farcaster. Please sign in.';
+      console.error(errorMsg);
+      alert(errorMsg);
       // You might want to trigger a sign-in flow here
       return;
     }
 
-    console.log('Voting on movie:', movieId, 'with vote:', vote);
+    console.log('Initiating vote for movie:', {
+      movieId,
+      movieTitle: movie.title,
+      vote: vote ? 'yes' : 'no',
+      fid: session.user.fid
+    });
+    
     setIsVoting(true);
     
     try {
+      const voteData = { 
+        action: "vote", 
+        id: movieId, 
+        type: vote ? "yes" : "no"
+      };
+      
+      console.log('Sending vote request:', voteData);
+      
       const response = await fetch("/api/movies", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
         },
         credentials: 'include',
-        body: JSON.stringify({ 
-          action: "vote", 
-          id: movieId, 
-          type: vote ? "yes" : "no"
-        }),
+        body: JSON.stringify(voteData),
       });
       
       const result = await response.json();
-      console.log('Vote response:', result);
+      console.log('Vote response:', {
+        status: response.status,
+        statusText: response.statusText,
+        result
+      });
       
       if (response.ok) {
+        console.log('Vote successful, calling onVote callback');
         onVote(vote);
       } else {
-        console.error('Vote failed:', result.error);
+        const errorMsg = result.error || `Vote failed with status ${response.status}`;
+        console.error('Vote failed:', errorMsg);
+        alert(`Vote failed: ${errorMsg}`);
         // Show error to user
         alert(result.error || 'Failed to submit vote');
       }
