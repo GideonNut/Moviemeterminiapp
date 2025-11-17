@@ -105,7 +105,7 @@ export function MovieCardSkeleton() {
 // Skeleton for the horizontal card layout used in /movies page
 export function HorizontalMovieCardSkeleton() {
   return (
-    <div className="overflow-hidden bg-card">
+    <div className="overflow-hidden bg-black">
       <div className="flex">
         {/* Poster Skeleton */}
         <div className="relative w-[120px] h-[180px] flex-shrink-0">
