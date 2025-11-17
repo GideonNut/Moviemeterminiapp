@@ -4,7 +4,8 @@ import {
   getAllTVShows,
   updateTVShowVote,
   saveTVShow,
-  TVShowData
+  TVShowData,
+  getUserVote
 } from "~/lib/firestore";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "~/auth";
@@ -100,7 +101,18 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      await updateTVShowVote(body.id, body.type);
+      // Check if user has already voted for this show
+      const userVote = await getUserVote(body.userAddress, body.id);
+      if (userVote) {
+        return Response.json(
+          { success: false, error: 'You have already voted for this show' },
+          { status: 400 }
+        );
+      }
+      
+      // Update the vote count in Firestore and record the user's vote
+      await updateTVShowVote(body.id, body.type, body.userAddress);
+      
       return Response.json({ success: true });
       
     } else if (body.action === "getUserVotes") {
