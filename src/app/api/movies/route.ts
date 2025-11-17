@@ -4,6 +4,7 @@ import {
   getMovie,
   getAllMovies as getFirestoreMovies,
   updateVote,
+  getUserVote,
   type MovieData
 } from "~/lib/firestore";
 import { getServerSession } from "next-auth/next";
@@ -92,17 +93,38 @@ export async function POST(request: NextRequest) {
       return Response.json({ success: true, movieId: movieData.tmdbId });
       
     } else if (body.action === "vote") {
-      if (!body.userAddress) {
+      const session = await getServerSession(authOptions);
+      if (!session?.user?.fid) {
         return Response.json(
-          { success: false, error: 'User address is required' },
+          { success: false, error: 'User not authenticated with Farcaster' },
+          { status: 401 }
+        );
+      }
+      
+      const fid = session.user.fid.toString();
+      
+      // Check if user has already voted for this movie
+      const userVote = await getUserVote(fid, body.id);
+      if (userVote) {
+        return Response.json(
+          { success: false, error: 'You have already voted for this movie' },
           { status: 400 }
         );
       }
       
-      await updateVote(body.id, body.type);
+      // Update the vote count in Firestore and record the user's vote
+      await updateVote(body.id, body.type, fid);
       return Response.json({ success: true });
     } else if (body.action === "getUserVotes") {
-      const userVotes = await getUserVotes(body.userAddress);
+      const session = await getServerSession(authOptions);
+      if (!session?.user?.fid) {
+        return Response.json(
+          { success: false, error: 'User not authenticated with Farcaster' },
+          { status: 401 }
+        );
+      }
+      const fid = session.user.fid.toString();
+      const userVotes = await getUserVotes(fid);
       return Response.json({ success: true, userVotes });
     } else if (body.action === "reset") {
       await resetMovieIds();
