@@ -101,8 +101,18 @@ export async function POST(request: NextRequest) {
         );
       }
       
+      const session = await getServerSession(authOptions);
+      if (!session?.user?.fid) {
+        return Response.json(
+          { success: false, error: 'User not authenticated with Farcaster' },
+          { status: 401 }
+        );
+      }
+      
+      const fid = session.user.fid.toString();
+      
       // Check if user has already voted for this show
-      const userVote = await getUserVote(body.userAddress, body.id);
+      const userVote = await getUserVote(fid, body.id, true); // true for TV shows
       if (userVote) {
         return Response.json(
           { success: false, error: 'You have already voted for this show' },
@@ -111,7 +121,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Update the vote count in Firestore and record the user's vote
-      await updateTVShowVote(body.id, body.type, body.userAddress);
+      await updateTVShowVote(body.id, body.type, fid);
       
       return Response.json({ success: true });
       
