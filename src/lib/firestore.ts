@@ -70,13 +70,25 @@ export const getAllMovies = async () => {
   })) as MovieData[];
 };
 
-export const updateVote = async (tmdbId: string, voteType: 'yes' | 'no') => {
+/**
+ * Updates a movie's vote count and records the user's vote
+ * @param tmdbId TMDB ID of the movie
+ * @param voteType 'yes' or 'no'
+ * @param userAddress Optional user's wallet address to track the vote
+ */
+export const updateVote = async (tmdbId: string, voteType: 'yes' | 'no', userAddress?: string) => {
   const movieRef = doc(db, MOVIES_COLLECTION, tmdbId);
   
+  // Update the movie's vote count
   await updateDoc(movieRef, {
     [`votes.${voteType}`]: increment(1),
     updatedAt: serverTimestamp()
   });
+  
+  // If user address is provided, save their vote
+  if (userAddress) {
+    await saveUserVote(userAddress, tmdbId, voteType);
+  }
 };
 
 export const searchMovies = async (searchTerm: string) => {
