@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getVotesCollection } from "~/lib/mongo";
+import { db } from "~/lib/firebase";
+import { collection, getDocs, query, orderBy, Timestamp } from "firebase/firestore";
 
 interface LeaderboardEntry {
   address: string;
@@ -8,20 +9,29 @@ interface LeaderboardEntry {
   noVotes: number;
   lastVoteDate: string;
   streak: number;
+  engagementScore?: number;
 }
 
 export async function GET(req: NextRequest) {
   try {
-    const VoteModel = await getVotesCollection();
-    
-    // Get all votes from MongoDB
-    const allVotes = await VoteModel.find({}).sort({ createdAt: -1 });
+    // Get all user votes from Firestore
+    const votesRef = collection(db, 'userVotes');
+    const votesQuery = query(votesRef, orderBy('createdAt', 'desc'));
+    const votesSnapshot = await getDocs(votesQuery);
     
     // Group votes by address
     const userStats: Record<string, LeaderboardEntry> = {};
+    const userVoteDates: Record<string, Set<string>> = {};
     
-    allVotes.forEach((vote: any) => {
+    // First pass: collect all votes and group by user
+    votesSnapshot.docs.forEach((doc) => {
+      const vote = doc.data();
       const address = vote.userAddress;
+      const voteDate = vote.createdAt?.toDate ? 
+        vote.createdAt.toDate().toISOString().split('T')[0] : 
+        new Date().toISOString().split('T')[0];
+      
+      // Initialize user stats if not exists
       if (!userStats[address]) {
         userStats[address] = {
           address,
@@ -31,34 +41,44 @@ export async function GET(req: NextRequest) {
           lastVoteDate: '',
           streak: 0
         };
+        userVoteDates[address] = new Set();
       }
       
+      // Update vote counts
       userStats[address].totalVotes++;
-      if (vote.type === 'yes') {
+      if (vote.voteType === 'yes') {
         userStats[address].yesVotes++;
       } else {
         userStats[address].noVotes++;
       }
       
-      const voteDate = new Date(vote.createdAt).toISOString().split('T')[0];
+      // Track vote dates for streak calculation
+      userVoteDates[address].add(voteDate);
+      
+      // Update last vote date if this is the most recent
       if (!userStats[address].lastVoteDate || voteDate > userStats[address].lastVoteDate) {
         userStats[address].lastVoteDate = voteDate;
       }
     });
     
-    // Calculate streaks (simplified - consecutive days of voting)
-    const today = new Date().toISOString().split('T')[0];
-    Object.values(userStats).forEach(user => {
-      const lastVote = new Date(user.lastVoteDate);
-      const daysSinceLastVote = Math.floor((new Date(today).getTime() - lastVote.getTime()) / (1000 * 60 * 60 * 24));
-      
-      // Simple streak calculation - if they voted today or yesterday, give them a streak
-      // In a real app, you'd calculate actual consecutive days
-      user.streak = daysSinceLastVote <= 1 ? Math.min(user.totalVotes, 30) : 0;
+    // Calculate streaks based on consecutive voting days
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    
+    // Calculate streaks for each user
+    Object.entries(userStats).forEach(([address, user]) => {
+      if (user.lastVoteDate) {
+        const lastVote = new Date(user.lastVoteDate);
+        const daysSinceLastVote = Math.floor((today.getTime() - lastVote.getTime()) / (1000 * 60 * 60 * 24));
+        user.streak = daysSinceLastVote <= 1 ? Math.min(user.totalVotes, 30) : 0;
+      } else {
+        user.streak = 0;
+      }
     });
     
     // Convert to arrays and sort
-    const topVoters = Object.values(userStats)
+    const userStatsArray = Object.values(userStats);
+    const topVoters = [...userStatsArray]
       .sort((a, b) => b.totalVotes - a.totalVotes)
       .slice(0, 20)
       .map((user, index) => ({
@@ -110,7 +130,7 @@ export async function GET(req: NextRequest) {
       longestStreaks,
       topEngagement,
       totalUsers: Object.keys(userStats).length,
-      totalVotes: allVotes.length
+      totalVotes: votesSnapshot.size
     });
     
   } catch (error) {
