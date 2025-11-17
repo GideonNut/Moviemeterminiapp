@@ -158,20 +158,26 @@ export const getAllTVShows = async () => {
 };
 
 /**
- * Saves a user's vote for a TV show
- * @param userAddress User's wallet address
- * @param tmdbId TMDB ID of the TV show
+ * Saves a user's vote for a movie or TV show
+ * @param userAddress User's wallet address or Farcaster ID
+ * @param tmdbId TMDB ID of the movie or TV show
  * @param voteType 'yes' or 'no'
+ * @param isTVShow Whether this is a TV show (default: false)
  * @returns Promise that resolves when the vote is saved
  */
-export const saveUserVote = async (userAddress: string, tmdbId: string, voteType: 'yes' | 'no'): Promise<void> => {
+export const saveUserVote = async (
+  userAddress: string, 
+  tmdbId: string, 
+  voteType: 'yes' | 'no',
+  isTVShow: boolean = false
+): Promise<void> => {
   const voteRef = doc(db, USER_VOTES_COLLECTION, `${userAddress}_${tmdbId}`);
   
   await setDoc(voteRef, {
     userAddress,
     tmdbId,
     voteType,
-    isTVShow: true,
+    isTVShow,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   }, { merge: true });
