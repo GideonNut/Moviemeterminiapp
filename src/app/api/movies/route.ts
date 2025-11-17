@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
       const fid = session.user.fid.toString();
       
       // Check if user has already voted for this movie
-      const userVote = await getUserVote(fid, body.id);
+      const userVote = await getUserVote(fid, body.id, false); // false for movies
       if (userVote) {
         return Response.json(
           { success: false, error: 'You have already voted for this movie' },
