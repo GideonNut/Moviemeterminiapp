@@ -2,13 +2,29 @@
 
 import { MovieCard } from "~/components/MovieCard";
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import Image from 'next/image';
+
+interface Movie {
+  id: string;
+  _id?: string;
+  title: string;
+  description: string;
+  releaseYear?: string;
+  posterUrl?: string;
+  votes?: {
+    yes: number;
+    no: number;
+  };
+  genres?: string[];
+  rating?: number;
+}
 
 export default function DiscoverPage() {
   const [isVoting, setIsVoting] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
-  const [movies, setMovies] = useState([]);
+  const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -41,12 +57,61 @@ export default function DiscoverPage() {
     fetchMovies();
   }, []);
 
+  const { data: session } = useSession();
+  const [userVotes, setUserVotes] = useState<{[key: string]: 'yes' | 'no' | null}>({});
+
   const handleVote = async (movieId: string, vote: 'yes' | 'no') => {
+    if (!session?.user?.fid) {
+      alert('Please sign in with Farcaster to vote');
+      return;
+    }
+
     setIsVoting(true);
     try {
-      console.log(`Voting ${vote} for movie ${movieId}`);
+      const response = await fetch("/api/movies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        body: JSON.stringify({
+          action: "vote",
+          id: movieId,
+          type: vote
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        // Update the UI to reflect the vote
+        setMovies(prevMovies => 
+          prevMovies.map(movie => {
+            if (movie.id === movieId || movie._id === movieId) {
+              const currentVotes = movie.votes || { yes: 0, no: 0 };
+              return {
+                ...movie,
+                votes: {
+                  ...currentVotes,
+                  [vote]: (currentVotes[vote] || 0) + 1
+                }
+              };
+            }
+            return movie;
+          })
+        );
+        
+        // Update user votes
+        setUserVotes(prev => ({
+          ...prev,
+          [movieId]: vote
+        }));
+        
+        console.log(`Successfully voted ${vote} for movie ${movieId}`);
+      } else {
+        throw new Error(result.error || 'Failed to submit vote');
+      }
     } catch (error) {
       console.error('Error voting:', error);
+      alert(error instanceof Error ? error.message : 'An error occurred while voting');
     } finally {
       setIsVoting(false);
     }
