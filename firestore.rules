@@ -1,21 +1,9 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow read access to all users
+    // Allow all reads and writes for testing
     match /{document=**} {
-      allow read: if true;
-      allow write: if request.auth != null;
-    }
-    
-    // More specific rules can be added here
-    match /movies/{movieId} {
-      allow read: if true;
-      allow create, update, delete: if request.auth != null;
-    }
-    
-    match /tvShows/{showId} {
-      allow read: if true;
-      allow create, update, delete: if request.auth != null;
+      allow read, write: if true;
     }
   }
 }
