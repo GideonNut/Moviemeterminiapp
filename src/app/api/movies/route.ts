@@ -93,28 +93,66 @@ export async function POST(request: NextRequest) {
       return Response.json({ success: true, movieId: movieData.tmdbId });
       
     } else if (body.action === "vote") {
-      const session = await getServerSession(authOptions);
-      if (!session?.user?.fid) {
+      try {
+        // Get the session from the request headers
+        const authHeader = request.headers.get('authorization');
+        
+        if (!authHeader) {
+          console.error('No authorization header found');
+          return Response.json(
+            { 
+              success: false, 
+              error: 'Not authenticated. Please sign in again.' 
+            },
+            { status: 401 }
+          );
+        }
+        
+        // Get the session using the token from the authorization header
+        const token = authHeader.replace('Bearer ', '');
+        const session = await getServerSession(authOptions);
+        
+        if (!session?.user?.fid) {
+          console.error('No Farcaster fid found in session');
+          return Response.json(
+            { 
+              success: false, 
+              error: 'User not authenticated with Farcaster. Please sign in again.' 
+            },
+            { status: 401 }
+          );
+        }
+        
+        const fid = session.user.fid.toString();
+        console.log('Processing vote for FID:', fid, 'on movie:', body.id);
+        
+        // Check if user has already voted for this movie
+        const userVote = await getUserVote(fid, body.id, false); // false for movies
+        if (userVote) {
+          return Response.json(
+            { success: false, error: 'You have already voted for this movie' },
+            { status: 400 }
+          );
+        }
+        
+        // Update the vote count in Firestore and record the user's vote
+        console.log('Updating vote for movie:', body.id, 'with vote:', body.type);
+        await updateVote(body.id, body.type, fid);
+        console.log('Vote recorded successfully');
+        
+        return Response.json({ success: true });
+      } catch (error: unknown) {
+        console.error('Error in vote API:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         return Response.json(
-          { success: false, error: 'User not authenticated with Farcaster' },
-          { status: 401 }
+          { 
+            success: false, 
+            error: 'An error occurred while processing your vote',
+            details: errorMessage
+          },
+          { status: 500 }
         );
       }
-      
-      const fid = session.user.fid.toString();
-      
-      // Check if user has already voted for this movie
-      const userVote = await getUserVote(fid, body.id, false); // false for movies
-      if (userVote) {
-        return Response.json(
-          { success: false, error: 'You have already voted for this movie' },
-          { status: 400 }
-        );
-      }
-      
-      // Update the vote count in Firestore and record the user's vote
-      await updateVote(body.id, body.type, fid);
-      return Response.json({ success: true });
     } else if (body.action === "getUserVotes") {
       const session = await getServerSession(authOptions);
       if (!session?.user?.fid) {
