@@ -2,15 +2,15 @@
 
 import { WagmiConfig } from "./WagmiProvider";
 import { SessionProvider } from "next-auth/react";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { FarcasterAuthProvider } from "@/contexts/FarcasterAuthContext";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiConfig>
       <SessionProvider>
-        <AuthProvider>
+        <FarcasterAuthProvider>
           {children}
-        </AuthProvider>
+        </FarcasterAuthProvider>
       </SessionProvider>
     </WagmiConfig>
   );
