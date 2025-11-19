@@ -50,11 +50,15 @@ export function CompactMovieCard({ movie, onVote, isConnected, userVotes }: Movi
       return;
     }
     
-    if (!session?.user?.fid) {
+    // Get the current session
+    const currentSession = await fetch('/api/auth/session').then(res => res.json());
+    
+    if (!currentSession?.user?.fid) {
       const errorMsg = 'User not authenticated with Farcaster. Please sign in.';
       console.error(errorMsg);
       alert(errorMsg);
-      // You might want to trigger a sign-in flow here
+      // Redirect to sign-in or trigger sign-in flow
+      window.location.href = '/signin';
       return;
     }
 
@@ -62,7 +66,7 @@ export function CompactMovieCard({ movie, onVote, isConnected, userVotes }: Movi
       movieId,
       movieTitle: movie.title,
       vote: vote ? 'yes' : 'no',
-      fid: session.user.fid
+      fid: currentSession.user.fid
     });
     
     setIsVoting(true);
@@ -76,11 +80,27 @@ export function CompactMovieCard({ movie, onVote, isConnected, userVotes }: Movi
       
       console.log('Sending vote request:', voteData);
       
+      // Get the session token
+      const sessionToken = await fetch('/api/auth/session')
+        .then(res => res.json())
+        .then(data => data.accessToken)
+        .catch(err => {
+          console.error('Error getting session token:', err);
+          return null;
+        });
+
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+
+      // Add the session token to the headers if available
+      if (sessionToken) {
+        headers['Authorization'] = `Bearer ${sessionToken}`;
+      }
+
       const response = await fetch("/api/movies", {
         method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-        },
+        headers: headers,
         credentials: 'include',
         body: JSON.stringify(voteData),
       });
