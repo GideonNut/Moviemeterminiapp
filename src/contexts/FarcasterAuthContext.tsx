@@ -15,7 +15,7 @@ type FarcasterAuthContextType = {
   user: FarcasterUser | null;
   isConnected: boolean;
   isLoading: boolean;
-  connect: () => Promise<void>;
+  connect: (silent?: boolean) => Promise<FarcasterUser | null>;
   disconnect: () => void;
 };
 
