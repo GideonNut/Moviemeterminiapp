@@ -6,25 +6,31 @@ export function useOnboarding() {
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null);
 
   useEffect(() => {
+    console.log('[Onboarding] useEffect started');
+
     // Add a timeout fallback to prevent infinite loading
     const timeoutId = setTimeout(() => {
-      if (hasSeenOnboarding === null) {
-        console.warn('Onboarding check timed out, defaulting to false');
-        setHasSeenOnboarding(false);
-      }
-    }, 1000); // 1 second timeout
+      console.warn('[Onboarding] Timeout reached, forcing onboarding to show');
+      setHasSeenOnboarding(false);
+    }, 500); // Reduced to 500ms for faster fallback
 
     try {
       // Check if user has completed onboarding
       const completed = localStorage.getItem(ONBOARDING_KEY);
+      console.log('[Onboarding] localStorage check:', completed);
       setHasSeenOnboarding(completed === 'true');
+      clearTimeout(timeoutId); // Clear timeout if we successfully got the value
     } catch (error) {
       // localStorage might not be available in some contexts (e.g., miniapps)
-      console.warn('localStorage not available, skipping onboarding check:', error);
+      console.warn('[Onboarding] localStorage not available:', error);
       setHasSeenOnboarding(false);
+      clearTimeout(timeoutId);
     }
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      console.log('[Onboarding] Cleanup');
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   const completeOnboarding = () => {
