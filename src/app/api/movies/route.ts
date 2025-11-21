@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    if (!session?.user?.email && !session?.user?.fid) {
       return Response.json(
         { success: false, error: 'Not authenticated' }, 
         { status: 401 }
@@ -81,6 +81,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     
     if (body.action === "add") {
+      if (!session.user.email) {
+         return Response.json({ success: false, error: "Email required to add movies" }, { status: 400 });
+      }
       const movieData = {
         ...body.movie,
         tmdbId: body.movie.id.toString(),
@@ -94,24 +97,6 @@ export async function POST(request: NextRequest) {
       
     } else if (body.action === "vote") {
       try {
-        // Get the session from the request headers
-        const authHeader = request.headers.get('authorization');
-        
-        if (!authHeader) {
-          console.error('No authorization header found');
-          return Response.json(
-            { 
-              success: false, 
-              error: 'Not authenticated. Please sign in again.' 
-            },
-            { status: 401 }
-          );
-        }
-        
-        // Get the session using the token from the authorization header
-        const token = authHeader.replace('Bearer ', '');
-        const session = await getServerSession(authOptions);
-        
         if (!session?.user?.fid) {
           console.error('No Farcaster fid found in session');
           return Response.json(
