@@ -71,16 +71,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email && !session?.user?.fid) {
-      return Response.json(
-        { success: false, error: 'Not authenticated' }, 
-        { status: 401 }
-      );
-    }
-
     const body = await request.json();
     
     if (body.action === "add") {
+      // For "add" action, require authentication
+      if (!session?.user?.email && !session?.user?.fid) {
+        return Response.json(
+          { success: false, error: 'Not authenticated' }, 
+          { status: 401 }
+        );
+      }
       if (!session.user.email) {
          return Response.json({ success: false, error: "Email required to add movies" }, { status: 400 });
       }
@@ -97,22 +97,24 @@ export async function POST(request: NextRequest) {
       
     } else if (body.action === "vote") {
       try {
-        if (!session?.user?.fid) {
-          console.error('No Farcaster fid found in session');
+        // Accept either wallet address or Farcaster fid
+        const userIdentifier = body.userAddress || (session?.user?.fid ? session.user.fid.toString() : null);
+        
+        if (!userIdentifier) {
+          console.error('No user identifier found (wallet address or Farcaster fid)');
           return Response.json(
             { 
               success: false, 
-              error: 'User not authenticated with Farcaster. Please sign in again.' 
+              error: 'User not authenticated. Please connect your wallet or sign in with Farcaster.' 
             },
             { status: 401 }
           );
         }
         
-        const fid = session.user.fid.toString();
-        console.log('Processing vote for FID:', fid, 'on movie:', body.id);
+        console.log('Processing vote for user:', userIdentifier, 'on movie:', body.id);
         
         // Check if user has already voted for this movie
-        const userVote = await getUserVote(fid, body.id, false); // false for movies
+        const userVote = await getUserVote(userIdentifier, body.id, false); // false for movies
         if (userVote) {
           return Response.json(
             { success: false, error: 'You have already voted for this movie' },
@@ -122,7 +124,7 @@ export async function POST(request: NextRequest) {
         
         // Update the vote count in Firestore and record the user's vote
         console.log('Updating vote for movie:', body.id, 'with vote:', body.type);
-        await updateVote(body.id, body.type, fid);
+        await updateVote(body.id, body.type, userIdentifier);
         console.log('Vote recorded successfully');
         
         return Response.json({ success: true });
