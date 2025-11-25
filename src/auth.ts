@@ -38,8 +38,6 @@ function getDomainFromUrl(urlString: string | undefined): string {
 }
 
 export const authOptions: AuthOptions = {
-  // Trust the host header to use the request origin instead of NEXTAUTH_URL
-  trustHost: true,
   // Configure one or more authentication providers
   providers: [
     CredentialsProvider({
@@ -127,12 +125,23 @@ export const authOptions: AuthOptions = {
   },
   callbacks: {
     async redirect({ url, baseUrl }) {
-      // Allow relative callback URLs
-      if (url.startsWith('/')) return `${baseUrl}${url}`;
+      // Extract origin from the URL if it's absolute, otherwise use baseUrl
+      let origin = baseUrl;
+      try {
+        if (url && !url.startsWith('/')) {
+          const urlObj = new URL(url);
+          origin = urlObj.origin;
+        }
+      } catch (e) {
+        // If URL parsing fails, use baseUrl
+      }
+      
+      // Allow relative callback URLs - use the origin from the request
+      if (url.startsWith('/')) return `${origin}${url}`;
       // Allow callback URLs on the same origin
-      if (new URL(url).origin === baseUrl) return url;
-      // Default to baseUrl
-      return baseUrl;
+      if (url && new URL(url).origin === origin) return url;
+      // Default to origin
+      return origin;
     },
     async session({ session, token, user }) {
       console.log('Session callback - Token:', JSON.stringify(token, null, 2));
