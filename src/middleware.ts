@@ -36,7 +36,7 @@ export async function middleware(request: NextRequest) {
   
   // Only protect specific admin routes
   if (pathname.startsWith('/admin') && !token) {
-    const url = new URL('/api/auth/signin', request.url);
+    const url = new URL('/api/auth/signin', request.nextUrl.origin);
     url.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(url);
   }
