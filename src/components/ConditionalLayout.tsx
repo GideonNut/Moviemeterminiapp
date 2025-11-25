@@ -2,7 +2,6 @@
 
 import { useOnboarding } from "~/hooks/onboarding";
 import BottomNav from "~/components/BottomNav";
-import FarcasterReady from "~/components/FarcasterReady";
 
 interface ConditionalLayoutProps {
   children: React.ReactNode;
@@ -18,18 +17,12 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
 
   // If user hasn't seen onboarding, render children without layout wrapper
   if (!hasSeenOnboarding) {
-    return (
-      <>
-        <FarcasterReady />
-        {children}
-      </>
-    );
+    return <>{children}</>;
   }
 
   // Normal layout for users who have completed onboarding
   return (
     <>
-      <FarcasterReady />
       <main className="pt-32 pb-16">{children}</main>
       <BottomNav />
     </>
