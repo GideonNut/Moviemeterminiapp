@@ -71,16 +71,16 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return Response.json(
-        { success: false, error: 'Not authenticated' }, 
-        { status: 401 }
-      );
-    }
-
     const body = await request.json();
     
     if (body.action === "add") {
+      // For "add" action, require authentication
+      if (!session?.user?.email) {
+        return Response.json(
+          { success: false, error: 'Not authenticated' }, 
+          { status: 401 }
+        );
+      }
       const showData: Omit<TVShowData, 'createdAt' | 'updatedAt' | 'votes'> = {
         ...body.show,
         tmdbId: body.show.id.toString(),
@@ -94,25 +94,24 @@ export async function POST(request: NextRequest) {
       return Response.json({ success: true, showId: showData.tmdbId });
       
     } else if (body.action === "vote") {
-      if (!body.userAddress) {
-        return Response.json(
-          { success: false, error: 'User address is required' },
-          { status: 400 }
-        );
-      }
+      // Accept either wallet address or Farcaster fid
+      const userIdentifier = body.userAddress || (session?.user?.fid ? session.user.fid.toString() : null);
       
-      const session = await getServerSession(authOptions);
-      if (!session?.user?.fid) {
+      if (!userIdentifier) {
+        console.error('No user identifier found (wallet address or Farcaster fid)');
         return Response.json(
-          { success: false, error: 'User not authenticated with Farcaster' },
+          { 
+            success: false, 
+            error: 'User not authenticated. Please connect your wallet or sign in with Farcaster.' 
+          },
           { status: 401 }
         );
       }
       
-      const fid = session.user.fid.toString();
+      console.log('Processing vote for user:', userIdentifier, 'on TV show:', body.id);
       
       // Check if user has already voted for this show
-      const userVote = await getUserVote(fid, body.id, true); // true for TV shows
+      const userVote = await getUserVote(userIdentifier, body.id, true); // true for TV shows
       if (userVote) {
         return Response.json(
           { success: false, error: 'You have already voted for this show' },
@@ -121,7 +120,7 @@ export async function POST(request: NextRequest) {
       }
       
       // Update the vote count in Firestore and record the user's vote
-      await updateTVShowVote(body.id, body.type, fid);
+      await updateTVShowVote(body.id, body.type, userIdentifier);
       
       return Response.json({ success: true });
       
