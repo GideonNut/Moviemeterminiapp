@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import { getAllMovies } from "~/lib/mongo";
+import { getAllMovies } from "~/lib/firestore";
+import { updateMovieContractId } from "~/lib/firestore";
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
 import { createPublicClient, http, getContract, createWalletClient, parseEther } from "viem";
 import { celo } from "viem/chains";
@@ -58,10 +59,15 @@ export async function POST(request: NextRequest) {
     const dbMovies = await getAllMovies();
     console.log(`Found ${dbMovies.length} movies in database`);
 
-    // Filter movies that need to be added (those with IDs >= current contract count)
+    // Filter movies that need to be added (those without a contractId or with contractId >= current contract count)
     const moviesToAdd = dbMovies.filter(movie => {
-      const movieId = parseInt(movie.id, 10);
-      return movieId >= Number(currentMovieCount);
+      // If movie already has a contractId, skip it
+      if (movie.contractId) {
+        return false;
+      }
+      // Otherwise, check if it should be added based on sequential logic
+      // For now, add all movies without contractId
+      return true;
     });
 
     console.log(`${moviesToAdd.length} movies need to be added to contract`);
@@ -78,10 +84,15 @@ export async function POST(request: NextRequest) {
     // Add movies to contract
     let addedCount = 0;
     const errors: string[] = [];
+    let currentContractId = Number(currentMovieCount);
 
     for (const movie of moviesToAdd) {
       try {
-        console.log(`Adding movie "${movie.title}" (ID: ${movie.id}) to contract...`);
+        console.log(`Adding movie "${movie.title}" (TMDB ID: ${movie.tmdbId || movie.id}) to contract...`);
+        
+        // The contract ID will be the current movieCount (before adding)
+        const contractId = currentContractId;
+        console.log(`Movie will be assigned contract ID: ${contractId}`);
         
         // Add movie to contract
         const hash = await writeContract.write.addMovie([movie.title]);
@@ -89,9 +100,21 @@ export async function POST(request: NextRequest) {
         
         // Wait for transaction to be mined
         await publicClient.waitForTransactionReceipt({ hash });
-        console.log(`Movie "${movie.title}" successfully added to contract`);
+        console.log(`Movie "${movie.title}" successfully added to contract with ID: ${contractId}`);
+        
+        // Update Firestore with the contract ID
+        try {
+          const tmdbId = movie.tmdbId || movie.id;
+          await updateMovieContractId(tmdbId, contractId.toString());
+          console.log(`Updated Firestore with contract ID ${contractId} for movie ${tmdbId}`);
+        } catch (updateError) {
+          console.error(`Failed to update Firestore with contract ID for "${movie.title}":`, updateError);
+          // Don't fail the whole sync if Firestore update fails
+          errors.push(`${movie.title}: Added to contract but failed to update Firestore`);
+        }
         
         addedCount++;
+        currentContractId++; // Increment for next movie
         
         // Small delay between transactions
         await new Promise(resolve => setTimeout(resolve, 2000));
