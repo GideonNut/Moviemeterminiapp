@@ -8,24 +8,41 @@ export function useOnboarding() {
   useEffect(() => {
     console.log('[Onboarding] useEffect started');
 
-    // Add a timeout fallback to prevent infinite loading
-    const timeoutId = setTimeout(() => {
-      console.warn('[Onboarding] Timeout reached, forcing onboarding to show');
-      setHasSeenOnboarding(false);
-    }, 500); // Reduced to 500ms for faster fallback
+    let timeoutId: NodeJS.Timeout;
+    let isResolved = false;
 
+    const resolveOnboarding = (value: boolean) => {
+      if (!isResolved) {
+        isResolved = true;
+        clearTimeout(timeoutId);
+        setHasSeenOnboarding(value);
+      }
+    };
+
+    // Check localStorage immediately
     try {
       // Check if user has completed onboarding
-      const completed = localStorage.getItem(ONBOARDING_KEY);
-      console.log('[Onboarding] localStorage check:', completed);
-      setHasSeenOnboarding(completed === 'true');
-      clearTimeout(timeoutId); // Clear timeout if we successfully got the value
+      if (typeof window !== 'undefined') {
+        const completed = localStorage.getItem(ONBOARDING_KEY);
+        console.log('[Onboarding] localStorage check:', completed);
+        resolveOnboarding(completed === 'true');
+      } else {
+        // SSR fallback
+        resolveOnboarding(false);
+      }
     } catch (error) {
       // localStorage might not be available in some contexts (e.g., miniapps)
       console.warn('[Onboarding] localStorage not available:', error);
-      setHasSeenOnboarding(false);
-      clearTimeout(timeoutId);
+      resolveOnboarding(false);
     }
+
+    // Add a timeout fallback to prevent infinite loading
+    timeoutId = setTimeout(() => {
+      if (!isResolved) {
+        console.warn('[Onboarding] Timeout reached, forcing onboarding to show');
+        resolveOnboarding(false);
+      }
+    }, 200); // 200ms timeout fallback
 
     return () => {
       console.log('[Onboarding] Cleanup');
