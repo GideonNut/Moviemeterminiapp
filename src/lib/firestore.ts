@@ -28,6 +28,7 @@ export interface MovieData {
   commentCount?: number;
   isTVShow?: boolean;
   tmdbId: string;
+  contractId?: string; // Contract movie ID (sequential integer as string)
   createdAt: any;
   updatedAt: any;
 }
@@ -117,6 +118,26 @@ export const searchMovies = async (searchTerm: string) => {
   })) as MovieData[];
 };
 
+/**
+ * Updates a movie's contract ID in Firestore
+ * @param tmdbId TMDB ID of the movie (used as document ID)
+ * @param contractId The contract movie ID (sequential integer)
+ */
+export const updateMovieContractId = async (tmdbId: string, contractId: string | number): Promise<void> => {
+  const movieRef = doc(db, MOVIES_COLLECTION, tmdbId);
+  
+  try {
+    await updateDoc(movieRef, {
+      contractId: contractId.toString(),
+      updatedAt: serverTimestamp()
+    });
+    console.log(`Updated contract ID for movie ${tmdbId}: ${contractId}`);
+  } catch (error) {
+    console.error(`Error updating contract ID for movie ${tmdbId}:`, error);
+    throw error;
+  }
+};
+
 // Collections
 const TV_SHOWS_COLLECTION = 'tvShows';
 const USER_VOTES_COLLECTION = 'userVotes';
@@ -124,6 +145,7 @@ const USER_VOTES_COLLECTION = 'userVotes';
 export interface TVShowData extends Omit<MovieData, 'isTVShow' | 'tmdbId'> {
   tmdbId: string;
   isTVShow: true;
+  contractId?: string; // Contract TV show ID (sequential integer as string)
   firstAirDate?: string;
   lastAirDate?: string;
   numberOfSeasons?: number;
@@ -248,5 +270,25 @@ export const updateTVShowVote = async (tmdbId: string, voteType: 'yes' | 'no', u
   // If user address is provided, save their vote
   if (userAddress) {
     await saveUserVote(userAddress, tmdbId, voteType, true); // true for TV shows
+  }
+};
+
+/**
+ * Updates a TV show's contract ID in Firestore
+ * @param tmdbId TMDB ID of the TV show (used as document ID)
+ * @param contractId The contract TV show ID (sequential integer)
+ */
+export const updateTVShowContractId = async (tmdbId: string, contractId: string | number): Promise<void> => {
+  const showRef = doc(db, TV_SHOWS_COLLECTION, tmdbId);
+  
+  try {
+    await updateDoc(showRef, {
+      contractId: contractId.toString(),
+      updatedAt: serverTimestamp()
+    });
+    console.log(`Updated contract ID for TV show ${tmdbId}: ${contractId}`);
+  } catch (error) {
+    console.error(`Error updating contract ID for TV show ${tmdbId}:`, error);
+    throw error;
   }
 };
