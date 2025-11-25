@@ -11,6 +11,7 @@ export interface Media {
     no: number;
   };
   commentCount?: number;
+  contractId?: string; // Contract movie/TV show ID (sequential integer as string)
   createdAt: string | Date;
   updatedAt: string | Date;
   isTVShow?: boolean;
