@@ -186,7 +186,32 @@ export default function MediaPage() {
       // 1. First, submit the blockchain transaction (user will sign)
       setTxStatus(prev => ({ ...prev, [id]: 'Waiting for transaction signature...' }));
       
-      const movieIdBigInt = BigInt(parseInt(id, 10));
+      // Find the movie to get its contractId if available
+      const movieItem = media.find(item => item.id === id);
+      
+      // Use contractId if available, otherwise try to parse the ID as an integer
+      // The contract expects sequential integer IDs (0, 1, 2, ...)
+      let contractMovieId: string | number = id;
+      
+      if (movieItem?.contractId) {
+        contractMovieId = movieItem.contractId;
+        console.log('Using contractId from movie:', contractMovieId);
+      } else {
+        console.log('No contractId found, using ID:', id);
+      }
+      
+      // Validate and convert movie ID to BigInt
+      const movieIdNum = typeof contractMovieId === 'string' 
+        ? parseInt(contractMovieId, 10) 
+        : contractMovieId;
+        
+      if (isNaN(movieIdNum) || movieIdNum < 0) {
+        console.error('Invalid movie ID:', contractMovieId, 'Parsed as:', movieIdNum);
+        throw new Error(`Invalid movie ID: "${contractMovieId}". Movie ID must be a non-negative integer. The contract uses sequential IDs (0, 1, 2, ...). This movie may not be synced to the contract yet.`);
+      }
+      
+      const movieIdBigInt = BigInt(movieIdNum);
+      console.log('Converted movie ID to BigInt:', movieIdBigInt.toString());
       
       // Build calldata with Divvi referral tag and send raw transaction
       const calldata = encodeFunctionData({
