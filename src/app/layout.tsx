@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "~/components/providers/Providers";
 import { ConditionalLayout } from "~/components/ConditionalLayout";
+import FarcasterReady from "~/components/FarcasterReady";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -16,6 +17,7 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <head />
       <body className={`${inter.className} min-h-screen bg-background text-foreground`}>
+        <FarcasterReady />
         <Providers>
           <ConditionalLayout>{children}</ConditionalLayout>
         </Providers>
