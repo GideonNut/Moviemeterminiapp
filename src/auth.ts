@@ -38,7 +38,9 @@ function getDomainFromUrl(urlString: string | undefined): string {
 }
 
 export const authOptions: AuthOptions = {
-    // Configure one or more authentication providers
+  // Trust the host header to use the request origin instead of NEXTAUTH_URL
+  trustHost: true,
+  // Configure one or more authentication providers
   providers: [
     CredentialsProvider({
       name: "Sign in with Farcaster",
@@ -124,6 +126,14 @@ export const authOptions: AuthOptions = {
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      // Allow relative callback URLs
+      if (url.startsWith('/')) return `${baseUrl}${url}`;
+      // Allow callback URLs on the same origin
+      if (new URL(url).origin === baseUrl) return url;
+      // Default to baseUrl
+      return baseUrl;
+    },
     async session({ session, token, user }) {
       console.log('Session callback - Token:', JSON.stringify(token, null, 2));
       
