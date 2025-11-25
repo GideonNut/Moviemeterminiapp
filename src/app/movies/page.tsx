@@ -183,7 +183,39 @@ export default function MediaPage() {
 
       setVotes(prev => ({ ...prev, [id]: vote }));
 
-      // 1. First, save the vote to Firestore
+      // 1. First, submit the blockchain transaction (user will sign)
+      setTxStatus(prev => ({ ...prev, [id]: 'Waiting for transaction signature...' }));
+      
+      const movieIdBigInt = BigInt(parseInt(id, 10));
+      
+      // Build calldata with Divvi referral tag and send raw transaction
+      const calldata = encodeFunctionData({
+        abi: VOTE_CONTRACT_ABI,
+        functionName: 'vote',
+        args: [movieIdBigInt, vote === 'yes']
+      });
+      
+      const dataWithTag = referralTag ? (calldata + referralTag.slice(2)) : calldata;
+      if (!walletClient) throw new Error('Wallet client unavailable');
+      
+      setTxStatus(prev => ({ ...prev, [id]: 'Please sign the transaction...' }));
+      
+      const txHash = await walletClient.sendTransaction({
+        account: address!,
+        to: VOTE_CONTRACT_ADDRESS,
+        data: dataWithTag as `0x${string}`,
+        value: 0n
+      });
+
+      setTxStatus(prev => ({ ...prev, [id]: 'Transaction submitted! Saving to database...' }));
+
+      // Submit referral to Divvi
+      const chainId = await walletClient.getChainId();
+      submitReferral({ txHash, chainId }).catch((e) => 
+        console.error('Divvi submitReferral failed:', e)
+      );
+
+      // 2. After successful blockchain transaction, save the vote to Firestore
       const apiEndpoint = isTVShow ? '/api/tv' : '/api/movies';
       const response = await fetch(apiEndpoint, {
         method: 'POST',
@@ -197,65 +229,62 @@ export default function MediaPage() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save vote to database');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save vote to database');
       }
 
-      // 2. After successful database update, submit the blockchain transaction
-      try {
-        const movieIdBigInt = BigInt(parseInt(id, 10));
-        
-        // Build calldata with Divvi referral tag and send raw transaction
-        const calldata = encodeFunctionData({
-          abi: VOTE_CONTRACT_ABI,
-          functionName: 'vote',
-          args: [movieIdBigInt, vote === 'yes']
-        });
-        
-        const dataWithTag = referralTag ? (calldata + referralTag.slice(2)) : calldata;
-        if (!walletClient) throw new Error('Wallet client unavailable');
-        
-        const txHash = await walletClient.sendTransaction({
-          account: address!,
-          to: VOTE_CONTRACT_ADDRESS,
-          data: dataWithTag as `0x${string}`,
-          value: 0n
-        });
-
-        // Submit referral to Divvi
-        const chainId = await walletClient.getChainId();
-        submitReferral({ txHash, chainId }).catch((e) => 
-          console.error('Divvi submitReferral failed:', e)
-        );
-
-        setTxStatus(prev => ({ ...prev, [id]: 'Vote successful!' }));
-      } catch (blockchainError) {
-        console.error('Blockchain transaction failed:', blockchainError);
-        // Even if blockchain fails, we keep the UI in sync with Firestore
-        setTxStatus(prev => ({ 
-          ...prev, 
-          [id]: 'Vote recorded! (Blockchain transaction may have failed)' 
-        }));
-      }
+      setTxStatus(prev => ({ ...prev, [id]: 'Vote successful!' }));
     } catch (err) {
       console.error('Error in voting process:', err);
       
-      // Revert optimistic update on error
-      setMedia(prev => prev.map(item => {
-        if (item.id === id) {
-          return {
-            ...item,
-            votes: {
-              ...item.votes,
-              [vote]: Math.max(0, (item.votes[vote] || 0) - 1)
-            }
-          };
+      // Check if error is from transaction or database
+      const isTransactionError = err instanceof Error && (
+        err.message.includes('user rejected') ||
+        err.message.includes('insufficient') ||
+        err.message.includes('execution reverted') ||
+        err.message.includes('gas') ||
+        err.message.includes('Wallet client')
+      );
+      
+      if (isTransactionError) {
+        // Revert optimistic update if transaction failed
+        setMedia(prev => prev.map(item => {
+          if (item.id === id) {
+            return {
+              ...item,
+              votes: {
+                ...item.votes,
+                [vote]: Math.max(0, (item.votes[vote] || 0) - 1)
+              }
+            };
+          }
+          return item;
+        }));
+        
+        setVotes(prev => ({ ...prev, [id]: null }));
+      }
+      
+      // Provide more specific error messages
+      let errorMessage = 'Vote failed';
+      if (err instanceof Error) {
+        if (err.message?.includes('insufficient funds') || err.message?.includes('insufficient balance')) {
+          errorMessage = 'Insufficient CELO for gas fees. Please ensure you have enough CELO to cover transaction costs.';
+        } else if (err.message?.includes('user rejected')) {
+          errorMessage = 'Transaction was cancelled';
+        } else if (err.message?.includes('execution reverted')) {
+          errorMessage = 'Smart contract execution failed. This could mean:\n\n1. The movie ID does not exist on the contract\n2. The contract has an error\n3. You have already voted on this movie\n\nPlease check if the movie exists on the contract first.';
+        } else if (err.message?.includes('gas')) {
+          errorMessage = 'Gas estimation failed. Please try again.';
+        } else if (err.message?.includes('Failed to save vote to database')) {
+          errorMessage = 'Transaction succeeded but failed to save to database. Your vote was recorded on-chain.';
+        } else {
+          errorMessage = err.message;
         }
-        return item;
-      }));
+      }
       
       setTxStatus(prev => ({ 
         ...prev, 
-        [id]: err instanceof Error ? err.message : 'Vote failed' 
+        [id]: errorMessage
       }));
     } finally {
       setTimeout(() => {
