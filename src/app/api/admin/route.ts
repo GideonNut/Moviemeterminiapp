@@ -46,13 +46,22 @@ export async function GET() {
       );
     }
 
-    // Only allow specific wallet addresses (add your admin wallet addresses here)
-    const ADMIN_WALLETS = (process.env.ADMIN_WALLETS || '').split(',').map(addr => addr.toLowerCase().trim());
-    if (!ADMIN_WALLETS.includes(session.user.address.toLowerCase())) {
+    // Only allow specific wallet addresses if ADMIN_WALLETS is configured
+    // If not configured, allow any wallet (for webapp use)
+    const ADMIN_WALLETS = (process.env.ADMIN_WALLETS || '').split(',').map(addr => addr.toLowerCase().trim()).filter(Boolean);
+    
+    // If ADMIN_WALLETS is configured, enforce the whitelist
+    // If not configured, allow any wallet (for webapp/public use)
+    if (ADMIN_WALLETS.length > 0 && !ADMIN_WALLETS.includes(session.user.address.toLowerCase())) {
       return Response.json(
         { success: false, error: 'Not authorized' },
         { status: 403 }
       );
+    }
+    
+    // If ADMIN_WALLETS is not configured, log a warning but allow access
+    if (ADMIN_WALLETS.length === 0) {
+      console.warn('ADMIN_WALLETS not configured - allowing any wallet. For production, set ADMIN_WALLETS environment variable.');
     }
 
     // Get counts for movies and TV shows
@@ -119,25 +128,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only allow specific wallet addresses
+    // Only allow specific wallet addresses if ADMIN_WALLETS is configured
+    // If not configured, allow any wallet (for webapp use)
     const ADMIN_WALLETS = (process.env.ADMIN_WALLETS || '')
       .split(',')
       .map(addr => addr.toLowerCase().trim())
       .filter(Boolean);
 
-    console.log('Admin wallets:', ADMIN_WALLETS);
+    console.log('Admin wallets:', ADMIN_WALLETS.length > 0 ? ADMIN_WALLETS : 'Not configured (allowing any wallet)');
     console.log('Request from wallet:', walletAddress);
-    console.log('Is wallet in admin list?', ADMIN_WALLETS.includes(walletAddress));
 
-    if (ADMIN_WALLETS.length === 0) {
-      console.error('No admin wallets configured. Please set ADMIN_WALLETS environment variable.');
-      return Response.json(
-        { success: false, error: 'Admin configuration error' },
-        { status: 500 }
-      );
-    }
-
-    if (!ADMIN_WALLETS.includes(walletAddress)) {
+    // If ADMIN_WALLETS is configured, enforce the whitelist
+    // If not configured, allow any wallet (for webapp/public use)
+    if (ADMIN_WALLETS.length > 0 && !ADMIN_WALLETS.includes(walletAddress)) {
       console.warn(`Unauthorized access attempt from wallet: ${walletAddress}`);
       return Response.json(
         { 
@@ -148,6 +151,11 @@ export async function POST(request: NextRequest) {
         },
         { status: 403 }
       );
+    }
+    
+    // If ADMIN_WALLETS is not configured, log a warning but allow access
+    if (ADMIN_WALLETS.length === 0) {
+      console.warn('ADMIN_WALLETS not configured - allowing any wallet. For production, set ADMIN_WALLETS environment variable.');
     }
 
     // Use the already parsed request body
