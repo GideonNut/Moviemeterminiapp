@@ -482,23 +482,65 @@ export default function AdminPage() {
 
   // Function to sync content to smart contract
   const syncContentToContract = async () => {
+    if (!isConnected || !address) {
+      setImportStatus("❌ Please connect your wallet first");
+      return;
+    }
+
     setIsImporting(true);
     setImportStatus("Syncing content to smart contract...");
     
     try {
-      // Get all content from database
-      const response = await fetch("/api/admin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "sync-content" }),
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setImportStatus(`✅ Synced ${data.syncedCount} content items to smart contract! Check the voting pages for details.`);
-      } else {
+      // Switch to Celo if needed
+      if (currentChainId !== 42220 && currentChainId !== 44787) {
+        await switchChainAsync({ chainId: 42220 });
+      }
+
+      // Get all movies and TV shows from the database
+      const [moviesResponse, tvShowsResponse] = await Promise.all([
+        fetch("/api/movies"),
+        fetch("/api/tv")
+      ]);
+
+      if (!moviesResponse.ok || !tvShowsResponse.ok) {
         setImportStatus("❌ Failed to get content from database");
+        return;
+      }
+
+      const [moviesData, tvShowsData] = await Promise.all([
+        moviesResponse.json(),
+        tvShowsResponse.json()
+      ]);
+
+      const allMovies = moviesData.movies || [];
+      const allTVShows = tvShowsData.tvShows || [];
+      const allContent = [...allMovies, ...allTVShows];
+
+      if (allContent.length === 0) {
+        setImportStatus("❌ No content found in database to sync");
+        return;
+      }
+
+      // Filter out content that already has a contractId
+      const contentToSync = allContent.filter((item: any) => !item.contractId);
+      
+      if (contentToSync.length === 0) {
+        setImportStatus("✅ All content is already synced to the contract!");
+        return;
+      }
+
+      setImportStatus(`Found ${contentToSync.length} items to sync. Adding to contract...`);
+
+      // Add content on-chain using the connected wallet
+      const titles = contentToSync.map((item: any) => item.title).filter(Boolean);
+      
+      if (titles.length > 0) {
+        await addContentOnChain(titles, 'movies');
+        setImportStatus(`✅ Successfully synced ${titles.length} items to smart contract!`);
+        // Refresh content counts after sync
+        fetchContentCounts();
+      } else {
+        setImportStatus("❌ No valid titles found to sync");
       }
     } catch (error) {
       setImportStatus(`❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`);
