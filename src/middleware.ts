@@ -27,19 +27,20 @@ export async function middleware(request: NextRequest) {
 
   // For Farcaster miniapps and public routes, allow access without authentication
   // Authentication should be handled client-side when needed
-  if (isPublicRoute || pathname === '/') {
+  // Admin page is now public and accessible as a webapp
+  if (isPublicRoute || pathname === '/' || pathname.startsWith('/admin')) {
     return NextResponse.next();
   }
 
-  // For protected routes (like admin), check authentication
+  // For other protected routes, check authentication
   const token = await getToken({ req: request });
   
-  // Only protect specific admin routes
-  if (pathname.startsWith('/admin') && !token) {
-    const url = new URL('/api/auth/signin', request.nextUrl.origin);
-    url.searchParams.set('callbackUrl', pathname);
-    return NextResponse.redirect(url);
-  }
+  // Add other protected routes here if needed
+  // if (pathname.startsWith('/some-protected-route') && !token) {
+  //   const url = new URL('/api/auth/signin', request.nextUrl.origin);
+  //   url.searchParams.set('callbackUrl', pathname);
+  //   return NextResponse.redirect(url);
+  // }
 
   return NextResponse.next();
 }
