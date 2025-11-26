@@ -2,7 +2,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAccount, useChainId, useSwitchChain, useBalance, useWalletClient } from "wagmi";
-import { encodeFunctionData } from "viem";
+import { encodeFunctionData, createPublicClient, http } from "viem";
+import { celo } from "viem/chains";
 import { getDataSuffix, submitReferral } from "@divvi/referral-sdk";
 import { ArrowLeft, RefreshCw, Film, Tv, MessageSquare, Star } from "lucide-react";
 import Link from "next/link";
@@ -225,6 +226,11 @@ export default function MediaPage() {
       
       setTxStatus(prev => ({ ...prev, [id]: 'Please sign the transaction...' }));
       
+      console.log('Sending transaction to contract:', VOTE_CONTRACT_ADDRESS);
+      console.log('Transaction data:', dataWithTag);
+      console.log('Movie ID (BigInt):', movieIdBigInt.toString());
+      console.log('Vote type:', vote);
+      
       const txHash = await walletClient.sendTransaction({
         account: address!,
         to: VOTE_CONTRACT_ADDRESS,
@@ -232,10 +238,29 @@ export default function MediaPage() {
         value: 0n
       });
 
-      setTxStatus(prev => ({ ...prev, [id]: 'Transaction submitted! Saving to database...' }));
+      console.log('Transaction hash:', txHash);
+      setTxStatus(prev => ({ ...prev, [id]: 'Transaction submitted! Waiting for confirmation...' }));
+
+      // Get the chain ID and wait for receipt to ensure it's confirmed on-chain
+      const chainId = await walletClient.getChainId();
+      
+      // Create a public client to wait for transaction receipt
+      const publicClient = createPublicClient({
+        chain: celo, // Celo mainnet (chainId 42220) or testnet (44787) both use celo chain config
+        transport: http()
+      });
+      
+      setTxStatus(prev => ({ ...prev, [id]: 'Waiting for transaction confirmation...' }));
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+      console.log('Transaction confirmed:', receipt);
+      
+      if (receipt.status === 'reverted') {
+        throw new Error('Transaction was reverted on-chain');
+      }
+
+      setTxStatus(prev => ({ ...prev, [id]: 'Transaction confirmed! Saving to database...' }));
 
       // Submit referral to Divvi
-      const chainId = await walletClient.getChainId();
       submitReferral({ txHash, chainId }).catch((e) => 
         console.error('Divvi submitReferral failed:', e)
       );
