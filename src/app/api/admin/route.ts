@@ -26,43 +26,9 @@ const getContentCollection = (isTVShow: boolean) =>
 export async function GET() {
   try {
     console.log('Admin GET request received');
-    const session = await getServerSession(authOptions);
     
-    // Debug log the session
-    console.log('Session in admin route:', JSON.stringify(session, null, 2));
-    
-    // Check for wallet authentication
-    if (!session?.user?.address) {
-      console.error('No wallet address in session. User might not be authenticated.');
-      return Response.json(
-        { 
-          success: false, 
-          error: 'Wallet not connected',
-          sessionExists: !!session,
-          hasUser: !!(session?.user),
-          hasAddress: !!(session?.user?.address)
-        }, 
-        { status: 401 }
-      );
-    }
-
-    // Only allow specific wallet addresses if ADMIN_WALLETS is configured
-    // If not configured, allow any wallet (for webapp use)
-    const ADMIN_WALLETS = (process.env.ADMIN_WALLETS || '').split(',').map(addr => addr.toLowerCase().trim()).filter(Boolean);
-    
-    // If ADMIN_WALLETS is configured, enforce the whitelist
-    // If not configured, allow any wallet (for webapp/public use)
-    if (ADMIN_WALLETS.length > 0 && !ADMIN_WALLETS.includes(session.user.address.toLowerCase())) {
-      return Response.json(
-        { success: false, error: 'Not authorized' },
-        { status: 403 }
-      );
-    }
-    
-    // If ADMIN_WALLETS is not configured, log a warning but allow access
-    if (ADMIN_WALLETS.length === 0) {
-      console.warn('ADMIN_WALLETS not configured - allowing any wallet. For production, set ADMIN_WALLETS environment variable.');
-    }
+    // Content counts are public - no authentication required
+    // This allows the admin page to work as a webapp
 
     // Get counts for movies and TV shows
     const [moviesSnapshot, tvShowsSnapshot] = await Promise.all([
