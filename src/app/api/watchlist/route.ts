@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { addToWatchlist, removeFromWatchlist, getUserWatchlist, isInWatchlist } from '~/lib/mongo';
+import { 
+  addToWatchlistFirestore, 
+  removeFromWatchlistFirestore, 
+  getUserWatchlistFirestore, 
+  isInWatchlistFirestore 
+} from '~/lib/firestore';
 import { lookupFidByCustodyAddress } from '~/lib/farcaster';
 import { sendFrameNotification } from '~/lib/notifs';
 
@@ -15,11 +20,12 @@ export async function GET(request: NextRequest) {
 
     if (movieId) {
       // Check if specific movie is in watchlist
-      const inWatchlist = await isInWatchlist(address, movieId);
+      // movieId is the TMDB ID (e.g., "23934")
+      const inWatchlist = await isInWatchlistFirestore(address, movieId);
       return NextResponse.json({ inWatchlist });
     } else {
       // Get user's entire watchlist
-      const watchlist = await getUserWatchlist(address);
+      const watchlist = await getUserWatchlistFirestore(address);
       return NextResponse.json(watchlist);
     }
   } catch (error) {
@@ -42,7 +48,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await addToWatchlist(address, movieId);
+    // movieId is the TMDB ID from Firestore
+    await addToWatchlistFirestore(address, movieId, movieTitle);
     
     // Try to send notification if user has Farcaster account
     try {
@@ -92,7 +99,8 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await removeFromWatchlist(address, movieId);
+    // movieId is the TMDB ID from Firestore
+    await removeFromWatchlistFirestore(address, movieId);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error removing from watchlist:', error);
