@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "~/auth";
 import { adminDb } from "~/lib/firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
+import { updateMovieContractId, updateTVShowContractId } from "~/lib/firestore";
 
 // Extend the session type to include wallet address
 declare module "next-auth" {
@@ -243,6 +244,38 @@ export async function POST(request: NextRequest) {
         imported: result.imported || 0,
         titles: result.titles || []
       });
+    } else if (requestBody.action === 'update-contract-id') {
+      const { tmdbId, contractId, isTVShow } = requestBody as { 
+        tmdbId: string; 
+        contractId: string; 
+        isTVShow?: boolean 
+      };
+      
+      if (!tmdbId || !contractId) {
+        return Response.json(
+          { success: false, error: 'tmdbId and contractId are required' },
+          { status: 400 }
+        );
+      }
+      
+      try {
+        if (isTVShow) {
+          await updateTVShowContractId(tmdbId, contractId);
+        } else {
+          await updateMovieContractId(tmdbId, contractId);
+        }
+        
+        return Response.json({
+          success: true,
+          message: `Updated contract ID ${contractId} for ${isTVShow ? 'TV show' : 'movie'} ${tmdbId}`
+        });
+      } catch (error) {
+        console.error('Error updating contract ID:', error);
+        return Response.json(
+          { success: false, error: (error as Error).message },
+          { status: 500 }
+        );
+      }
     }
     
     return Response.json(
