@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
         ...show,
         id: show.id || show._id || '',
         _id: show.id || show._id || '', // For backward compatibility
+        contractId: show.contractId || undefined, // Include contractId if it exists
         isTVShow: true,
         commentCount: show.commentCount || 0,
         votes: show.votes || { yes: 0, no: 0 },
