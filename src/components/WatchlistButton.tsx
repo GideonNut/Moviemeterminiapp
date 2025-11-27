@@ -69,6 +69,8 @@ export default function WatchlistButton({
         if (response.ok) {
           setIsInWatchlist(false);
           console.log('Successfully removed from watchlist');
+          // Refresh watchlist status to ensure UI is in sync
+          await checkWatchlistStatus();
         } else {
           const errorData = await response.json();
           throw new Error(errorData.error || 'Failed to remove from watchlist');
@@ -84,6 +86,8 @@ export default function WatchlistButton({
         if (response.ok) {
           setIsInWatchlist(true);
           console.log('Successfully added to watchlist');
+          // Refresh watchlist status to ensure UI is in sync
+          await checkWatchlistStatus();
         } else {
           const errorData = await response.json();
           if (response.status === 409) {
