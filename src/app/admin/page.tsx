@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "~/components/ui/Button";
 import ScrollToTop from "~/components/ScrollToTop";
-import { useAccount, useChainId, useSwitchChain, useWriteContract, useConnect, useDisconnect } from "wagmi";
+import { useAccount, useChainId, useSwitchChain, useWriteContract, useConnect, useDisconnect, useWalletClient } from "wagmi";
 import { injected } from 'wagmi/connectors';
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
 
@@ -29,6 +29,7 @@ export default function AdminPage() {
   const currentChainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
   const { writeContract, data: txHash, isPending, error: walletWriteError } = useWriteContract();
+  const { data: walletClient } = useWalletClient();
   const { disconnect } = useDisconnect();
   const { connect, connectors, error: connectError } = useConnect({
     mutation: {
@@ -496,6 +497,27 @@ export default function AdminPage() {
         await switchChainAsync({ chainId: 42220 });
       }
 
+      // Import viem functions to read contract
+      const { createPublicClient, http, getContract } = await import('viem');
+      const { celo } = await import('viem/chains');
+      
+      // Create public client to read contract state
+      const publicClient = createPublicClient({
+        chain: celo,
+        transport: http()
+      });
+
+      const readContract = getContract({
+        address: VOTE_CONTRACT_ADDRESS,
+        abi: VOTE_CONTRACT_ABI,
+        client: publicClient
+      });
+
+      // Get current movie count on contract
+      const currentMovieCount = await readContract.read.movieCount();
+      let contractId = Number(currentMovieCount);
+      console.log(`Current contract movie count: ${contractId}`);
+
       // Get all movies and TV shows from the database
       const [moviesResponse, tvShowsResponse] = await Promise.all([
         fetch("/api/movies"),
@@ -531,17 +553,79 @@ export default function AdminPage() {
 
       setImportStatus(`Found ${contentToSync.length} items to sync. Adding to contract...`);
 
-      // Add content on-chain using the connected wallet
-      const titles = contentToSync.map((item: any) => item.title).filter(Boolean);
-      
-      if (titles.length > 0) {
-        await addContentOnChain(titles, 'movies');
-        setImportStatus(`✅ Successfully synced ${titles.length} items to smart contract!`);
-        // Refresh content counts after sync
-        fetchContentCounts();
-      } else {
-        setImportStatus("❌ No valid titles found to sync");
+      // Add content one by one and save contract IDs
+      let syncedCount = 0;
+      for (let i = 0; i < contentToSync.length; i++) {
+        const item = contentToSync[i];
+        const title = item.title;
+        
+        if (!title) {
+          console.warn(`Skipping item ${i} - no title`);
+          continue;
+        }
+
+        try {
+          setImportStatus(`Adding ${i + 1}/${contentToSync.length}: ${title} (contract ID: ${contractId})...`);
+          
+          if (!walletClient || !address) {
+            throw new Error('Wallet client not available');
+          }
+
+          // Use walletClient.sendTransaction like in movies page
+          const { encodeFunctionData } = await import('viem');
+          const calldata = encodeFunctionData({
+            abi: VOTE_CONTRACT_ABI,
+            functionName: 'addMovie',
+            args: [title.trim()],
+          });
+
+          // Send transaction using walletClient
+          const txHash = await walletClient.sendTransaction({
+            account: address,
+            to: VOTE_CONTRACT_ADDRESS,
+            data: calldata as `0x${string}`,
+            value: 0n
+          });
+
+          // Wait for transaction to be confirmed
+          await publicClient.waitForTransactionReceipt({ hash: txHash });
+          
+          // Update Firestore with contract ID
+          const tmdbId = item.tmdbId || item.id;
+          const isTVShow = item.isTVShow || false;
+          
+          const updateResponse = await fetch('/api/admin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'update-contract-id',
+              tmdbId,
+              contractId: contractId.toString(),
+              isTVShow
+            })
+          });
+
+          if (updateResponse.ok) {
+            console.log(`✅ Saved contract ID ${contractId} for ${title} (${tmdbId})`);
+            syncedCount++;
+          } else {
+            console.error(`Failed to save contract ID for ${title}`);
+          }
+
+          contractId++; // Increment for next item
+          
+          // Small delay between transactions
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (error) {
+          console.error(`Failed to sync "${title}":`, error);
+          setImportStatus(`❌ Failed to sync "${title}": ${(error as Error).message}`);
+          // Continue with next item
+        }
       }
+
+      setImportStatus(`✅ Successfully synced ${syncedCount} items to smart contract!`);
+      // Refresh content counts after sync
+      fetchContentCounts();
     } catch (error) {
       setImportStatus(`❌ Error: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
