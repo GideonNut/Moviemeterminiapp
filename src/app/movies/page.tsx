@@ -55,6 +55,7 @@ export default function MediaPage() {
           ...item,
           id: item.id || item._id,
           isTVShow,
+          contractId: item.contractId || undefined, // Preserve contractId if it exists
           votes: item.votes || { yes: 0, no: 0 },
           commentCount: item.commentCount || 0,
           releaseYear: item.releaseYear || null,
@@ -190,16 +191,19 @@ export default function MediaPage() {
       // Find the movie to get its contractId if available
       const movieItem = media.find(item => item.id === id);
       
-      // Use contractId if available, otherwise try to parse the ID as an integer
       // The contract expects sequential integer IDs (0, 1, 2, ...)
-      let contractMovieId: string | number = id;
-      
-      if (movieItem?.contractId) {
-        contractMovieId = movieItem.contractId;
-        console.log('Using contractId from movie:', contractMovieId);
-      } else {
-        console.log('No contractId found, using ID:', id);
+      // We MUST have a contractId to vote - TMDB IDs won't work
+      if (!movieItem?.contractId) {
+        const movieTitle = movieItem?.title || 'this movie';
+        throw new Error(
+          `Cannot vote on "${movieTitle}". This movie has not been synced to the smart contract yet. ` +
+          `Please sync it to the contract first using the admin page, then try voting again. ` +
+          `Current ID: ${id} (this is a TMDB ID, not a contract ID).`
+        );
       }
+      
+      const contractMovieId = movieItem.contractId;
+      console.log('Using contractId from movie:', contractMovieId, 'for movie:', movieItem.title);
       
       // Validate and convert movie ID to BigInt
       const movieIdNum = typeof contractMovieId === 'string' 
@@ -207,8 +211,11 @@ export default function MediaPage() {
         : contractMovieId;
         
       if (isNaN(movieIdNum) || movieIdNum < 0) {
-        console.error('Invalid movie ID:', contractMovieId, 'Parsed as:', movieIdNum);
-        throw new Error(`Invalid movie ID: "${contractMovieId}". Movie ID must be a non-negative integer. The contract uses sequential IDs (0, 1, 2, ...). This movie may not be synced to the contract yet.`);
+        console.error('Invalid contract ID:', contractMovieId, 'Parsed as:', movieIdNum);
+        throw new Error(
+          `Invalid contract ID: "${contractMovieId}". Contract ID must be a non-negative integer. ` +
+          `This movie may not be properly synced to the contract. Please sync it again from the admin page.`
+        );
       }
       
       const movieIdBigInt = BigInt(movieIdNum);
