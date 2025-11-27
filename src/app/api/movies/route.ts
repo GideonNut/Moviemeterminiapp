@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
         ...movie,
         id: movie.id || movie._id || '',
         _id: movie.id || movie._id || '', // For backward compatibility
+        contractId: movie.contractId || undefined, // Include contractId if it exists
         commentCount: movie.commentCount || 0,
         votes: movie.votes || { yes: 0, no: 0 },
         createdAt: movie.createdAt?.toDate ? movie.createdAt.toDate().toISOString() : new Date().toISOString(),
