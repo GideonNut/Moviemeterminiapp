@@ -39,42 +39,42 @@ npm run dev
 
 ## 🔧 Environment Variables
 
-Create a `.env.local` in the project root and add:
+Create a `.env.local` (or supply the same values in your hosting provider) with your Firebase + TMDB credentials. The Firebase keys below come directly from your project settings → Web App.
 
 ```bash
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/moviemetrer?retryWrites=true&w=majority&ssl=true
+NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-app.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-app.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=000000000000
+NEXT_PUBLIC_FIREBASE_APP_ID=1:000000000000:web:abcdef123456
+FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account","project_id":"your-project-id", ...}
 TMDB_API_KEY=your_tmdb_v4_read_access_token
 NEXTAUTH_SECRET=your_nextauth_secret_here
 NEXTAUTH_URL=http://localhost:3000
 ```
 
 Notes:
-- **MongoDB**: Use the connection string from your MongoDB Atlas cluster. The app now uses Mongoose for better connection management and schema validation.
-- **TMDb**: Use the v4 API Read Access Token (Bearer).
-- **MongoDB is required** - the app has been migrated from in-memory/KV storage to use Mongoose with MongoDB Atlas.
+- `FIREBASE_SERVICE_ACCOUNT_KEY` should be the JSON service account (stringified) used by `firebase-admin` for server actions. You can obtain it from the Firebase console under **Project Settings → Service Accounts**.
+- TMDb uses the v4 API Read Access Token (Bearer).
 
 ## 🗄️ Database Setup
 
-The app now uses **Mongoose** with the following schemas:
+MovieMeter now uses **Firebase Firestore** for all persisted data (movies, TV shows, votes, comments, watchlists, notification tokens, and user points). The SDKs in `src/lib/firebase.ts` (client) and `src/lib/firebase-admin.ts` (server) handle initialization.
 
-- **Movies**: Store movie information with voting data
-- **Votes**: Track individual votes with timestamps
-- **Notifications**: Store user notification preferences
+Key collections created automatically:
+- `movies` & `tvShows` – canonical media metadata and vote counts.
+- `userVotes` – per-user history so we can prevent duplicate votes.
+- `comments` – threaded comments + replies for each item.
+- `watchlist` – wallet-specific watchlists.
+- `userPoints` – aggregated engagement points (votes/comments).
+- `notifications` – Farcaster notification tokens.
 
-### Testing Database Connection
-
-To test your MongoDB connection:
+### Testing Database Connectivity
 
 ```bash
 npm run test-db
 ```
 
-This will verify that your MongoDB connection string is working correctly.
-
-### Database Collections
-
-The app will automatically create these collections in your MongoDB database:
-- `movies` - Movie information and vote counts
-- `votes` - Individual vote records
-- `notifications` - User notification settings
+This command runs a lightweight Firestore ping plus TMDB image URL checks so you can verify credentials quickly.
 
