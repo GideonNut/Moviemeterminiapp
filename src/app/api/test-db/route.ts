@@ -1,25 +1,12 @@
-import { NextRequest } from "next/server";
-import { connectMongo } from "~/lib/mongo";
+import { testFirestoreConnection } from "~/lib/firestore";
 import { constructTmdbImageUrl, constructPosterUrl, constructBackdropUrl } from "~/lib/tmdb";
 
 export const runtime = "nodejs";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    console.log("Testing MongoDB connection...");
-    
-    // Check if environment variable is set
-    const uri = process.env.MONGODB_URI;
-    if (!uri) {
-      return Response.json({ 
-        success: false, 
-        error: "MONGODB_URI not set",
-        message: "Please create a .env.local file with your MongoDB connection string"
-      }, { status: 500 });
-    }
-
-    // Test connection
-    const connection = await connectMongo();
+    console.log("Testing Firestore connection...");
+    await testFirestoreConnection();
     
     // Test TMDB image URL construction
     const testPosterPath = "/1E5baAaEse26fej7uHcjOgEE2t2.jpg";
@@ -37,9 +24,7 @@ export async function GET(request: NextRequest) {
     
     return Response.json({ 
       success: true, 
-      message: "MongoDB connected successfully",
-      connectionState: connection.readyState,
-      databaseName: connection.db?.databaseName || "Unknown",
+      message: "Firestore connection verified successfully",
       tmdbImageTests: tmdbTests
     });
     
