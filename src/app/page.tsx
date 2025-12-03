@@ -162,7 +162,7 @@ export default function DiscoverPage() {
     setTrailers(trailersData);
   }, []);
 
-  // Fetch user's previous votes from MongoDB
+  // Fetch user's previous votes from Firestore
   const fetchUserVotes = async () => {
     if (!wagmiConnected || !address) return;
     
@@ -198,7 +198,7 @@ export default function DiscoverPage() {
       // Transaction was sent successfully
       console.log('Transaction hash:', hash);
       
-      // Save vote to MongoDB
+      // Save vote to Firestore
       if (address && currentVotingId && currentVoteType) {
         fetch('/api/movies', {
           method: 'POST',
@@ -216,7 +216,7 @@ export default function DiscoverPage() {
             });
           }
         }).catch(error => {
-          console.error('Failed to save vote to MongoDB:', error);
+          console.error('Failed to save vote to Firestore:', error);
         });
       }
       
@@ -329,7 +329,7 @@ export default function DiscoverPage() {
         console.error('Divvi submitReferral failed:', e);
       });
 
-      // Update MongoDB and get updated vote counts
+      // Update Firestore and get updated vote counts
       const response = await fetch('/api/movies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -374,7 +374,7 @@ export default function DiscoverPage() {
             });
         }, 1000);
       } else {
-        throw new Error('Failed to update vote in MongoDB');
+        throw new Error('Failed to update vote in Firestore');
       }
 
     } catch (err) {
