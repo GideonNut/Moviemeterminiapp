@@ -1,21 +1,16 @@
 import { NextResponse } from "next/server";
-import { Movie } from "~/lib/mongo";
+import { deleteRecentTVShows } from "~/lib/firestore";
 
 export const runtime = "nodejs";
 
 export async function POST() {
   try {
-    // Find and delete TV shows created in the last 48 hours
-    const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
-    const result = await Movie.deleteMany({
-      createdAt: { $gte: fortyEightHoursAgo },
-      isTVShow: true,
-    });
+    const deletedCount = await deleteRecentTVShows(48);
 
     return NextResponse.json({
       success: true,
-      message: `Retracted ${result.deletedCount} recently imported TV shows`,
-      deletedCount: result.deletedCount,
+      message: `Retracted ${deletedCount} recently imported TV shows`,
+      deletedCount,
     });
   } catch (error) {
     console.error('Error retracting TV shows:', error);
