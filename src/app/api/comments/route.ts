@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { addComment, getMovieComments, likeComment, addReply, addCommentPoints, Comment } from '~/lib/mongo';
+import { 
+  addComment, 
+  getMovieComments, 
+  getLatestComments,
+  likeComment, 
+  addReply, 
+  addCommentPoints 
+} from '~/lib/firestore';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,35 +16,12 @@ export async function GET(request: NextRequest) {
 
     if (movieId) {
       // If movieId is provided, return comments for that specific movie/show
-      const comments = await getMovieComments(movieId);
+      const comments = await getMovieComments(movieId, isTVShow);
       return NextResponse.json(comments);
     }
     
     // If no movieId is provided, return latest comments across all movies/shows
-    const latestComments = await Comment.aggregate([
-      {
-        $lookup: {
-          from: 'movies',
-          localField: 'movieId',
-          foreignField: '_id',
-          as: 'movie'
-        }
-      },
-      { $unwind: '$movie' },
-      { $sort: { createdAt: -1 } },
-      { $limit: 5 },
-      {
-        $project: {
-          id: '$_id',
-          content: 1,
-          address: 1,
-          movieTitle: '$movie.title',
-          moviePoster: '$movie.posterUrl',
-          createdAt: 1,
-          likesCount: { $size: { $ifNull: ['$likes', []] } }
-        }
-      }
-    ]);
+    const latestComments = await getLatestComments();
 
     return NextResponse.json({ 
       success: true, 
@@ -54,7 +38,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { action, movieId, address, content, commentId } = await request.json();
+    const { action, movieId, address, content, commentId, isTVShow } = await request.json();
 
     if (!address) {
       return NextResponse.json(
@@ -79,7 +63,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const comment = await addComment(movieId, address, content);
+        const comment = await addComment(movieId, address, content, Boolean(isTVShow));
         // Award 2 points for commenting
         await addCommentPoints(address);
         return NextResponse.json(comment);
