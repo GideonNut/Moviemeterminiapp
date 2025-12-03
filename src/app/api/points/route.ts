@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserPoints, getAllUserPoints } from "~/lib/mongo";
+import { getUserPoints, getAllUserPoints } from "~/lib/firestore";
 
 export async function GET(request: NextRequest) {
   try {
