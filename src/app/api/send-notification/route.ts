@@ -1,7 +1,7 @@
 import { notificationDetailsSchema } from "@farcaster/frame-sdk";
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { setUserNotificationDetails } from "~/lib/mongo";
+import { setUserNotificationDetails } from "~/lib/firestore";
 import { sendFrameNotification } from "~/lib/farcaster";
 
 const requestSchema = z.object({
