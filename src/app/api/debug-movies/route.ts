@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getAllMovies, getTVShows } from "~/lib/mongo";
+import { getAllMovies, getAllTVShows } from "~/lib/firestore";
 import { constructTmdbImageUrl } from "~/lib/tmdb";
 
 export const runtime = "nodejs";
@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export async function GET(request: NextRequest) {
   try {
     const movies = await getAllMovies();
-    const tvShows = await getTVShows();
+    const tvShows = await getAllTVShows();
     
     // Check if any movies have TMDB poster paths
     const moviesWithTmdbPaths = movies.filter(movie => 
