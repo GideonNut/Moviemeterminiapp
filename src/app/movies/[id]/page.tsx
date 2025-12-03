@@ -120,7 +120,7 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
     }
   };
 
-  // Fetch user's previous votes from MongoDB
+  // Fetch user's previous votes from Firestore
   const fetchUserVotes = async () => {
     if (!isConnected || !address) return;
     
@@ -202,7 +202,7 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
       const chainId = await walletClient.getChainId();
       submitReferral({ txHash, chainId }).catch((e) => console.error('Divvi submitReferral failed:', e));
 
-      // Persist vote to MongoDB
+      // Persist vote to Firestore
       fetch('/api/movies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -213,7 +213,7 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
           userAddress: address
         })
       }).catch(error => {
-        console.error('Failed to save vote to MongoDB:', error);
+        console.error('Failed to save vote to Firestore:', error);
       });
       
     } catch (err: any) {
@@ -246,7 +246,7 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
 
   // Handle errors - now handled directly in handleVote function
 
-  // Handle MongoDB vote save errors
+  // Handle Firestore vote save errors
   const handleVoteSaveError = async (movieId: string, vote: 'yes' | 'no') => {
     try {
       const response = await fetch('/api/movies', {
@@ -272,7 +272,7 @@ export default function MovieDetailPage({ params }: { params: Promise<{ id: stri
         }
       }
     } catch (error) {
-      console.error('Failed to save vote to MongoDB:', error);
+      console.error('Failed to save vote to Firestore:', error);
       alert('Failed to save your vote. Please try again.');
     }
   };
