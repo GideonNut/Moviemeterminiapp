@@ -1,25 +1,13 @@
-import { connectMongo, disconnectMongo } from './mongo';
+import { testFirestoreConnection } from './firestore';
 
 async function testConnection() {
   try {
-    console.log('Testing MongoDB connection with Mongoose...');
-    
-    // Test connection
-    const connection = await connectMongo();
-    console.log('✅ Connection successful!');
-    console.log('Connection state:', connection.readyState);
-    if (connection.db) {
-      console.log('Database name:', connection.db.databaseName);
-    }
-    
-    // Test disconnection
-    await disconnectMongo();
-    console.log('✅ Disconnection successful!');
-    
+    console.log('Testing Firestore connection...');
+    await testFirestoreConnection();
+    console.log('✅ Firestore connection successful!');
   } catch (error) {
-    console.error('❌ Connection test failed:', error);
+    console.error('❌ Firestore connection test failed:', error);
   }
 }
 
-// Run the test
 testConnection();
