@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
-import { getAllMovies, getTVShows } from "~/lib/mongo";
+import { getAllMovies, getAllTVShows, updatePosterUrl } from "~/lib/firestore";
 import { constructTmdbImageUrl } from "~/lib/tmdb";
-import mongoose from "mongoose";
 
 export const runtime = "nodejs";
 
@@ -12,19 +11,14 @@ export async function POST(request: NextRequest) {
     if (action === "fix") {
       // Get all movies and TV shows
       const movies = await getAllMovies();
-      const tvShows = await getTVShows();
-      const allContent = [...movies, ...tvShows];
+      const tvShows = await getAllTVShows();
+      const allContent = [
+        ...movies.map(movie => ({ ...movie, isTVShow: false })),
+        ...tvShows.map(show => ({ ...show, isTVShow: true }))
+      ];
       
       let fixedCount = 0;
-      let errors = [];
-      
-      // Connect to MongoDB
-      await mongoose.connect(process.env.MONGODB_URI!);
-      const db = mongoose.connection.db;
-      
-      if (!db) {
-        throw new Error("Failed to get database connection");
-      }
+      const errors = [];
       
       for (const item of allContent) {
         try {
@@ -34,19 +28,14 @@ export async function POST(request: NextRequest) {
             const fullUrl = constructTmdbImageUrl(item.posterUrl, 'w500');
             
             if (fullUrl) {
-              // Update in database
-              const collection = item.isTVShow ? 'movies' : 'movies'; // Both use movies collection
-              
-              // Ensure _id exists and is valid
-              if (item._id) {
-                await db.collection(collection).updateOne(
-                  { _id: item._id },
-                  { $set: { posterUrl: fullUrl } }
-                );
-                
-                fixedCount++;
-                console.log(`Fixed poster URL for ${item.title}: ${item.posterUrl} -> ${fullUrl}`);
+              const documentId = item.id || item.tmdbId;
+              if (!documentId) {
+                continue;
               }
+
+              await updatePosterUrl(documentId, fullUrl, Boolean(item.isTVShow));
+              fixedCount++;
+              console.log(`Fixed poster URL for ${item.title}: ${item.posterUrl} -> ${fullUrl}`);
             }
           }
         } catch (error) {
@@ -86,7 +75,7 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const movies = await getAllMovies();
-    const tvShows = await getTVShows();
+    const tvShows = await getAllTVShows();
     const allContent = [...movies, ...tvShows];
     
     // Analyze current poster URL status
