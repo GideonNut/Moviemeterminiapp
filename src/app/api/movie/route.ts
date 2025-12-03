@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { saveMovie } from "../../../lib/mongo";
+import { saveMovie as saveMovieToFirestore } from "~/lib/firestore";
 
 export const runtime = "nodejs";
 
@@ -9,7 +9,14 @@ export async function POST(request: NextRequest) {
     if (!movie || typeof movie !== "object" || !movie.title) {
       return Response.json({ success: false, error: "Invalid movie data" }, { status: 400 });
     }
-    await saveMovie(movie);
+    const tmdbId = movie.tmdbId || movie.id;
+    if (!tmdbId) {
+      return Response.json({ success: false, error: "Movie TMDB id is required" }, { status: 400 });
+    }
+    await saveMovieToFirestore({
+      ...movie,
+      tmdbId: tmdbId.toString()
+    });
     return Response.json({ success: true });
   } catch (error) {
     return Response.json({ success: false, error: (error as Error).message }, { status: 500 });
