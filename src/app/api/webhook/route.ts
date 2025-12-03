@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import {
   deleteUserNotificationDetails,
   setUserNotificationDetails,
-} from "~/lib/mongo";
+} from "~/lib/firestore";
 import { sendFrameNotification } from "~/lib/notifs";
 
 export async function POST(request: NextRequest) {
