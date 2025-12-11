@@ -18,14 +18,16 @@ interface Movie {
   };
   genres?: string[];
   rating?: number;
+  isTVShow?: boolean;
 }
 
 interface SwipeableMoviesProps {
   movies: Movie[];
   onMoviesExhausted?: () => void;
+  onVote?: (movieId: string, vote: 'yes' | 'no') => Promise<boolean>;
 }
 
-export function SwipeableMovies({ movies, onMoviesExhausted }: SwipeableMoviesProps) {
+export function SwipeableMovies({ movies, onMoviesExhausted, onVote }: SwipeableMoviesProps) {
   const { user, isConnected, isLoading, connect } = useFarcasterAuth();
   const [currentMovies, setCurrentMovies] = useState<Movie[]>([]);
   const [votedMovies, setVotedMovies] = useState<Set<string>>(new Set());
@@ -69,38 +71,47 @@ export function SwipeableMovies({ movies, onMoviesExhausted }: SwipeableMoviesPr
     setIsVoting(true);
 
     try {
-      // Use Farcaster FID or address as user identifier
-      const userIdentifier = user?.fid?.toString() || user?.address || '';
+      let voteSuccessful = false;
       
-      if (!userIdentifier) {
-        throw new Error('Unable to identify user. Please reconnect your Farcaster wallet.');
+      // If onVote prop is provided, use it to handle the vote
+      if (onVote) {
+        voteSuccessful = await onVote(movieId, vote);
+      } else {
+        // Fallback to the original implementation if onVote is not provided
+        const userIdentifier = user?.fid?.toString() || user?.address || '';
+        
+        if (!userIdentifier) {
+          throw new Error('Unable to identify user. Please reconnect your Farcaster wallet.');
+        }
+
+        const response = await fetch("/api/movies", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: 'include',
+          body: JSON.stringify({
+            action: "vote",
+            id: movieId,
+            type: vote,
+            userAddress: userIdentifier
+          })
+        });
+
+        const result = await response.json();
+        voteSuccessful = response.ok;
+        
+        if (!voteSuccessful) {
+          throw new Error(result.error || 'Failed to submit vote');
+        }
       }
 
-      // Save vote to Firebase
-      const response = await fetch("/api/movies", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: 'include',
-        body: JSON.stringify({
-          action: "vote",
-          id: movieId,
-          type: vote,
-          userAddress: userIdentifier // Send Farcaster FID or address
-        })
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
+      if (voteSuccessful) {
         // Mark this movie as voted
         setVotedMovies(prev => new Set(prev).add(movieId));
         
         // Remove the current movie from the stack (it's already been voted on)
         setCurrentMovies(prev => prev.slice(1));
 
-        console.log(`Successfully voted ${vote} for movie ${movieId} - saved to Firebase`);
-      } else {
-        throw new Error(result.error || 'Failed to submit vote');
+        console.log(`Successfully voted ${vote} for movie ${movieId}`);
       }
     } catch (error) {
       console.error('Error voting:', error);
