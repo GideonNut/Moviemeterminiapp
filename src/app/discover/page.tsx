@@ -80,11 +80,6 @@ export default function DiscoverPage() {
             <p className="text-white/70 max-w-2xl mx-auto">
               Swipe right to vote Yes, swipe left to vote No. Your votes are saved to Firebase!
             </p>
-            {!session?.user?.fid && (
-              <p className="text-yellow-500/80 mt-2 text-sm">
-                Please sign in with Farcaster to vote
-              </p>
-            )}
           </section>
           <div className="bg-[#18181B] rounded-2xl shadow-lg p-6 w-full max-w-md">
             {loading ? (
