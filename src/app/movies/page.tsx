@@ -19,7 +19,7 @@ import { HorizontalMovieCardSkeleton } from "~/components/MovieCardSkeleton";
 
 // Utils
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
-import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl } from "~/lib/utils";
+import { formatCELOBalance, hasSufficientCELOForGas, ensureFullPosterUrl, getContractIdForMovie } from "~/lib/utils";
 import { saveMovie, getMovie, getAllMovies } from "~/lib/firestore";
 
 // Types
@@ -27,7 +27,9 @@ import type { Media, Movie, TVShow } from "~/types";
 
 export default function MediaPage() {
   const router = useRouter();
-  const [media, setMedia] = useState<Array<Movie | TVShow>>([]);
+  // Align with the updated Media interface where contractId is already a required number
+  type MediaWithDerivedId = Movie | TVShow;
+  const [media, setMedia] = useState<MediaWithDerivedId[]>([]);
   const [loading, setLoading] = useState(true);
   const [votes, setVotes] = useState<{ [id: string]: 'yes' | 'no' | null }>({});
   const [txStatus, setTxStatus] = useState<{ [id: string]: string }>({});
@@ -48,21 +50,81 @@ export default function MediaPage() {
   const fetchAllMedia = useCallback(async () => {
     try {
       setLoading(true);
+      // Get all movies and sort them by creation date
+      const movies = await getAllMovies();
+      const sortedMovies = [...movies].sort((a, b) => {
+        const aTime = a.createdAt?.toDate().getTime() || 0;
+        const bTime = b.createdAt?.toDate().getTime() || 0;
+        return aTime - bTime;
+      });
       
-      // Helper function to process media items
-      const processMedia = (items: any[], isTVShow = false) => {
-        return (items || []).map((item: any) => ({
-          ...item,
-          id: item.id || item._id,
-          isTVShow,
-          contractId: item.contractId || undefined, // Preserve contractId if it exists
+      // Process and type the sorted movies with derived contract IDs
+      const moviesWithContractIds = sortedMovies.map((item, index) => {
+        const baseItem = {
+          id: item.id || '',
+          title: item.title || 'Untitled',
+          description: item.description || '',
+          posterUrl: item.posterUrl,
           votes: item.votes || { yes: 0, no: 0 },
           commentCount: item.commentCount || 0,
-          releaseYear: item.releaseYear || null,
           genres: item.genres || [],
-          createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
-          updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date()
-        }));
+          contractId: index, // Now a required number
+          createdAt: item.createdAt || new Date(),
+          updatedAt: item.updatedAt || new Date()
+        };
+
+        if (item.isTVShow) {
+          // For TV shows
+          const tvShow: TVShow = {
+            ...baseItem,
+            isTVShow: true,
+            firstAirDate: (item as any).firstAirDate,
+            seasons: (item as any).seasons,
+            episodes: (item as any).episodes
+          };
+          return tvShow;
+        } else {
+          // For movies
+          const movie: Movie = {
+            ...baseItem,
+            isTVShow: false,
+            releaseYear: (item as any).releaseYear
+          };
+          return movie;
+        }
+      });
+      
+      setMedia(moviesWithContractIds);
+      
+      // Helper function to process media items with proper typing
+      const processMedia = (items: any[], isTVShow: boolean) => {
+        return (items || []).map((item) => {
+          const baseItem = {
+            ...item,
+            id: item.id || item._id,
+            isTVShow: isTVShow as true | false,
+            votes: item.votes || { yes: 0, no: 0 },
+            commentCount: item.commentCount || 0,
+            genres: item.genres || [],
+            createdAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+            updatedAt: item.updatedAt ? new Date(item.updatedAt) : new Date(),
+            // The contractId will be derived when needed
+          };
+
+          if (isTVShow) {
+            return {
+              ...baseItem,
+              isTVShow: true as const,
+              firstAirDate: item.firstAirDate
+            } as const;
+          }
+          
+          return {
+            ...baseItem,
+            isTVShow: false as const,
+            releaseYear: item.releaseYear
+          } as const;
+        });
       };
       
       // Fetch both movies and TV shows
@@ -188,35 +250,24 @@ export default function MediaPage() {
       // 1. First, submit the blockchain transaction (user will sign)
       setTxStatus(prev => ({ ...prev, [id]: 'Waiting for transaction signature...' }));
       
-      // Find the movie to get its contractId if available
+      // Find the movie to get its details
       const movieItem = media.find(item => item.id === id);
+      if (!movieItem) {
+        throw new Error(`Movie with ID ${id} not found`);
+      }
       
-      // The contract expects sequential integer IDs (0, 1, 2, ...)
-      // We MUST have a contractId to vote - TMDB IDs won't work
-      if (!movieItem?.contractId) {
-        const movieTitle = movieItem?.title || 'this movie';
+      // Derive the contract ID off-chain based on creation date
+      const contractId = getContractIdForMovie(id, media);
+      console.log('Derived contract ID:', contractId, 'for movie:', movieItem.title);
+      
+      if (contractId === -1) {
         throw new Error(
-          `Cannot vote on "${movieTitle}". This movie has not been synced to the smart contract yet. ` +
-          `Please sync it to the contract first using the admin page, then try voting again. ` +
-          `Current ID: ${id} (this is a TMDB ID, not a contract ID).`
+          `Could not determine contract ID for "${movieItem.title}". ` +
+          `This movie may not be properly registered in the system.`
         );
       }
       
-      const contractMovieId = movieItem.contractId;
-      console.log('Using contractId from movie:', contractMovieId, 'for movie:', movieItem.title);
-      
-      // Validate and convert movie ID to BigInt
-      const movieIdNum = typeof contractMovieId === 'string' 
-        ? parseInt(contractMovieId, 10) 
-        : contractMovieId;
-        
-      if (isNaN(movieIdNum) || movieIdNum < 0) {
-        console.error('Invalid contract ID:', contractMovieId, 'Parsed as:', movieIdNum);
-        throw new Error(
-          `Invalid contract ID: "${contractMovieId}". Contract ID must be a non-negative integer. ` +
-          `This movie may not be properly synced to the contract. Please sync it again from the admin page.`
-        );
-      }
+      const movieIdNum = contractId;
       
       const movieIdBigInt = BigInt(movieIdNum);
       console.log('Converted movie ID to BigInt:', movieIdBigInt.toString());
