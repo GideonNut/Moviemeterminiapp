@@ -5,9 +5,10 @@ import { useAccount, useChainId, useSwitchChain, useBalance, useWalletClient } f
 import { encodeFunctionData, createPublicClient, http } from "viem";
 import { celo } from "viem/chains";
 import { getDataSuffix, submitReferral } from "@divvi/referral-sdk";
-import { ArrowLeft, RefreshCw, Film, Tv, MessageSquare, Star } from "lucide-react";
+import { ArrowLeft, RefreshCw, Film, Tv, MessageSquare, Star, LayoutGrid, Hand } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSession } from 'next-auth/react';
 
 // Components
 import WatchlistButton from "~/components/WatchlistButton";
@@ -16,6 +17,7 @@ import { Button } from "~/components/ui/Button";
 import Header from "~/components/Header";
 import { ThumbsDownIcon, ThumbsUpIcon } from "~/components/icons";
 import { HorizontalMovieCardSkeleton } from "~/components/MovieCardSkeleton";
+import { SwipeableMovies } from "~/components/SwipeableMovies";
 
 // Utils
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
@@ -27,6 +29,7 @@ import type { Media, Movie, TVShow } from "~/types";
 
 export default function MediaPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   // Align with the updated Media interface where contractId is already a required number
   type MediaWithDerivedId = Movie | TVShow;
   const [media, setMedia] = useState<MediaWithDerivedId[]>([]);
@@ -36,6 +39,7 @@ export default function MediaPage() {
   const [currentVotingId, setCurrentVotingId] = useState<string | null>(null);
   const [referralTag, setReferralTag] = useState<string | null>(null);
   const [voteAttempts, setVoteAttempts] = useState<{ [id: string]: { show: boolean; timeoutId?: NodeJS.Timeout } }>({});
+  const [viewMode, setViewMode] = useState<'swipe' | 'list'>('swipe');
 
   const { address, isConnected } = useAccount();
   const currentChainId = useChainId();
@@ -443,43 +447,124 @@ export default function MediaPage() {
           </Button>
           <h1 className="text-2xl font-bold">Movies & TV Shows</h1>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={fetchAllMedia}
-          disabled={loading}
-          className="flex items-center space-x-2"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          <span>Refresh</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* View Mode Toggle */}
+          <div className="flex items-center gap-1 border rounded-lg p-1 bg-background">
+            <Button
+              variant={viewMode === 'swipe' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('swipe')}
+              className="h-8 px-3"
+            >
+              <Hand className="h-4 w-4 mr-1.5" />
+              <span className="hidden sm:inline">Swipe</span>
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => setViewMode('list')}
+              className="h-8 px-3"
+            >
+              <LayoutGrid className="h-4 w-4 mr-1.5" />
+              <span className="hidden sm:inline">List</span>
+            </Button>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={fetchAllMedia}
+            disabled={loading}
+            className="flex items-center space-x-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            <span>Refresh</span>
+          </Button>
+        </div>
       </div>
 
-      {/* Media Grid */}
-      <div className="space-y-4">
-        {loading ? (
-          // Skeleton Loaders
-          <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <Card key={i} className="animate-pulse">
-                <div className="h-48 bg-muted rounded-t-lg" />
-                <CardContent className="p-4">
-                  <div className="h-6 bg-muted rounded w-3/4 mb-2" />
-                  <div className="h-4 bg-muted rounded w-1/2 mb-4" />
-                  <div className="flex justify-between">
-                    <div className="h-8 bg-muted rounded-full w-24" />
-                    <div className="h-8 bg-muted rounded-full w-8" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : media.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">No media found.</p>
-          </div>
-        ) : (
-          media.map((item) => (
+      {/* Swipeable View */}
+      {viewMode === 'swipe' ? (
+        <div className="w-full">
+          {loading ? (
+            <div className="text-center py-16 text-lg font-medium">Loading movies...</div>
+          ) : media.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No media found.</p>
+            </div>
+          ) : (
+            <div className="bg-[#18181B] rounded-2xl shadow-lg p-6">
+              <div className="mb-4 text-center">
+                <h2 className="text-xl font-semibold text-white mb-2">Swipe to Vote</h2>
+                <p className="text-white/70 text-sm">
+                  Swipe right for Yes, swipe left for No. All votes are saved to Firebase!
+                </p>
+              </div>
+              <SwipeableMovies 
+                movies={media.map(item => {
+                  // Handle releaseYear - convert Date to string if needed
+                  let releaseYear: string | undefined = undefined;
+                  if (item.releaseYear) {
+                    releaseYear = item.releaseYear instanceof Date 
+                      ? item.releaseYear.getFullYear().toString()
+                      : typeof item.releaseYear === 'string'
+                      ? item.releaseYear
+                      : undefined;
+                  } else if (item.isTVShow && (item as TVShow).firstAirDate) {
+                    const firstAirDate = (item as TVShow).firstAirDate;
+                    releaseYear = firstAirDate instanceof Date
+                      ? firstAirDate.getFullYear().toString()
+                      : typeof firstAirDate === 'string'
+                      ? firstAirDate
+                      : undefined;
+                  }
+                  
+                  return {
+                    id: item.id,
+                    _id: item.id,
+                    title: item.title,
+                    description: item.description || '',
+                    releaseYear,
+                    posterUrl: item.posterUrl,
+                    votes: item.votes || { yes: 0, no: 0 },
+                    genres: item.genres || [],
+                    rating: item.votes && (item.votes.yes || item.votes.no)
+                      ? ((item.votes.yes / (item.votes.yes + item.votes.no)) * 5)
+                      : undefined
+                  };
+                })}
+                onMoviesExhausted={() => {
+                  console.log('All movies voted on');
+                }}
+              />
+            </div>
+          )}
+        </div>
+      ) : (
+        /* List View */
+        <div className="space-y-4">
+          {loading ? (
+            // Skeleton Loaders
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <Card key={i} className="animate-pulse">
+                  <div className="h-48 bg-muted rounded-t-lg" />
+                  <CardContent className="p-4">
+                    <div className="h-6 bg-muted rounded w-3/4 mb-2" />
+                    <div className="h-4 bg-muted rounded w-1/2 mb-4" />
+                    <div className="flex justify-between">
+                      <div className="h-8 bg-muted rounded-full w-24" />
+                      <div className="h-8 bg-muted rounded-full w-8" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : media.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">No media found.</p>
+            </div>
+          ) : (
+            media.map((item) => (
             <Card key={item.id} className="overflow-hidden">
               <div className="md:flex">
                 {/* Poster Image */}
@@ -598,9 +683,10 @@ export default function MediaPage() {
                 </div>
               </div>
             </Card>
-          ))
-        )}
-      </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
