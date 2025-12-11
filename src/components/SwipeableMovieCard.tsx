@@ -129,11 +129,10 @@ export function SwipeableMovieCard({
         rotate,
         opacity: index === 0 ? opacity : 0,
         zIndex: total - index,
-        cursor: isVoting ? 'default' : 'grab',
       }}
       drag="x"
-      dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={0.2}
+      dragConstraints={{ left: -500, right: 500 }}
+      dragElastic={0.3}
       onDragEnd={handleDragEnd}
       animate={isExiting ? {
         x: x.get() > 0 ? 1000 : -1000,
@@ -141,9 +140,11 @@ export function SwipeableMovieCard({
         scale: 0.8,
       } : {}}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      whileDrag={{ cursor: 'grabbing' }}
+      dragPropagation={false}
     >
       <div className="w-full max-w-sm mx-auto">
-        <div className="relative bg-[#23232B] rounded-2xl overflow-hidden shadow-2xl border border-white/10">
+        <div className="relative bg-[#23232B] rounded-2xl overflow-hidden shadow-2xl border border-white/10 select-none">
           {/* Poster */}
           <div className="relative aspect-[2/3] w-full overflow-hidden">
             {fullPosterUrl ? (
@@ -234,9 +235,10 @@ export function SwipeableMovieCard({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3">
+            <div className="flex gap-3 pointer-events-auto">
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   if (!isVoting) {
                     setIsVoting(true);
                     setIsExiting(true);
@@ -253,7 +255,8 @@ export function SwipeableMovieCard({
                 <span>No</span>
               </button>
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   if (!isVoting) {
                     setIsVoting(true);
                     setIsExiting(true);
