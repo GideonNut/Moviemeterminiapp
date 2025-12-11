@@ -1,6 +1,8 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import { useConnect, useAccount, useDisconnect } from 'wagmi';
+import { farcasterFrame } from '@farcaster/frame-wagmi-connector';
 
 // Types
 type FarcasterUser = {
@@ -15,144 +17,132 @@ type FarcasterAuthContextType = {
   user: FarcasterUser | null;
   isConnected: boolean;
   isLoading: boolean;
-  connect: (silent?: boolean) => Promise<FarcasterUser | null>;
+  connect: () => Promise<void>;
   disconnect: () => void;
 };
 
 const FarcasterAuthContext = createContext<FarcasterAuthContextType | undefined>(undefined);
 
 export function FarcasterAuthProvider({ children }: { children: React.ReactNode }) {
+  const { connect: wagmiConnect, connectors, isPending: isConnecting } = useConnect();
+  const { address, isConnected: wagmiConnected, connector } = useAccount();
+  const { disconnect: wagmiDisconnect } = useDisconnect();
   const [user, setUser] = useState<FarcasterUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isConnected, setIsConnected] = useState(false);
-  const [farcasterClient, setFarcasterClient] = useState<any>(null);
 
-  // Initialize the Farcaster client
+  // Find the Farcaster connector
+  const farcasterConnector = useMemo(() => {
+    return connectors.find(c => 
+      c.id === 'farcasterFrame' || 
+      c.name === 'Farcaster' ||
+      c.type === 'farcasterFrame'
+    );
+  }, [connectors]);
+
+  // Check if connected via Farcaster
+  const isConnected = wagmiConnected && (
+    connector?.id === 'farcasterFrame' || 
+    connector?.name === 'Farcaster'
+  );
+
+  // Fetch Farcaster user info when connected
   useEffect(() => {
-    const initClient = async () => {
+    const fetchUserInfo = async () => {
+      if (!isConnected || !address) {
+        setUser(null);
+        setIsLoading(false);
+        return;
+      }
+
       try {
-        // Dynamically import the Farcaster auth client to avoid SSR issues
-        const { createAppClient, viemConnector } = await import('@farcaster/auth-client');
+        setIsLoading(true);
         
-        // Create the Farcaster client
-        const client = createAppClient({
-          ethereum: viemConnector(),
-        });
+        // Import the lookup function
+        const { lookupFidByCustodyAddress, getFarcasterUser } = await import('~/lib/farcaster');
         
-        setFarcasterClient(client);
-        await checkConnection(client);
+        // Lookup FID from the custody address
+        const fid = await lookupFidByCustodyAddress(address);
+        
+        if (fid) {
+          // Fetch full user info from Farcaster API
+          try {
+            const userData = await getFarcasterUser(fid);
+            
+            if (userData) {
+              setUser({
+                fid,
+                username: userData.username,
+                displayName: userData.displayName,
+                pfp: userData.pfp,
+                address: address,
+              });
+            } else {
+              // Fallback: use FID and address if API call fails
+              setUser({
+                fid,
+                address: address,
+                username: `user_${fid}`,
+                displayName: `User ${fid}`,
+              });
+            }
+          } catch (error) {
+            console.warn('Could not fetch user info from Farcaster API:', error);
+            // Fallback: use FID and address
+            setUser({
+              fid,
+              address: address,
+              username: `user_${fid}`,
+              displayName: `User ${fid}`,
+            });
+          }
+        } else {
+          // No FID found for this address, use address only
+          console.warn('Could not lookup FID for address:', address);
+          setUser({
+            fid: 0, // Placeholder
+            address: address,
+          });
+        }
       } catch (error) {
-        console.error('Error initializing Farcaster client:', error);
+        console.error('Error fetching Farcaster user info:', error);
+        setUser(null);
       } finally {
         setIsLoading(false);
       }
     };
 
-    initClient();
-  }, []);
+    fetchUserInfo();
+  }, [isConnected, address]);
 
-  const checkConnection = async (client: any) => {
-    try {
-      // Check if the user is already connected
-      const { isAuthenticated, fid } = await client.getAuthStatus();
-      
-      if (isAuthenticated && fid) {
-        // Get user info from the client
-        const userInfo = await client.getUser({ fid });
-        
-        setUser({
-          fid,
-          username: userInfo?.username,
-          displayName: userInfo?.displayName,
-          pfp: userInfo?.pfp,
-          address: userInfo?.address,
-        });
-        
-        setIsConnected(true);
-      }
-    } catch (error) {
-      console.error('Error checking Farcaster connection:', error);
-      setIsConnected(false);
-      setUser(null);
+  const connect = async () => {
+    if (!farcasterConnector) {
+      throw new Error('Farcaster connector not available');
     }
-  };
 
-  const connect = async (silent = false) => {
-    if (!farcasterClient) {
-      console.error('Farcaster client not initialized');
-      throw new Error('Farcaster client not initialized');
-    }
-    
     try {
-      if (!silent) {
-        setIsLoading(true);
-      }
-      
-      console.log('Initiating Farcaster connection...');
-      
-      // This will open the wallet connection prompt if not in silent mode
-      const { fid, address } = silent 
-        ? await farcasterClient.signInSilently()
-        : await farcasterClient.authenticate();
-      
-      if (fid) {
-        console.log('Farcaster connection successful, fetching user info...');
-        
-        // Get user info
-        let userInfo;
-        try {
-          userInfo = await farcasterClient.getUser({ fid });
-          console.log('Fetched user info:', userInfo);
-        } catch (error) {
-          console.warn('Could not fetch full user info, proceeding with basic info');
-          userInfo = {};
-        }
-        
-        const userData = {
-          fid,
-          username: userInfo?.username || `user_${fid}`,
-          displayName: userInfo?.displayName || `User ${fid}`,
-          pfp: userInfo?.pfp,
-          address: address || userInfo?.address,
-        };
-        
-        console.log('Setting user data:', userData);
-        setUser(userData);
-        setIsConnected(true);
-        
-        return userData;
-      }
-      
-      throw new Error('No FID returned from Farcaster');
+      setIsLoading(true);
+      await wagmiConnect({ connector: farcasterConnector });
     } catch (error) {
       console.error('Error connecting to Farcaster:', error);
-      
-      // If silent mode fails, don't throw the error to allow for retries
-      if (silent) {
-        console.log('Silent connection failed, will retry...');
-        return null;
-      }
-      
       throw error;
     } finally {
-      if (!silent) {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     }
   };
 
   const disconnect = () => {
+    wagmiDisconnect();
     setUser(null);
-    setIsConnected(false);
-    // You might want to add additional cleanup here
   };
+
+  const isLoadingState = isLoading || isConnecting;
 
   return (
     <FarcasterAuthContext.Provider
       value={{
         user,
         isConnected,
-        isLoading,
+        isLoading: isLoadingState,
         connect,
         disconnect,
       }}
