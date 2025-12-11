@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import type { Media, MediaItem } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -103,6 +104,47 @@ export async function getFarcasterMetadata() {
   };
 }
 
+
+/**
+ * Gets the contract ID for a movie by its TMDB ID by sorting all movies by creation date
+ * @param tmdbId TMDB ID of the movie
+ * @param allMovies Array of all movies sorted by createdAt
+ * @returns The contract ID (index in the sorted array) or -1 if not found
+ */
+export function getContractIdForMovie(tmdbId: string, allMovies: MediaItem[]): number {
+  // Sort movies by createdAt timestamp (oldest first)
+  const sortedMovies = [...allMovies].sort((a, b) => {
+    const aTime = a.createdAt ? (a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt)).getTime() : 0;
+    const bTime = b.createdAt ? (b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt)).getTime() : 0;
+    return aTime - bTime;
+  });
+
+  // Find the index of the movie with the given ID
+  const index = sortedMovies.findIndex(movie => movie.id === tmdbId);
+  
+  return index >= 0 ? index : -1;
+}
+
+/**
+ * Gets all movies with their derived contract IDs
+ * @param allMovies Array of all movies
+ * @returns Array of movies with derived contractId property
+ */
+export function getMoviesWithDerivedContractIds(allMovies: MediaItem[]): MediaItem[] {
+  // Sort movies by createdAt timestamp (oldest first)
+  const sortedMovies = [...allMovies].sort((a, b) => {
+    const aTime = a.createdAt ? (a.createdAt instanceof Date ? a.createdAt : new Date(a.createdAt)).getTime() : 0;
+    const bTime = b.createdAt ? (b.createdAt instanceof Date ? b.createdAt : new Date(b.createdAt)).getTime() : 0;
+    return aTime - bTime;
+  });
+
+  // Add contractId to each movie based on its position in the sorted array
+  return sortedMovies.map((movie, index) => ({
+    ...movie,
+    contractId: index
+  }));
+}
+
 // Function to filter movies that have valid poster URLs
 export function filterMoviesWithPosters<T extends { posterUrl?: string | null }>(movies: T[]): T[] {
   return movies.filter(movie => {
@@ -127,5 +169,8 @@ export function getMoviesWithPosterFallback<T extends { posterUrl?: string | nul
     // Keep movies that have any poster URL (even if it might fail to load)
     // This allows for graceful fallback in the UI
     return !!movie.posterUrl && movie.posterUrl.trim() !== '';
-  });
+  }).map(movie => ({
+    ...movie,
+    posterUrl: ensureFullPosterUrl(movie.posterUrl)
+  }));
 }
