@@ -123,23 +123,24 @@ export function SwipeableMovieCard({
 
   return (
     <motion.div
-      className="absolute inset-0 flex items-center justify-center"
+      className="absolute inset-0 flex items-center justify-center touch-pan-y select-none"
       style={{
         x,
         rotate,
         opacity: index === 0 ? opacity : 0,
         zIndex: total - index,
+        touchAction: 'pan-y',
       }}
       drag="x"
-      dragConstraints={{ left: -500, right: 500 }}
-      dragElastic={0.3}
+      dragConstraints={{ left: -400, right: 400 }}
+      dragElastic={0.35}
       onDragEnd={handleDragEnd}
       animate={isExiting ? {
         x: x.get() > 0 ? 1000 : -1000,
         opacity: 0,
         scale: 0.8,
       } : {}}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      transition={{ type: "spring", stiffness: 280, damping: 28 }}
       whileDrag={{ cursor: 'grabbing' }}
       dragPropagation={false}
     >
