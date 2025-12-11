@@ -1,6 +1,6 @@
 "use client";
 
-import { MovieCard } from "~/components/MovieCard";
+import { SwipeableMovies } from "~/components/SwipeableMovies";
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
@@ -22,23 +22,9 @@ interface Movie {
 }
 
 export default function DiscoverPage() {
-  const [isVoting, setIsVoting] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const checkConnection = async () => {
-      try {
-        const connected = false;
-        setIsConnected(connected);
-      } catch (error) {
-        console.error('Error checking connection:', error);
-        setIsConnected(false);
-      }
-    };
-    checkConnection();
-  }, []);
+  const { data: session } = useSession();
 
   useEffect(() => {
     const fetchMovies = async () => {
@@ -57,64 +43,9 @@ export default function DiscoverPage() {
     fetchMovies();
   }, []);
 
-  const { data: session } = useSession();
-  const [userVotes, setUserVotes] = useState<{[key: string]: 'yes' | 'no' | null}>({});
-
-  const handleVote = async (movieId: string, vote: 'yes' | 'no') => {
-    if (!session?.user?.fid) {
-      alert('Please sign in with Farcaster to vote');
-      return;
-    }
-
-    setIsVoting(true);
-    try {
-      const response = await fetch("/api/movies", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: 'include',
-        body: JSON.stringify({
-          action: "vote",
-          id: movieId,
-          type: vote
-        })
-      });
-      
-      const result = await response.json();
-      
-      if (response.ok) {
-        // Update the UI to reflect the vote
-        setMovies(prevMovies => 
-          prevMovies.map(movie => {
-            if (movie.id === movieId || movie._id === movieId) {
-              const currentVotes = movie.votes || { yes: 0, no: 0 };
-              return {
-                ...movie,
-                votes: {
-                  ...currentVotes,
-                  [vote]: (currentVotes[vote] || 0) + 1
-                }
-              };
-            }
-            return movie;
-          })
-        );
-        
-        // Update user votes
-        setUserVotes(prev => ({
-          ...prev,
-          [movieId]: vote
-        }));
-        
-        console.log(`Successfully voted ${vote} for movie ${movieId}`);
-      } else {
-        throw new Error(result.error || 'Failed to submit vote');
-      }
-    } catch (error) {
-      console.error('Error voting:', error);
-      alert(error instanceof Error ? error.message : 'An error occurred while voting');
-    } finally {
-      setIsVoting(false);
-    }
+  const handleMoviesExhausted = () => {
+    // Optionally refresh movies or show a message
+    console.log('All movies have been voted on');
   };
 
   return (
@@ -127,8 +58,9 @@ export default function DiscoverPage() {
                 <Image
                   src="https://i.postimg.cc/Gtz6FMmk/new-favicon.png"
                   alt="MovieMetter Logo"
-                  layout="fill"
-                  objectFit="contain"
+                  width={40}
+                  height={40}
+                  className="object-contain"
                 />
               </div>
             </Link>
@@ -141,29 +73,29 @@ export default function DiscoverPage() {
           </div>
         </div>
       </nav>
-      <main className="min-h-screen flex flex-col justify-center items-center pb-8">
+      <main className="min-h-screen flex flex-col justify-center items-center pb-8 pt-20">
         <div className="w-full max-w-7xl px-4 sm:px-6 lg:px-8 flex flex-col items-center">
-          <section className="mb-4 w-full">
-            <h1 className="text-3xl font-bold text-white text-center mb-1">Discover Movies, Share your taste and be rewarded</h1>
-            <p className="text-center text-white/70 max-w-2xl mx-auto">Vote for your favorite movies and see what others love. Your taste matters!</p>
+          <section className="mb-8 w-full text-center">
+            <h1 className="text-3xl font-bold text-white mb-2">Swipe to Vote on Movies</h1>
+            <p className="text-white/70 max-w-2xl mx-auto">
+              Swipe right to vote Yes, swipe left to vote No. Your votes are saved to Firebase!
+            </p>
+            {!session?.user?.fid && (
+              <p className="text-yellow-500/80 mt-2 text-sm">
+                Please sign in with Farcaster to vote
+              </p>
+            )}
           </section>
-          <div className="bg-[#18181B] rounded-2xl shadow-lg p-6">
+          <div className="bg-[#18181B] rounded-2xl shadow-lg p-6 w-full max-w-md">
             {loading ? (
               <div className="text-white text-center py-16 text-lg font-medium">Loading movies...</div>
             ) : movies.length === 0 ? (
               <div className="text-white text-center py-16 text-lg font-medium">No movies found.</div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                {movies.map((movie: any) => (
-                  <MovieCard
-                    key={movie.id || movie._id}
-                    movie={movie}
-                    onVote={(vote) => handleVote(movie.id || movie._id, vote ? 'yes' : 'no')}
-                    isVoting={isVoting}
-                    isConnected={isConnected}
-                  />
-                ))}
-              </div>
+              <SwipeableMovies 
+                movies={movies} 
+                onMoviesExhausted={handleMoviesExhausted}
+              />
             )}
           </div>
         </div>
