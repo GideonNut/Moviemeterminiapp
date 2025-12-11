@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useFarcasterAuth } from '~/contexts/FarcasterAuthContext';
 import { SwipeableMovieCard } from './SwipeableMovieCard';
+import { Button } from './ui/Button';
 
 interface Movie {
   id: string;
@@ -25,10 +26,11 @@ interface SwipeableMoviesProps {
 }
 
 export function SwipeableMovies({ movies, onMoviesExhausted }: SwipeableMoviesProps) {
-  const { data: session } = useSession();
+  const { user, isConnected, isLoading, connect } = useFarcasterAuth();
   const [currentMovies, setCurrentMovies] = useState<Movie[]>([]);
   const [votedMovies, setVotedMovies] = useState<Set<string>>(new Set());
   const [isVoting, setIsVoting] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   // Initialize with movies that haven't been voted on
   useEffect(() => {
@@ -42,18 +44,38 @@ export function SwipeableMovies({ movies, onMoviesExhausted }: SwipeableMoviesPr
   const handleSwipe = async (direction: 'left' | 'right') => {
     if (currentMovies.length === 0 || isVoting) return;
 
+    // Check if user is connected, if not, prompt to connect
+    if (!isConnected || !user) {
+      try {
+        setIsConnecting(true);
+        await connect();
+        // After connecting, retry the vote
+        setTimeout(() => handleSwipe(direction), 100);
+        return;
+      } catch (error) {
+        console.error('Error connecting to Farcaster:', error);
+        alert('Please connect your Farcaster wallet to vote');
+        setIsConnecting(false);
+        return;
+      } finally {
+        setIsConnecting(false);
+      }
+    }
+
     const currentMovie = currentMovies[0];
     const movieId = currentMovie.id || currentMovie._id || '';
     const vote = direction === 'right' ? 'yes' : 'no';
 
-    if (!session?.user?.fid) {
-      alert('Please sign in with Farcaster to vote');
-      return;
-    }
-
     setIsVoting(true);
 
     try {
+      // Use Farcaster FID or address as user identifier
+      const userIdentifier = user?.fid?.toString() || user?.address || '';
+      
+      if (!userIdentifier) {
+        throw new Error('Unable to identify user. Please reconnect your Farcaster wallet.');
+      }
+
       // Save vote to Firebase
       const response = await fetch("/api/movies", {
         method: "POST",
@@ -62,7 +84,8 @@ export function SwipeableMovies({ movies, onMoviesExhausted }: SwipeableMoviesPr
         body: JSON.stringify({
           action: "vote",
           id: movieId,
-          type: vote
+          type: vote,
+          userAddress: userIdentifier // Send Farcaster FID or address
         })
       });
 
@@ -95,6 +118,35 @@ export function SwipeableMovies({ movies, onMoviesExhausted }: SwipeableMoviesPr
       }, 500);
     }
   };
+
+  // Show connect prompt if not connected
+  if (!isConnected && !isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[600px] text-white">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Connect Your Farcaster Wallet</h2>
+          <p className="text-white/70 mb-6">Connect your Farcaster wallet to start voting on movies.</p>
+          <Button
+            onClick={async () => {
+              try {
+                setIsConnecting(true);
+                await connect();
+              } catch (error) {
+                console.error('Error connecting:', error);
+                alert('Failed to connect. Please try again.');
+              } finally {
+                setIsConnecting(false);
+              }
+            }}
+            disabled={isConnecting}
+            className="px-6 py-3"
+          >
+            {isConnecting ? 'Connecting...' : 'Connect Farcaster Wallet'}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (currentMovies.length === 0) {
     return (
