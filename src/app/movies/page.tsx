@@ -15,6 +15,7 @@ import WatchlistButton from "~/components/WatchlistButton";
 import { Card, CardContent, CardTitle, CardDescription } from "~/components/ui/card";
 import { Button } from "~/components/ui/Button";
 import Header from "~/components/Header";
+import { FarcasterConnectButton } from "~/components/FarcasterConnectButton";
 import { ThumbsDownIcon, ThumbsUpIcon } from "~/components/icons";
 import { HorizontalMovieCardSkeleton } from "~/components/MovieCardSkeleton";
 import { SwipeableMovies } from "~/components/SwipeableMovies";
@@ -434,29 +435,37 @@ export default function MediaPage() {
     <div className="max-w-2xl mx-auto px-4">
       {/* Page Header */}
       <Header showSearch={false} />
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.back()}
-            className="rounded-full"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-2xl font-bold">Movies & TV Shows</h1>
+      <div className="flex flex-col gap-3 md:gap-4 mb-6">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.back()}
+              className="rounded-full"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-2xl font-bold">Movies & TV Shows</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchAllMedia}
+              disabled={loading}
+              className="flex items-center space-x-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              <span>Refresh</span>
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={fetchAllMedia}
-            disabled={loading}
-            className="flex items-center space-x-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            <span>Refresh</span>
-          </Button>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="text-sm text-white/70">
+            Connect your Farcaster wallet to vote and track your activity.
+          </div>
+          <FarcasterConnectButton />
         </div>
       </div>
 
