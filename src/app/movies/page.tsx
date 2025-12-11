@@ -5,7 +5,7 @@ import { useAccount, useChainId, useSwitchChain, useBalance, useWalletClient } f
 import { encodeFunctionData, createPublicClient, http } from "viem";
 import { celo } from "viem/chains";
 import { getDataSuffix, submitReferral } from "@divvi/referral-sdk";
-import { ArrowLeft, RefreshCw, Film, Tv, MessageSquare, Star, LayoutGrid, Hand } from "lucide-react";
+import { ArrowLeft, RefreshCw, Film, Tv, MessageSquare, Star } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSession } from 'next-auth/react';
@@ -39,7 +39,6 @@ export default function MediaPage() {
   const [currentVotingId, setCurrentVotingId] = useState<string | null>(null);
   const [referralTag, setReferralTag] = useState<string | null>(null);
   const [voteAttempts, setVoteAttempts] = useState<{ [id: string]: { show: boolean; timeoutId?: NodeJS.Timeout } }>({});
-  const [viewMode, setViewMode] = useState<'swipe' | 'list'>('swipe');
 
   const { address, isConnected } = useAccount();
   const currentChainId = useChainId();
@@ -448,27 +447,6 @@ export default function MediaPage() {
           <h1 className="text-2xl font-bold">Movies & TV Shows</h1>
         </div>
         <div className="flex items-center gap-2">
-          {/* View Mode Toggle */}
-          <div className="flex items-center gap-1 border rounded-lg p-1 bg-background">
-            <Button
-              variant={viewMode === 'swipe' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('swipe')}
-              className="h-8 px-3"
-            >
-              <Hand className="h-4 w-4 mr-1.5" />
-              <span className="hidden sm:inline">Swipe</span>
-            </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className="h-8 px-3"
-            >
-              <LayoutGrid className="h-4 w-4 mr-1.5" />
-              <span className="hidden sm:inline">List</span>
-            </Button>
-          </div>
           <Button
             variant="outline"
             size="sm"
@@ -482,211 +460,62 @@ export default function MediaPage() {
         </div>
       </div>
 
-      {/* Swipeable View */}
-      {viewMode === 'swipe' ? (
-        <div className="w-full">
-          {loading ? (
-            <div className="text-center py-16 text-lg font-medium">Loading movies...</div>
-          ) : media.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No media found.</p>
+      {/* Swipeable View - Always show swipeable interface */}
+      <div className="w-full">
+        {loading ? (
+          <div className="text-center py-16 text-lg font-medium">Loading movies...</div>
+        ) : media.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No media found.</p>
+          </div>
+        ) : (
+          <div className="bg-[#18181B] rounded-2xl shadow-lg p-6">
+            <div className="mb-4 text-center">
+              <h2 className="text-xl font-semibold text-white mb-2">Swipe to Vote</h2>
+              <p className="text-white/70 text-sm">
+                Swipe right for Yes, swipe left for No. All votes are saved to Firebase!
+              </p>
             </div>
-          ) : (
-            <div className="bg-[#18181B] rounded-2xl shadow-lg p-6">
-              <div className="mb-4 text-center">
-                <h2 className="text-xl font-semibold text-white mb-2">Swipe to Vote</h2>
-                <p className="text-white/70 text-sm">
-                  Swipe right for Yes, swipe left for No. All votes are saved to Firebase!
-                </p>
-              </div>
-              <SwipeableMovies 
-                movies={media.map(item => {
-                  // Handle releaseYear - convert Date to string if needed
-                  let releaseYear: string | undefined = undefined;
-                  if (item.releaseYear) {
-                    releaseYear = item.releaseYear instanceof Date 
-                      ? item.releaseYear.getFullYear().toString()
-                      : typeof item.releaseYear === 'string'
-                      ? item.releaseYear
-                      : undefined;
-                  } else if (item.isTVShow && (item as TVShow).firstAirDate) {
-                    const firstAirDate = (item as TVShow).firstAirDate;
-                    releaseYear = firstAirDate instanceof Date
-                      ? firstAirDate.getFullYear().toString()
-                      : typeof firstAirDate === 'string'
-                      ? firstAirDate
-                      : undefined;
-                  }
-                  
-                  return {
-                    id: item.id,
-                    _id: item.id,
-                    title: item.title,
-                    description: item.description || '',
-                    releaseYear,
-                    posterUrl: item.posterUrl,
-                    votes: item.votes || { yes: 0, no: 0 },
-                    genres: item.genres || [],
-                    rating: item.votes && (item.votes.yes || item.votes.no)
-                      ? ((item.votes.yes / (item.votes.yes + item.votes.no)) * 5)
-                      : undefined
-                  };
-                })}
-                onMoviesExhausted={() => {
-                  console.log('All movies voted on');
-                }}
-              />
-            </div>
-          )}
-        </div>
-      ) : (
-        /* List View */
-        <div className="space-y-4">
-          {loading ? (
-            // Skeleton Loaders
-            <div className="space-y-4">
-              {[...Array(3)].map((_, i) => (
-                <Card key={i} className="animate-pulse">
-                  <div className="h-48 bg-muted rounded-t-lg" />
-                  <CardContent className="p-4">
-                    <div className="h-6 bg-muted rounded w-3/4 mb-2" />
-                    <div className="h-4 bg-muted rounded w-1/2 mb-4" />
-                    <div className="flex justify-between">
-                      <div className="h-8 bg-muted rounded-full w-24" />
-                      <div className="h-8 bg-muted rounded-full w-8" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : media.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No media found.</p>
-            </div>
-          ) : (
-            media.map((item) => (
-            <Card key={item.id} className="overflow-hidden">
-              <div className="md:flex">
-                {/* Poster Image */}
-                <div className="relative w-full md:w-32 h-48 md:h-auto flex-shrink-0">
-                  {item.posterUrl ? (
-                    <Image
-                      src={ensureFullPosterUrl(item.posterUrl)}
-                      alt={item.title}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 100vw, 128px"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-muted">
-                      {item.isTVShow ? (
-                        <Tv className="h-12 w-12 text-muted-foreground" />
-                      ) : (
-                        <Film className="h-12 w-12 text-muted-foreground" />
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 p-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-lg font-semibold">
-                        {item.title}
-                        {item.releaseYear && (
-                          <span className="text-muted-foreground ml-2 font-normal">
-                            ({new Date(item.releaseYear).getFullYear()})
-                          </span>
-                        )}
-                      </CardTitle>
-                      <div className="flex items-center mt-1 text-sm text-muted-foreground">
-                        {item.isTVShow && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 mr-2">
-                            TV Show
-                          </span>
-                        )}
-                        <div className="flex items-center">
-                          <Star className="h-4 w-4 text-yellow-500 fill-yellow-500 mr-1" />
-                          <span>{
-                            item.votes && (item.votes.yes || item.votes.no) 
-                              ? ((item.votes.yes / (item.votes.yes + item.votes.no)) * 5).toFixed(1)
-                              : 'N/A'
-                          }</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="h-10 w-10 flex items-center justify-center">
-                      <WatchlistButton 
-                        movieId={item.id}
-                        movieTitle={item.title}
-                        size="sm"
-                        className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground"
-                      />
-                    </div>
-                  </div>
-
-                  {item.description && (
-                    <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
-                      {item.description}
-                    </p>
-                  )}
-
-                  <div className="mt-4 flex items-center justify-between">
-                    <div className="flex space-x-2">
-                      <Button
-                        variant={votes[item.id] === 'yes' ? 'default' : 'outline'}
-                        size="sm"
-                        className="h-8 px-3 text-xs"
-                        onClick={() => handleVote(item.id, 'yes', item.isTVShow)}
-                        disabled={!!txStatus[item.id] || currentVotingId === item.id}
-                      >
-                        <ThumbsUpIcon className="h-3.5 w-3.5 mr-1.5" />
-                        {item.votes?.yes || 0}
-                      </Button>
-                      <Button
-                        variant={votes[item.id] === 'no' ? 'destructive' : 'outline'}
-                        size="sm"
-                        className="h-8 px-3 text-xs"
-                        onClick={() => handleVote(item.id, 'no', item.isTVShow)}
-                        disabled={!!txStatus[item.id] || currentVotingId === item.id}
-                      >
-                        <ThumbsDownIcon className="h-3.5 w-3.5 mr-1.5" />
-                        {item.votes?.no || 0}
-                      </Button>
-                      <Link 
-                        href={`/media/${item.isTVShow ? 'tv' : 'movie'}/${item.id}` as any}
-                        className="flex items-center h-8 px-3 text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
-                        {item.commentCount || 0}
-                      </Link>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-primary"
-                      onClick={() => {
-                        const path = `/media/${item.isTVShow ? 'tv' : 'movie'}/${item.id}` as const;
-                        router.push(path as any);
-                      }}
-                    >
-                      View Details
-                    </Button>
-                  </div>
-
-                  {txStatus[item.id] && (
-                    <p className="mt-2 text-xs text-muted-foreground text-right">
-                      {txStatus[item.id]}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </Card>
-            ))
-          )}
-        </div>
-      )}
+            <SwipeableMovies 
+              movies={media.map(item => {
+                // Handle releaseYear - convert Date to string if needed
+                let releaseYear: string | undefined = undefined;
+                if (item.releaseYear) {
+                  releaseYear = item.releaseYear instanceof Date 
+                    ? item.releaseYear.getFullYear().toString()
+                    : typeof item.releaseYear === 'string'
+                    ? item.releaseYear
+                    : undefined;
+                } else if (item.isTVShow && (item as TVShow).firstAirDate) {
+                  const firstAirDate = (item as TVShow).firstAirDate;
+                  releaseYear = firstAirDate instanceof Date
+                    ? firstAirDate.getFullYear().toString()
+                    : typeof firstAirDate === 'string'
+                    ? firstAirDate
+                    : undefined;
+                }
+                
+                return {
+                  id: item.id,
+                  _id: item.id,
+                  title: item.title,
+                  description: item.description || '',
+                  releaseYear,
+                  posterUrl: item.posterUrl,
+                  votes: item.votes || { yes: 0, no: 0 },
+                  genres: item.genres || [],
+                  rating: item.votes && (item.votes.yes || item.votes.no)
+                    ? ((item.votes.yes / (item.votes.yes + item.votes.no)) * 5)
+                    : undefined
+                };
+              })}
+              onMoviesExhausted={() => {
+                console.log('All movies voted on');
+              }}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
