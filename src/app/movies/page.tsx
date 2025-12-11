@@ -463,7 +463,34 @@ export default function MediaPage() {
       {/* Swipeable View - Always show swipeable interface */}
       <div className="w-full">
         {loading ? (
-          <div className="text-center py-16 text-lg font-medium">Loading movies...</div>
+          <div className="relative h-[80vh] min-h-[520px]">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="relative w-full max-w-sm mx-auto">
+                {[0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="absolute inset-0 mx-auto rounded-2xl border border-white/10 bg-[#23232B] shadow-2xl animate-pulse"
+                    style={{
+                      transform: `translateY(${i * 10}px) scale(${1 - i * 0.05})`,
+                      opacity: 1 - i * 0.2,
+                      zIndex: 3 - i,
+                    }}
+                  >
+                    <div className="aspect-[2/3] w-full bg-white/10" />
+                    <div className="p-4 space-y-3">
+                      <div className="h-4 bg-white/10 rounded w-3/4" />
+                      <div className="h-3 bg-white/10 rounded w-full" />
+                      <div className="h-3 bg-white/10 rounded w-5/6" />
+                      <div className="flex gap-2 pt-2">
+                        <div className="h-8 bg-white/10 rounded flex-1" />
+                        <div className="h-8 bg-white/10 rounded flex-1" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         ) : media.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">No media found.</p>
