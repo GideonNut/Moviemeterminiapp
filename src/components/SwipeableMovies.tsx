@@ -169,7 +169,7 @@ export function SwipeableMovies({ movies, onMoviesExhausted }: SwipeableMoviesPr
   }
 
   return (
-    <div className="relative w-full max-w-sm mx-auto h-[800px]">
+    <div className="relative w-full max-w-sm mx-auto h-[80vh] min-h-[520px] overflow-hidden flex items-center justify-center">
       {currentMovies.slice(0, 3).map((movie, index) => (
         <SwipeableMovieCard
           key={movie.id || movie._id || index}
