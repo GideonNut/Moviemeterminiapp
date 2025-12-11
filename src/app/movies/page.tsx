@@ -542,9 +542,20 @@ export default function MediaPage() {
                   genres: item.genres || [],
                   rating: item.votes && (item.votes.yes || item.votes.no)
                     ? ((item.votes.yes / (item.votes.yes + item.votes.no)) * 5)
-                    : undefined
+                    : undefined,
+                  isTVShow: item.isTVShow || false
                 };
               })}
+              onVote={async (movieId: string, vote: 'yes' | 'no') => {
+                const movie = media.find(m => m.id === movieId);
+                if (movie) {
+                  await handleVote(movieId, vote, movie.isTVShow);
+                  // Refresh the list after voting
+                  fetchAllMedia();
+                  return true;
+                }
+                return false;
+              }}
               onMoviesExhausted={() => {
                 console.log('All movies voted on');
               }}
