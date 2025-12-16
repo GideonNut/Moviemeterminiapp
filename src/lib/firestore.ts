@@ -95,8 +95,24 @@ const serializeTimestamp = (value: any): string => {
 export const saveMovie = async (movieData: Omit<MovieData, 'createdAt' | 'updatedAt' | 'votes'>) => {
   const movieRef = doc(db, MOVIES_COLLECTION, movieData.tmdbId);
   
+  // Auto-assign contractId if not provided
+  let contractId = movieData.contractId;
+  if (!contractId) {
+    // Get all movies to determine the next contract ID
+    const allMovies = await getAllMovies();
+    // Sort by creation date to get consistent ordering
+    const sortedMovies = [...allMovies].sort((a, b) => {
+      const aTime = a.createdAt?.toDate?.()?.getTime() || 0;
+      const bTime = b.createdAt?.toDate?.()?.getTime() || 0;
+      return aTime - bTime;
+    });
+    // Assign the next sequential ID
+    contractId = sortedMovies.length.toString();
+  }
+  
   await setDoc(movieRef, {
     ...movieData,
+    contractId: contractId,
     votes: {
       yes: 0,
       no: 0
