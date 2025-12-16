@@ -477,7 +477,7 @@ export default function MediaPage() {
             <CardHeader className="text-center pb-4">
               <CardTitle className="text-xl font-semibold text-white mb-2">Swipe to Vote</CardTitle>
               <CardDescription className="text-white/70 text-sm">
-                Swipe left for Yes, swipe right for No. All votes are saved to Firebase!
+                Swipe left for Yes, swipe right for No.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6 pt-0">
