@@ -2,8 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useFarcasterAuth } from '~/contexts/FarcasterAuthContext';
+import { useAccount, useWalletClient, useChainId } from 'wagmi';
+import { encodeFunctionData, createPublicClient, http } from 'viem';
+import { celo } from 'viem/chains';
 import { SwipeableMovieCard } from './SwipeableMovieCard';
 import { Button } from './ui/Button';
+import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from '~/constants/voteContract';
+import { getContractIdForMovie, hasSufficientCELOForGas } from '~/lib/utils';
+import { submitReferral } from '@divvi/referral-sdk';
+import type { MediaItem } from '~/types';
 
 interface Movie {
   id: string;
@@ -18,21 +25,24 @@ interface Movie {
   };
   genres?: string[];
   rating?: number;
-  isTVShow?: boolean;
 }
 
 interface SwipeableMoviesProps {
   movies: Movie[];
+  allMedia?: MediaItem[]; // All media items for contractId calculation
   onMoviesExhausted?: () => void;
-  onVote?: (movieId: string, vote: 'yes' | 'no') => Promise<boolean>;
 }
 
-export function SwipeableMovies({ movies, onMoviesExhausted, onVote }: SwipeableMoviesProps) {
+export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: SwipeableMoviesProps) {
   const { user, isConnected, isLoading, connect } = useFarcasterAuth();
+  const { address } = useAccount();
+  const { data: walletClient } = useWalletClient();
+  const chainId = useChainId();
   const [currentMovies, setCurrentMovies] = useState<Movie[]>([]);
   const [votedMovies, setVotedMovies] = useState<Set<string>>(new Set());
   const [isVoting, setIsVoting] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [txStatus, setTxStatus] = useState<string>('');
 
   // Initialize with movies that haven't been voted on
   useEffect(() => {
@@ -66,56 +76,132 @@ export function SwipeableMovies({ movies, onMoviesExhausted, onVote }: Swipeable
 
     const currentMovie = currentMovies[0];
     const movieId = currentMovie.id || currentMovie._id || '';
-    const vote = direction === 'right' ? 'yes' : 'no';
+    const vote = direction === 'left' ? 'yes' : 'no';
 
     setIsVoting(true);
+    setTxStatus('Preparing transaction...');
 
     try {
-      let voteSuccessful = false;
-      
-      // If onVote prop is provided, use it to handle the vote
-      if (onVote) {
-        voteSuccessful = await onVote(movieId, vote);
-      } else {
-        // Fallback to the original implementation if onVote is not provided
-        const userIdentifier = user?.fid?.toString() || user?.address || '';
-        
-        if (!userIdentifier) {
-          throw new Error('Unable to identify user. Please reconnect your Farcaster wallet.');
-        }
-
-        const response = await fetch("/api/movies", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: 'include',
-          body: JSON.stringify({
-            action: "vote",
-            id: movieId,
-            type: vote,
-            userAddress: userIdentifier
-          })
-        });
-
-        const result = await response.json();
-        voteSuccessful = response.ok;
-        
-        if (!voteSuccessful) {
-          throw new Error(result.error || 'Failed to submit vote');
-        }
+      // Check if we're on a Celo network
+      if (chainId !== 42220 && chainId !== 44787) {
+        throw new Error('Please switch to a Celo network (testnet or mainnet) before voting.');
       }
 
-      if (voteSuccessful) {
+      if (!address || !walletClient) {
+        throw new Error('Wallet not connected');
+      }
+
+      // Get contract ID for the movie
+      // If allMedia is provided, use it; otherwise try to use movies array if they have createdAt
+      let contractId = -1;
+      if (allMedia.length > 0) {
+        contractId = getContractIdForMovie(movieId, allMedia);
+      } else {
+        // Fallback: try to use movies array if they have createdAt (cast to MediaItem[])
+        const moviesWithCreatedAt = movies as unknown as MediaItem[];
+        if (moviesWithCreatedAt.length > 0 && moviesWithCreatedAt[0].createdAt) {
+          contractId = getContractIdForMovie(movieId, moviesWithCreatedAt);
+        }
+      }
+      
+      if (contractId === -1) {
+        throw new Error(
+          `Could not determine contract ID for "${currentMovie.title}". ` +
+          `Please ensure all media items are loaded with creation dates.`
+        );
+      }
+
+      const movieIdBigInt = BigInt(contractId);
+      console.log('Sending vote transaction:', { movieId, contractId, vote });
+
+      // Build calldata for the vote transaction
+      setTxStatus('Please sign the transaction...');
+      const calldata = encodeFunctionData({
+        abi: VOTE_CONTRACT_ABI,
+        functionName: 'vote',
+        args: [movieIdBigInt, vote === 'yes']
+      });
+
+      // Send transaction using wagmi wallet client
+      const txHash = await walletClient.sendTransaction({
+        account: address,
+        to: VOTE_CONTRACT_ADDRESS,
+        data: calldata as `0x${string}`,
+        value: 0n
+      });
+
+      console.log('Transaction hash:', txHash);
+      setTxStatus('Transaction submitted! Waiting for confirmation...');
+
+      // Wait for transaction confirmation
+      const publicClient = createPublicClient({
+        chain: celo,
+        transport: http()
+      });
+
+      setTxStatus('Waiting for transaction confirmation...');
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+      console.log('Transaction confirmed:', receipt);
+
+      if (receipt.status === 'reverted') {
+        throw new Error('Transaction was reverted on-chain');
+      }
+
+      setTxStatus('Transaction confirmed! Saving to database...');
+
+      // Submit referral to Divvi
+      submitReferral({ txHash, chainId }).catch((e) => 
+        console.error('Divvi submitReferral failed:', e)
+      );
+
+      // After successful blockchain transaction, save the vote to Firestore
+      const userIdentifier = user?.fid?.toString() || user?.address || address || '';
+      
+      const response = await fetch("/api/movies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: 'include',
+        body: JSON.stringify({
+          action: "vote",
+          id: movieId,
+          type: vote,
+          userAddress: userIdentifier
+        })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
         // Mark this movie as voted
         setVotedMovies(prev => new Set(prev).add(movieId));
         
         // Remove the current movie from the stack (it's already been voted on)
         setCurrentMovies(prev => prev.slice(1));
 
-        console.log(`Successfully voted ${vote} for movie ${movieId}`);
+        setTxStatus('Vote successful!');
+        console.log(`Successfully voted ${vote} for movie ${movieId} - transaction confirmed and saved to Firebase`);
+        
+        // Clear status after a delay
+        setTimeout(() => setTxStatus(''), 2000);
+      } else {
+        throw new Error(result.error || 'Failed to save vote to database');
       }
     } catch (error) {
       console.error('Error voting:', error);
-      alert(error instanceof Error ? error.message : 'An error occurred while voting');
+      setTxStatus('');
+      
+      // Handle specific error types
+      if (error instanceof Error) {
+        if (error.message.includes('User rejected')) {
+          alert('Transaction was cancelled. Please try again.');
+        } else if (error.message.includes('insufficient funds') || error.message.includes('gas')) {
+          alert('Insufficient CELO for gas fees. Please add more CELO to your wallet.');
+        } else {
+          alert(error.message);
+        }
+      } else {
+        alert('An error occurred while voting. Please try again.');
+      }
     } finally {
       setIsVoting(false);
     }
@@ -195,6 +281,12 @@ export function SwipeableMovies({ movies, onMoviesExhausted, onVote }: Swipeable
       {currentMovies.length > 0 && (
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white/60 text-sm">
           {currentMovies.length} {currentMovies.length === 1 ? 'movie' : 'movies'} remaining
+        </div>
+      )}
+      
+      {txStatus && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded-lg text-sm z-50">
+          {txStatus}
         </div>
       )}
     </div>
