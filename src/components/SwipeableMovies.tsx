@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useFarcasterAuth } from '~/contexts/FarcasterAuthContext';
-import { useAccount, useWalletClient, useChainId } from 'wagmi';
+import { useAccount, useWalletClient, useChainId, useBalance } from 'wagmi';
 import { encodeFunctionData, createPublicClient, http } from 'viem';
 import { celo } from 'viem/chains';
 import { SwipeableMovieCard } from './SwipeableMovieCard';
 import { Button } from './ui/Button';
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from '~/constants/voteContract';
-import { getContractIdForMovie, hasSufficientCELOForGas } from '~/lib/utils';
+import { getContractIdForMovie, hasSufficientCELOForGas, formatCELOBalance } from '~/lib/utils';
 import { submitReferral } from '@divvi/referral-sdk';
 import type { MediaItem } from '~/types';
 
@@ -38,6 +38,10 @@ export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: Sw
   const { address } = useAccount();
   const { data: walletClient } = useWalletClient();
   const chainId = useChainId();
+  const { data: celoBalance } = useBalance({
+    address: address,
+    query: { enabled: !!address && isConnected }
+  });
   const [currentMovies, setCurrentMovies] = useState<Movie[]>([]);
   const [votedMovies, setVotedMovies] = useState<Set<string>>(new Set());
   const [isVoting, setIsVoting] = useState(false);
@@ -278,6 +282,16 @@ export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: Sw
         />
       ))}
       
+      {/* CELO Balance Display */}
+      {isConnected && celoBalance && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded-lg text-sm z-40">
+          <div className="flex items-center gap-2">
+            <span className="text-white/70">CELO Balance:</span>
+            <span className="font-semibold">{formatCELOBalance(celoBalance.value)} CELO</span>
+          </div>
+        </div>
+      )}
+      
       {currentMovies.length > 0 && (
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white/60 text-sm">
           {currentMovies.length} {currentMovies.length === 1 ? 'movie' : 'movies'} remaining
@@ -285,7 +299,7 @@ export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: Sw
       )}
       
       {txStatus && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded-lg text-sm z-50">
+        <div className="absolute top-16 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded-lg text-sm z-50">
           {txStatus}
         </div>
       )}
