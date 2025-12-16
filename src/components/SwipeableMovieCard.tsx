@@ -7,6 +7,7 @@ import { ensureFullPosterUrl } from "~/lib/utils";
 import { ThumbsUpIcon, ThumbsDownIcon } from "./icons";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "~/components/ui/card";
 import { Button } from "~/components/ui/Button";
+import MobileSwiper from "./MobileSwiper";
 
 // Helper component for swipe indicators
 function SwipeIndicator({ 
@@ -143,34 +144,82 @@ export function SwipeableMovieCard({
     }
   }, [isVoting]);
 
+  const handleMobileSwipe = async ({ deltaX, deltaY }: { deltaX: number; deltaY: number }) => {
+    // Only handle horizontal swipes (ignore vertical scrolling)
+    if (Math.abs(deltaY) > Math.abs(deltaX)) {
+      return; // Vertical swipe, ignore
+    }
+
+    const threshold = 100;
+    console.log('Mobile swipe detected:', { deltaX, deltaY, threshold });
+
+    if (Math.abs(deltaX) > threshold) {
+      const direction = deltaX > 0 ? 'right' : 'left';
+      
+      console.log('Mobile swipe direction:', direction);
+      
+      if (isVoting) {
+        console.log('Already voting, ignoring swipe');
+        return;
+      }
+      
+      setIsVoting(true);
+      setIsExiting(true);
+      
+      // Animate the card off screen
+      x.set(deltaX > 0 ? 1000 : -1000);
+      
+      // Call the swipe handler
+      console.log('Calling onSwipe with direction:', direction);
+      try {
+        await onSwipe(direction);
+      } catch (error) {
+        console.error('Error in onSwipe:', error);
+        // Reset state on error
+        setIsVoting(false);
+        setIsExiting(false);
+        x.set(0);
+        return;
+      }
+      
+      // Call completion callback if provided
+      if (onVoteComplete) {
+        setTimeout(() => {
+          onVoteComplete();
+        }, 300);
+      }
+    }
+  };
+
   return (
-    <motion.div
-      className="absolute inset-0 flex items-center justify-center touch-pan-y select-none"
-      style={{
-        x: index === 0 ? x : 0,
-        rotate: index === 0 ? rotate : 0,
-        opacity: index === 0 ? opacity : index < 3 ? 1 - index * 0.1 : 0,
-        zIndex: total - index,
-        touchAction: index === 0 ? 'pan-y' : 'none',
-        transform: index > 0 ? `scale(${1 - index * 0.05}) translateY(${index * 10}px)` : undefined,
-      }}
-      drag={index === 0 ? "x" : false}
-      dragConstraints={index === 0 ? { left: -400, right: 400 } : undefined}
-      dragElastic={index === 0 ? 0.35 : undefined}
-      onDragEnd={index === 0 ? handleDragEnd : undefined}
-      animate={index === 0 && isExiting ? {
-        x: x.get() > 0 ? 1000 : -1000,
-        opacity: 0,
-        scale: 0.8,
-      } : index === 0 ? {
-        x: 0,
-        opacity: 1,
-        scale: 1,
-      } : {}}
-      transition={{ type: "spring", stiffness: 280, damping: 28 }}
-      whileDrag={index === 0 ? { cursor: 'grabbing' } : undefined}
-      dragPropagation={false}
-    >
+    <MobileSwiper onSwipe={index === 0 ? handleMobileSwipe : () => {}}>
+      <motion.div
+        className="absolute inset-0 flex items-center justify-center touch-pan-y select-none"
+        style={{
+          x: index === 0 ? x : 0,
+          rotate: index === 0 ? rotate : 0,
+          opacity: index === 0 ? opacity : index < 3 ? 1 - index * 0.1 : 0,
+          zIndex: total - index,
+          touchAction: index === 0 ? 'pan-y' : 'none',
+          transform: index > 0 ? `scale(${1 - index * 0.05}) translateY(${index * 10}px)` : undefined,
+        }}
+        drag={index === 0 ? "x" : false}
+        dragConstraints={index === 0 ? { left: -400, right: 400 } : undefined}
+        dragElastic={index === 0 ? 0.35 : undefined}
+        onDragEnd={index === 0 ? handleDragEnd : undefined}
+        animate={index === 0 && isExiting ? {
+          x: x.get() > 0 ? 1000 : -1000,
+          opacity: 0,
+          scale: 0.8,
+        } : index === 0 ? {
+          x: 0,
+          opacity: 1,
+          scale: 1,
+        } : {}}
+        transition={{ type: "spring", stiffness: 280, damping: 28 }}
+        whileDrag={index === 0 ? { cursor: 'grabbing' } : undefined}
+        dragPropagation={false}
+      >
       <div className="w-full max-w-sm mx-auto">
         <Card className="relative overflow-hidden shadow-2xl select-none border-white/10 bg-[#23232B]">
           {/* Poster */}
@@ -314,7 +363,8 @@ export function SwipeableMovieCard({
           </CardContent>
         </Card>
       </div>
-    </motion.div>
+      </motion.div>
+    </MobileSwiper>
   );
 }
 
