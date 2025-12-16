@@ -17,7 +17,6 @@ import { Button } from "~/components/ui/Button";
 import Header from "~/components/Header";
 import { FarcasterConnectButton } from "~/components/FarcasterConnectButton";
 import { ThumbsDownIcon, ThumbsUpIcon } from "~/components/icons";
-import { HorizontalMovieCardSkeleton } from "~/components/MovieCardSkeleton";
 import { SwipeableMovies } from "~/components/SwipeableMovies";
 
 // Utils
@@ -415,21 +414,6 @@ export default function MediaPage() {
     }
   };
 
-  // Render loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="container mx-auto px-4 py-8">
-          <Header showSearch={false} />
-          <div className="grid grid-cols-1 gap-6 mt-8">
-            {[...Array(5)].map((_, i) => (
-              <HorizontalMovieCardSkeleton key={i} />
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="max-w-2xl mx-auto px-4">
@@ -462,43 +446,27 @@ export default function MediaPage() {
           </div>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="text-sm text-white/70">
-            Connect your Farcaster wallet to vote and track your activity.
-          </div>
-          <FarcasterConnectButton />
+          {isConnected && celoBalance ? (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-white/70">CELO Balance:</span>
+              <span className="text-white font-semibold">{formatCELOBalance(celoBalance.value)} CELO</span>
+            </div>
+          ) : (
+            <>
+              <div className="text-sm text-white/70">
+                Connect your Farcaster wallet to vote and track your activity.
+              </div>
+              <FarcasterConnectButton />
+            </>
+          )}
         </div>
       </div>
 
       {/* Swipeable View - Always show swipeable interface */}
       <div className="w-full">
         {loading ? (
-          <div className="relative h-[80vh] min-h-[520px]">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="relative w-full max-w-sm mx-auto">
-                {[0, 1, 2].map((i) => (
-                  <div
-                    key={i}
-                    className="absolute inset-0 mx-auto rounded-2xl border border-white/10 bg-[#23232B] shadow-2xl animate-pulse"
-                    style={{
-                      transform: `translateY(${i * 10}px) scale(${1 - i * 0.05})`,
-                      opacity: 1 - i * 0.2,
-                      zIndex: 3 - i,
-                    }}
-                  >
-                    <div className="aspect-[2/3] w-full bg-white/10" />
-                    <div className="p-4 space-y-3">
-                      <div className="h-4 bg-white/10 rounded w-3/4" />
-                      <div className="h-3 bg-white/10 rounded w-full" />
-                      <div className="h-3 bg-white/10 rounded w-5/6" />
-                      <div className="flex gap-2 pt-2">
-                        <div className="h-8 bg-white/10 rounded flex-1" />
-                        <div className="h-8 bg-white/10 rounded flex-1" />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+          <div className="relative h-[80vh] min-h-[520px] flex items-center justify-center">
+            <p className="text-white/70">Loading movies...</p>
           </div>
         ) : media.length === 0 ? (
           <div className="text-center py-12">
