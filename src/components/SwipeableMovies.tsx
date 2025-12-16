@@ -190,7 +190,11 @@ export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: Sw
         setVotedMovies(prev => new Set(prev).add(movieId));
         
         // Remove the current movie from the stack (it's already been voted on)
-        setCurrentMovies(prev => prev.slice(1));
+        setCurrentMovies(prev => {
+          const newMovies = prev.slice(1);
+          console.log('Removed movie from stack, remaining:', newMovies.length);
+          return newMovies;
+        });
 
         setTxStatus('Vote successful!');
         console.log(`Successfully voted ${vote} for movie ${movieId} - transaction confirmed and saved to Firebase`);
