@@ -88,15 +88,23 @@ export function SwipeableMovieCard({
     const threshold = 100;
     const velocity = info.velocity.x;
 
+    console.log('Drag ended:', { offset: info.offset.x, velocity, threshold });
+
     if (Math.abs(info.offset.x) > threshold || Math.abs(velocity) > 500) {
       const direction = info.offset.x > 0 ? 'right' : 'left';
       
-      if (isVoting) return; // Prevent multiple votes
+      console.log('Swipe detected:', direction);
+      
+      if (isVoting) {
+        console.log('Already voting, ignoring swipe');
+        return; // Prevent multiple votes
+      }
       
       setIsVoting(true);
       setIsExiting(true);
       
       // Call the swipe handler
+      console.log('Calling onSwipe with direction:', direction);
       await onSwipe(direction);
       
       // Call completion callback if provided
@@ -106,6 +114,7 @@ export function SwipeableMovieCard({
         }, 300);
       }
     } else {
+      console.log('Swipe threshold not met, springing back');
       // Spring back to center
       x.set(0);
     }
