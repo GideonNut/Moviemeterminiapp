@@ -5,6 +5,8 @@ import Image from 'next/image';
 import { motion, useMotionValue, useTransform } from 'motion/react';
 import { ensureFullPosterUrl } from "~/lib/utils";
 import { ThumbsUpIcon, ThumbsDownIcon } from "./icons";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "~/components/ui/card";
+import { Button } from "~/components/ui/Button";
 
 // Helper component for swipe indicators
 function SwipeIndicator({ 
@@ -145,7 +147,7 @@ export function SwipeableMovieCard({
       dragPropagation={false}
     >
       <div className="w-full max-w-sm mx-auto">
-        <div className="relative bg-[#23232B] rounded-2xl overflow-hidden shadow-2xl border border-white/10 select-none">
+        <Card className="relative overflow-hidden shadow-2xl select-none border-white/10 bg-[#23232B]">
           {/* Poster */}
           <div className="relative aspect-[2/3] w-full overflow-hidden">
             {fullPosterUrl ? (
@@ -168,7 +170,7 @@ export function SwipeableMovieCard({
               <>
                 <SwipeIndicator 
                   x={x} 
-                  direction="right" 
+                  direction="left" 
                   className="absolute top-8 left-8 px-4 py-2 bg-green-500/90 rounded-lg border-2 border-white"
                 >
                   <div className="flex items-center gap-2 text-white font-bold">
@@ -178,7 +180,7 @@ export function SwipeableMovieCard({
                 </SwipeIndicator>
                 <SwipeIndicator 
                   x={x} 
-                  direction="left" 
+                  direction="right" 
                   className="absolute top-8 right-8 px-4 py-2 bg-red-500/90 rounded-lg border-2 border-white"
                 >
                   <div className="flex items-center gap-2 text-white font-bold">
@@ -191,15 +193,17 @@ export function SwipeableMovieCard({
           </div>
 
           {/* Movie Info */}
-          <div className="p-6 bg-[#23232B]">
-            <div className="mb-4">
+          <CardContent className="p-6 bg-[#23232B]">
+            <CardHeader className="p-0 mb-4">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-2xl font-bold text-white line-clamp-2">{movie.title}</h3>
+                <CardTitle className="text-2xl font-bold text-white line-clamp-2">{movie.title}</CardTitle>
                 {movie.releaseYear && (
                   <span className="text-sm text-white/60 flex-shrink-0 ml-2">{movie.releaseYear}</span>
                 )}
               </div>
-              <p className="text-sm text-white/70 line-clamp-3 mb-3">{movie.description}</p>
+              <CardDescription className="text-sm text-white/70 line-clamp-3 mb-3">
+                {movie.description}
+              </CardDescription>
               
               {movie.genres && movie.genres.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-3">
@@ -213,7 +217,7 @@ export function SwipeableMovieCard({
                   ))}
                 </div>
               )}
-            </div>
+            </CardHeader>
 
             {/* Vote Counts */}
             <div className="flex items-center justify-between text-sm mb-4 pt-4 border-t border-white/10">
@@ -236,8 +240,8 @@ export function SwipeableMovieCard({
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-3 pointer-events-auto">
-              <button
+            <CardFooter className="p-0 flex gap-3 pointer-events-auto">
+              <Button
                 onClick={(e) => {
                   e.stopPropagation();
                   if (!isVoting) {
@@ -250,12 +254,13 @@ export function SwipeableMovieCard({
                   }
                 }}
                 disabled={isVoting}
-                className="flex-1 px-6 py-3 bg-red-500/20 hover:bg-red-500/30 border-2 border-red-500 rounded-lg text-white font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                variant="outline"
+                className="flex-1 bg-green-500/20 hover:bg-green-500/30 border-2 border-green-500 text-white"
               >
-                <ThumbsDownIcon size={20} />
-                <span>No</span>
-              </button>
-              <button
+                <ThumbsUpIcon size={20} />
+                <span>Yes</span>
+              </Button>
+              <Button
                 onClick={(e) => {
                   e.stopPropagation();
                   if (!isVoting) {
@@ -268,20 +273,21 @@ export function SwipeableMovieCard({
                   }
                 }}
                 disabled={isVoting}
-                className="flex-1 px-6 py-3 bg-green-500/20 hover:bg-green-500/30 border-2 border-green-500 rounded-lg text-white font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                variant="outline"
+                className="flex-1 bg-red-500/20 hover:bg-red-500/30 border-2 border-red-500 text-white"
               >
-                <ThumbsUpIcon size={20} />
-                <span>Yes</span>
-              </button>
-            </div>
+                <ThumbsDownIcon size={20} />
+                <span>No</span>
+              </Button>
+            </CardFooter>
 
             {isVoting && (
               <div className="mt-4 text-center text-white/60 text-sm">
                 Saving your vote...
               </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </motion.div>
   );
