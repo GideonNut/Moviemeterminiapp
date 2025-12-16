@@ -58,7 +58,17 @@ export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: Sw
   }, [movies, votedMovies]);
 
   const handleSwipe = async (direction: 'left' | 'right') => {
-    console.log('handleSwipe called:', { direction, currentMoviesLength: currentMovies.length, isVoting });
+    console.log('=== handleSwipe START ===');
+    console.log('handleSwipe called:', { 
+      direction, 
+      currentMoviesLength: currentMovies.length, 
+      isVoting,
+      isConnected,
+      hasUser: !!user,
+      address,
+      walletClient: !!walletClient,
+      chainId
+    });
     
     if (currentMovies.length === 0 || isVoting) {
       console.log('Swipe blocked:', { currentMoviesLength: currentMovies.length, isVoting });
@@ -153,21 +163,32 @@ export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: Sw
       });
 
       // Send transaction using wagmi wallet client
-      console.log('Sending transaction with:', {
+      console.log('=== SENDING TRANSACTION ===');
+      console.log('Transaction details:', {
         account: address,
         to: VOTE_CONTRACT_ADDRESS,
         dataLength: calldata.length,
-        value: 0n
+        data: calldata,
+        value: 0n,
+        contractId,
+        movieId,
+        vote
       });
       
-      const txHash = await walletClient.sendTransaction({
-        account: address,
-        to: VOTE_CONTRACT_ADDRESS,
-        data: calldata as `0x${string}`,
-        value: 0n
-      });
-      
-      console.log('Transaction sent, hash:', txHash);
+      let txHash: `0x${string}`;
+      try {
+        txHash = await walletClient.sendTransaction({
+          account: address,
+          to: VOTE_CONTRACT_ADDRESS,
+          data: calldata as `0x${string}`,
+          value: 0n
+        });
+        
+        console.log('✅ Transaction sent successfully, hash:', txHash);
+      } catch (txError) {
+        console.error('❌ Transaction send failed:', txError);
+        throw txError;
+      }
 
       console.log('Transaction hash:', txHash);
       setTxStatus('Transaction submitted! Waiting for confirmation...');
