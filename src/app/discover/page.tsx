@@ -78,7 +78,7 @@ export default function DiscoverPage() {
           <section className="mb-8 w-full text-center">
             <h1 className="text-3xl font-bold text-white mb-2">Swipe to Vote on Movies</h1>
             <p className="text-white/70 max-w-2xl mx-auto">
-              Swipe right to vote Yes, swipe left to vote No. Your votes are saved to Firebase!
+              Swipe left to vote Yes, swipe right to vote No. Your votes are saved to Firebase!
             </p>
           </section>
           <div className="bg-[#18181B] rounded-2xl shadow-lg p-6 w-full max-w-md">
@@ -88,9 +88,10 @@ export default function DiscoverPage() {
               <div className="text-white text-center py-16 text-lg font-medium">No movies found.</div>
             ) : (
               <SwipeableMovies 
-                movies={movies} 
+                movies={movies}
+                allMedia={movies as any} // Pass movies as allMedia for contractId calculation
                 onMoviesExhausted={handleMoviesExhausted}
-              />
+                  />
             )}
           </div>
         </div>
