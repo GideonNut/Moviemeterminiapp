@@ -36,7 +36,7 @@ interface SwipeableMoviesProps {
 export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: SwipeableMoviesProps) {
   const { user, isConnected, isLoading, connect } = useFarcasterAuth();
   const { address } = useAccount();
-  const { data: walletClient } = useWalletClient();
+  const { data: walletClient, isLoading: walletClientLoading } = useWalletClient();
   const chainId = useChainId();
   const { data: celoBalance } = useBalance({
     address: address,
@@ -99,11 +99,27 @@ export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: Sw
         throw new Error('Please switch to a Celo network (testnet or mainnet) before voting.');
       }
 
-      console.log('Wallet check:', { address: !!address, walletClient: !!walletClient });
-      if (!address || !walletClient) {
-        console.error('Wallet not available:', { address, walletClient });
-        throw new Error('Wallet not connected');
+      console.log('Wallet check:', { 
+        address: !!address, 
+        walletClient: !!walletClient,
+        addressValue: address,
+        walletClientValue: walletClient 
+      });
+      
+      if (!address) {
+        console.error('No address available');
+        throw new Error('Wallet address not available. Please reconnect your wallet.');
       }
+      
+      if (!walletClient) {
+        console.error('Wallet client not available');
+        if (walletClientLoading) {
+          throw new Error('Wallet is still connecting. Please wait a moment and try again.');
+        }
+        throw new Error('Wallet client not available. Please ensure your wallet is connected and try again.');
+      }
+      
+      console.log('Wallet client available, proceeding with transaction');
 
       // Get contract ID for the movie
       // If allMedia is provided, use it; otherwise try to use movies array if they have createdAt
@@ -137,12 +153,21 @@ export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: Sw
       });
 
       // Send transaction using wagmi wallet client
+      console.log('Sending transaction with:', {
+        account: address,
+        to: VOTE_CONTRACT_ADDRESS,
+        dataLength: calldata.length,
+        value: 0n
+      });
+      
       const txHash = await walletClient.sendTransaction({
         account: address,
         to: VOTE_CONTRACT_ADDRESS,
         data: calldata as `0x${string}`,
         value: 0n
       });
+      
+      console.log('Transaction sent, hash:', txHash);
 
       console.log('Transaction hash:', txHash);
       setTxStatus('Transaction submitted! Waiting for confirmation...');
