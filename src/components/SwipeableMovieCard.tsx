@@ -118,32 +118,28 @@ export function SwipeableMovieCard({
     setIsVoting(false);
   }, [movie.id, x]);
 
-  // Only show the top card
-  if (index !== 0) {
-    return null;
-  }
-
   return (
     <motion.div
       className="absolute inset-0 flex items-center justify-center touch-pan-y select-none"
       style={{
-        x,
-        rotate,
-        opacity: index === 0 ? opacity : 0,
+        x: index === 0 ? x : 0,
+        rotate: index === 0 ? rotate : 0,
+        opacity: index === 0 ? opacity : index < 3 ? 1 - index * 0.1 : 0,
         zIndex: total - index,
-        touchAction: 'pan-y',
+        touchAction: index === 0 ? 'pan-y' : 'none',
+        transform: index > 0 ? `scale(${1 - index * 0.05}) translateY(${index * 10}px)` : undefined,
       }}
-      drag="x"
-      dragConstraints={{ left: -400, right: 400 }}
-      dragElastic={0.35}
-      onDragEnd={handleDragEnd}
-      animate={isExiting ? {
+      drag={index === 0 ? "x" : false}
+      dragConstraints={index === 0 ? { left: -400, right: 400 } : undefined}
+      dragElastic={index === 0 ? 0.35 : undefined}
+      onDragEnd={index === 0 ? handleDragEnd : undefined}
+      animate={index === 0 && isExiting ? {
         x: x.get() > 0 ? 1000 : -1000,
         opacity: 0,
         scale: 0.8,
       } : {}}
       transition={{ type: "spring", stiffness: 280, damping: 28 }}
-      whileDrag={{ cursor: 'grabbing' }}
+      whileDrag={index === 0 ? { cursor: 'grabbing' } : undefined}
       dragPropagation={false}
     >
       <div className="w-full max-w-sm mx-auto">
