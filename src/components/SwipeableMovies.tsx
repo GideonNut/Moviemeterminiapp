@@ -58,10 +58,16 @@ export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: Sw
   }, [movies, votedMovies]);
 
   const handleSwipe = async (direction: 'left' | 'right') => {
-    if (currentMovies.length === 0 || isVoting) return;
+    console.log('handleSwipe called:', { direction, currentMoviesLength: currentMovies.length, isVoting });
+    
+    if (currentMovies.length === 0 || isVoting) {
+      console.log('Swipe blocked:', { currentMoviesLength: currentMovies.length, isVoting });
+      return;
+    }
 
     // Check if user is connected, if not, prompt to connect
     if (!isConnected || !user) {
+      console.log('User not connected, attempting to connect');
       try {
         setIsConnecting(true);
         await connect();
@@ -87,11 +93,15 @@ export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: Sw
 
     try {
       // Check if we're on a Celo network
+      console.log('Chain ID:', chainId);
       if (chainId !== 42220 && chainId !== 44787) {
+        console.error('Not on Celo network, current chainId:', chainId);
         throw new Error('Please switch to a Celo network (testnet or mainnet) before voting.');
       }
 
+      console.log('Wallet check:', { address: !!address, walletClient: !!walletClient });
       if (!address || !walletClient) {
+        console.error('Wallet not available:', { address, walletClient });
         throw new Error('Wallet not connected');
       }
 
@@ -192,18 +202,26 @@ export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: Sw
       }
     } catch (error) {
       console.error('Error voting:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        error
+      });
       setTxStatus('');
       
       // Handle specific error types
       if (error instanceof Error) {
-        if (error.message.includes('User rejected')) {
+        const errorMsg = error.message;
+        if (errorMsg.includes('User rejected') || errorMsg.includes('user rejected')) {
           alert('Transaction was cancelled. Please try again.');
-        } else if (error.message.includes('insufficient funds') || error.message.includes('gas')) {
+        } else if (errorMsg.includes('insufficient funds') || errorMsg.includes('gas') || errorMsg.includes('Insufficient')) {
           alert('Insufficient CELO for gas fees. Please add more CELO to your wallet.');
         } else {
-          alert(error.message);
+          console.error('Voting error:', errorMsg);
+          alert(`Error: ${errorMsg}`);
         }
       } else {
+        console.error('Unknown voting error:', error);
         alert('An error occurred while voting. Please try again.');
       }
     } finally {
