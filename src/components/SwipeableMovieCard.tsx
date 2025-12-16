@@ -105,7 +105,16 @@ export function SwipeableMovieCard({
       
       // Call the swipe handler
       console.log('Calling onSwipe with direction:', direction);
-      await onSwipe(direction);
+      try {
+        await onSwipe(direction);
+      } catch (error) {
+        console.error('Error in onSwipe:', error);
+        // Reset state on error
+        setIsVoting(false);
+        setIsExiting(false);
+        x.set(0);
+        return;
+      }
       
       // Call completion callback if provided
       if (onVoteComplete) {
@@ -127,6 +136,13 @@ export function SwipeableMovieCard({
     setIsVoting(false);
   }, [movie.id, x]);
 
+  // Reset voting state when it becomes false externally (after transaction completes)
+  useEffect(() => {
+    if (!isVoting) {
+      setIsExiting(false);
+    }
+  }, [isVoting]);
+
   return (
     <motion.div
       className="absolute inset-0 flex items-center justify-center touch-pan-y select-none"
@@ -146,6 +162,10 @@ export function SwipeableMovieCard({
         x: x.get() > 0 ? 1000 : -1000,
         opacity: 0,
         scale: 0.8,
+      } : index === 0 ? {
+        x: 0,
+        opacity: 1,
+        scale: 1,
       } : {}}
       transition={{ type: "spring", stiffness: 280, damping: 28 }}
       whileDrag={index === 0 ? { cursor: 'grabbing' } : undefined}
