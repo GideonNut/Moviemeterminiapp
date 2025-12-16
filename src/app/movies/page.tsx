@@ -12,7 +12,7 @@ import { useSession } from 'next-auth/react';
 
 // Components
 import WatchlistButton from "~/components/WatchlistButton";
-import { Card, CardContent, CardTitle, CardDescription } from "~/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/components/ui/card";
 import { Button } from "~/components/ui/Button";
 import Header from "~/components/Header";
 import { FarcasterConnectButton } from "~/components/FarcasterConnectButton";
@@ -473,14 +473,15 @@ export default function MediaPage() {
             <p className="text-muted-foreground">No media found.</p>
           </div>
         ) : (
-          <div className="bg-[#18181B] rounded-2xl shadow-lg p-6">
-            <div className="mb-4 text-center">
-              <h2 className="text-xl font-semibold text-white mb-2">Swipe to Vote</h2>
-              <p className="text-white/70 text-sm">
+          <Card className="bg-[#18181B] border-white/10">
+            <CardHeader className="text-center pb-4">
+              <CardTitle className="text-xl font-semibold text-white mb-2">Swipe to Vote</CardTitle>
+              <CardDescription className="text-white/70 text-sm">
                 Swipe left for Yes, swipe right for No. All votes are saved to Firebase!
-              </p>
-            </div>
-            <SwipeableMovies 
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 pt-0">
+              <SwipeableMovies 
               allMedia={media}
               movies={media.map(item => {
                 // Handle releaseYear - convert Date to string if needed
@@ -518,7 +519,8 @@ export default function MediaPage() {
                 console.log('All movies voted on');
               }}
             />
-          </div>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>
