@@ -4,7 +4,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "~/components/providers/Providers";
 import { ConditionalLayout } from "~/components/ConditionalLayout";
-import FarcasterReady from "~/components/FarcasterReady";
+import FarcasterReady from "~/components/auth/FarcasterReady";
 
 const inter = Inter({ subsets: ["latin"] });
 
