@@ -11,13 +11,13 @@ import Image from "next/image";
 import { useSession } from 'next-auth/react';
 
 // Components
-import WatchlistButton from "~/components/WatchlistButton";
+import WatchlistButton from "~/components/watchlist/WatchlistButton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/components/ui/card";
 import { Button } from "~/components/ui/Button";
-import Header from "~/components/Header";
-import { FarcasterConnectButton } from "~/components/FarcasterConnectButton";
+import Header from "~/components/navigation/Header";
+import { FarcasterConnectButton } from "~/components/auth/FarcasterConnectButton";
 import { ThumbsDownIcon, ThumbsUpIcon } from "~/components/icons";
-import { SwipeableMovies } from "~/components/SwipeableMovies";
+import { SwipeableMovies } from "~/components/movies/SwipeableMovies";
 
 // Utils
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
