@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/Button";
-import Header from "~/components/Header";
+import Header from "~/components/navigation/Header";
 import { RefreshCw, AlertCircle, CheckCircle } from "lucide-react";
 
 interface ContractMovie {
