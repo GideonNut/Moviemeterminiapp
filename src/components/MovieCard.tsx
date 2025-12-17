@@ -3,7 +3,7 @@ import { useSession } from 'next-auth/react';
 import { Button } from "./ui/Button";
 import Image from 'next/image';
 import { useRouter } from "next/navigation";
-import { ensureFullPosterUrl } from "~/lib/utils";
+import { ensureFullPosterUrl } from "~/lib/images/utils";
 import { ThumbsDownIcon, ThumbsUpIcon } from "./icons";
 
 interface Movie {
