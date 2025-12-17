@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Users, Flame, ArrowLeft, RefreshCw, Loader2, Award } from "lucide-react";
 import { TrophyIcon } from '~/components/icons';
 import { useAccount } from "wagmi";
-import Header from "~/components/Header";
+import Header from "~/components/navigation/Header";
 import { Button } from "~/components/ui/Button";
 import { Skeleton } from "~/components/ui/Skeleton";
 
