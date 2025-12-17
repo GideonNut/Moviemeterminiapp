@@ -4,11 +4,11 @@ import { Card, CardContent, CardTitle, CardDescription } from "~/components/ui/c
 import { Button } from "~/components/ui/Button";
 import Image from "next/image";
 import Link from "next/link";
-import Header from "~/components/Header";
+import Header from "~/components/navigation/Header";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Bell, BellOff, RefreshCw, Heart } from "lucide-react";
 import { useAccount } from "wagmi";
-import { ensureFullPosterUrl } from "~/lib/utils";
+import { ensureFullPosterUrl } from "~/lib/images/utils";
 import { Skeleton } from "~/components/ui/Skeleton";
 
 interface Movie {
