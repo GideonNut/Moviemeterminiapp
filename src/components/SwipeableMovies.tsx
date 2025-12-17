@@ -5,10 +5,11 @@ import { useFarcasterAuth } from '~/contexts/FarcasterAuthContext';
 import { useAccount, useWalletClient, useChainId, useBalance } from 'wagmi';
 import { encodeFunctionData, createPublicClient, http } from 'viem';
 import { celo } from 'viem/chains';
-import { SwipeableMovieCard } from './SwipeableMovieCard';
+import { SwipeableMovieCard } from './movies/SwipeableMovieCard';
 import { Button } from './ui/Button';
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from '~/constants/voteContract';
-import { getContractIdForMovie, hasSufficientCELOForGas, formatCELOBalance } from '~/lib/utils';
+import { getContractIdForMovie } from '~/lib/movies/utils';
+import { hasSufficientCELOForGas, formatCELOBalance } from '~/lib/blockchain/utils';
 import { submitReferral } from '@divvi/referral-sdk';
 import type { MediaItem } from '~/types';
 
