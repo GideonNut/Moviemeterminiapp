@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Button } from "~/components/ui/Button";
 import { Bell, BellOff, RefreshCw } from "lucide-react";
 import { useAccount } from "wagmi";
-import { cn } from "~/lib/utils";
+import { cn } from "~/lib/common/utils";
 import { Skeleton } from "~/components/ui/Skeleton";
 
 interface WatchlistButtonProps {
