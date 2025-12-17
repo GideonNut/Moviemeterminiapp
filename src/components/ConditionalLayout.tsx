@@ -1,7 +1,7 @@
 "use client";
 
 import { useOnboarding } from "~/hooks/onboarding";
-import BottomNav from "~/components/BottomNav";
+import BottomNav from "~/components/navigation/BottomNav";
 
 interface ConditionalLayoutProps {
   children: React.ReactNode;
