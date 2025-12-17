@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, useMotionValue, useTransform } from 'motion/react';
-import { ensureFullPosterUrl } from "~/lib/utils";
+import { ensureFullPosterUrl } from "~/lib/images/utils";
 import { ThumbsUpIcon, ThumbsDownIcon } from "./icons";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "~/components/ui/card";
 import { Button } from "~/components/ui/Button";
