@@ -4,7 +4,7 @@ import { Button } from "~/components/ui/Button";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Gift, Coins, Star } from "lucide-react";
 import {  TrophyIcon } from '~/components/icons'
-import Header from "~/components/Header";
+import Header from "~/components/navigation/Header";
 import { useAccount } from "wagmi";
 import { useState, useEffect } from "react";
 
