@@ -421,28 +421,28 @@ export default function MediaPage() {
       <Header showSearch={false} />
       <div className="flex flex-col gap-3 md:gap-4 mb-6">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.back()}
-              className="rounded-full"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="text-2xl font-bold">Movies & TV Shows</h1>
-          </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.back()}
+            className="rounded-full"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-2xl font-bold">Movies & TV Shows</h1>
+        </div>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchAllMedia}
-              disabled={loading}
-              className="flex items-center space-x-2"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
-            </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={fetchAllMedia}
+          disabled={loading}
+          className="flex items-center space-x-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <span>Refresh</span>
+        </Button>
           </div>
         </div>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -517,10 +517,10 @@ export default function MediaPage() {
               })}
               onMoviesExhausted={() => {
                 console.log('All movies voted on');
-              }}
+                      }}
             />
             </CardContent>
-          </Card>
+            </Card>
         )}
       </div>
     </div>
