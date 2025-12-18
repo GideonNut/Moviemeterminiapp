@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import SwipeableViews from 'react-swipeable-views';
 import { useFarcasterAuth } from '~/contexts/FarcasterAuthContext';
 import { useAccount, useWalletClient, useChainId, useBalance } from 'wagmi';
 import { encodeFunctionData, createPublicClient, http } from 'viem';
@@ -48,6 +49,7 @@ export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: Sw
   const [isVoting, setIsVoting] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [txStatus, setTxStatus] = useState<string>('');
+  const [slideIndex, setSlideIndex] = useState(0);
 
   // Initialize with movies that haven't been voted on
   useEffect(() => {
@@ -56,6 +58,7 @@ export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: Sw
       return !votedMovies.has(movieId);
     });
     setCurrentMovies(unvotedMovies);
+    setSlideIndex(0);
   }, [movies, votedMovies]);
 
   const handleSwipe = async (direction: 'left' | 'right') => {
@@ -238,10 +241,15 @@ export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: Sw
         
         // Remove the current movie from the stack (it's already been voted on)
         setCurrentMovies(prev => {
-          const newMovies = prev.slice(1);
+          const newMovies = prev.filter(m => (m.id || m._id) !== movieId);
           console.log('Removed movie from stack, remaining:', newMovies.length);
           return newMovies;
         });
+
+        // Adjust slide index if needed
+        if (slideIndex >= currentMovies.length - 1) {
+          setSlideIndex(Math.max(0, currentMovies.length - 2));
+        }
 
         setTxStatus('Vote successful!');
         console.log(`Successfully voted ${vote} for movie ${movieId} - transaction confirmed and saved to Firebase`);
@@ -338,18 +346,62 @@ export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: Sw
     );
   }
 
+  const handleChangeIndex = (index: number) => {
+    setSlideIndex(index);
+  };
+
+  const handleSwipeLeft = () => {
+    if (slideIndex < currentMovies.length) {
+      handleSwipe('left');
+    }
+  };
+
+  const handleSwipeRight = () => {
+    if (slideIndex < currentMovies.length) {
+      handleSwipe('right');
+    }
+  };
+
   return (
     <div className="relative w-full max-w-sm mx-auto h-[80vh] min-h-[520px] overflow-hidden flex items-center justify-center">
-      {currentMovies.slice(0, 3).map((movie, index) => (
-        <SwipeableMovieCard
-          key={movie.id || movie._id || index}
-          movie={movie}
-          onSwipe={handleSwipe}
-          onVoteComplete={handleVoteComplete}
-          index={index}
-          total={Math.min(currentMovies.length, 3)}
-        />
-      ))}
+      <SwipeableViews
+        index={slideIndex}
+        onChangeIndex={handleChangeIndex}
+        enableMouseEvents
+        resistance
+        style={{ width: '100%', height: '100%' }}
+        slideStyle={{ 
+          padding: '0 10px', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          height: '100%'
+        }}
+      >
+        {currentMovies.map((movie, idx) => (
+          <div 
+            key={movie.id || movie._id || idx} 
+            style={{ 
+              width: '100%', 
+              height: '100%', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center' 
+            }}
+          >
+            <SwipeableMovieCard
+              movie={movie}
+              onSwipe={idx === slideIndex ? (direction) => {
+                if (direction === 'left') handleSwipeLeft();
+                else handleSwipeRight();
+              } : () => {}}
+              onVoteComplete={handleVoteComplete}
+              index={idx === slideIndex ? 0 : 1}
+              total={currentMovies.length}
+            />
+          </div>
+        ))}
+      </SwipeableViews>
       
       {/* CELO Balance Display */}
       {isConnected && celoBalance && (
