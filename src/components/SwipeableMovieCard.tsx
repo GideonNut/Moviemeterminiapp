@@ -22,24 +22,24 @@ function SwipeIndicator({
   children: React.ReactNode;
 }) {
   const opacity = useTransform(x, direction === 'right' 
-    ? [0, 100] 
-    : [-100, 0], 
+    ? [0, 150] 
+    : [-150, 0], 
     direction === 'right' 
     ? [0, 1] 
     : [1, 0]
   );
-  const rotate = useTransform(x, direction === 'right'
-    ? [0, 100]
-    : [-100, 0],
+  const scale = useTransform(x, direction === 'right'
+    ? [0, 150]
+    : [-150, 0],
     direction === 'right'
-    ? [-10, 0]
-    : [0, 10]
+    ? [0.8, 1]
+    : [1, 0.8]
   );
 
   return (
     <motion.div
       className={className}
-      style={{ opacity, rotate }}
+      style={{ opacity, scale }}
     >
       {children}
     </motion.div>
@@ -79,8 +79,10 @@ export function SwipeableMovieCard({
   const [isVoting, setIsVoting] = useState(false);
   const [isExiting, setIsExiting] = useState(false);
   const x = useMotionValue(0);
-  const rotate = useTransform(x, [-200, 200], [-25, 25]);
-  const opacity = useTransform(x, [-200, -100, 0, 100, 200], [0, 1, 1, 1, 0]);
+  const scale = useTransform(x, [-300, 0, 300], [0.7, 1, 0.7]);
+  const rotate = useTransform(x, [-300, 0, 300], [-25, 0, 25]);
+  const opacity = useTransform(x, [-300, -150, 0, 150, 300], [0, 1, 1, 1, 0]);
+  const blur = useTransform(x, [-300, 0, 300], [10, 0, 10]);
   
   const fullPosterUrl = movie.posterUrl ? ensureFullPosterUrl(movie.posterUrl) : null;
   const movieId = movie.id || movie._id || '';
@@ -197,8 +199,10 @@ export function SwipeableMovieCard({
         className="absolute inset-0 flex items-center justify-center touch-pan-y select-none"
         style={{
           x: index === 0 ? x : 0,
+          scale: index === 0 ? scale : index < 3 ? 1 - index * 0.05 : 0.9,
           rotate: index === 0 ? rotate : 0,
           opacity: index === 0 ? opacity : index < 3 ? 1 - index * 0.1 : 0,
+          filter: index === 0 ? `blur(${blur}px)` : undefined,
           zIndex: total - index,
           touchAction: index === 0 ? 'pan-y' : 'none',
           transform: index > 0 ? `scale(${1 - index * 0.05}) translateY(${index * 10}px)` : undefined,
@@ -210,11 +214,13 @@ export function SwipeableMovieCard({
         animate={index === 0 && isExiting ? {
           x: x.get() > 0 ? 1000 : -1000,
           opacity: 0,
-          scale: 0.8,
+          scale: 0.5,
+          rotate: x.get() > 0 ? 45 : -45,
         } : index === 0 ? {
           x: 0,
           opacity: 1,
           scale: 1,
+          rotate: 0,
         } : {}}
         transition={{ type: "spring", stiffness: 280, damping: 28 }}
         whileDrag={index === 0 ? { cursor: 'grabbing' } : undefined}
@@ -245,21 +251,27 @@ export function SwipeableMovieCard({
                 <SwipeIndicator 
                   x={x} 
                   direction="left" 
-                  className="absolute top-8 left-8 px-4 py-2 bg-green-500/90 rounded-lg border-2 border-white"
+                  className="absolute top-8 left-8 px-6 py-3 bg-green-500/90 rounded-xl border-2 border-white shadow-lg"
                 >
                   <div className="flex items-center gap-2 text-white font-bold">
-                    <ThumbsUpIcon size={24} />
-                    <span>YES</span>
+                    <ThumbsUpIcon size={28} />
+                    <div className="flex flex-col">
+                      <span className="text-lg">SWIPE LEFT</span>
+                      <span className="text-sm opacity-80">YES</span>
+                    </div>
                   </div>
                 </SwipeIndicator>
                 <SwipeIndicator 
                   x={x} 
                   direction="right" 
-                  className="absolute top-8 right-8 px-4 py-2 bg-red-500/90 rounded-lg border-2 border-white"
+                  className="absolute top-8 right-8 px-6 py-3 bg-red-500/90 rounded-xl border-2 border-white shadow-lg"
                 >
                   <div className="flex items-center gap-2 text-white font-bold">
-                    <ThumbsDownIcon size={24} />
-                    <span>NO</span>
+                    <div className="flex flex-col">
+                      <span className="text-lg">SWIPE RIGHT</span>
+                      <span className="text-sm opacity-80">NO</span>
+                    </div>
+                    <ThumbsDownIcon size={28} />
                   </div>
                 </SwipeIndicator>
               </>
