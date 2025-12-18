@@ -5,6 +5,7 @@ import { base, degen, mainnet, optimism, unichain } from "wagmi/chains";
 import type { Chain } from "wagmi/chains";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { farcasterFrame } from "@farcaster/frame-wagmi-connector";
+import { farcasterMiniApp as miniAppConnector } from "@farcaster/miniapp-wagmi-connector";
 import { coinbaseWallet, metaMask, injected } from 'wagmi/connectors';
 import { APP_NAME, APP_ICON_URL, APP_URL } from "~/lib/constants";
 import { useEffect, useState } from "react";
@@ -65,7 +66,14 @@ const isBrowser = typeof window !== 'undefined';
 const getConnectors = () => {
   const connectors = [];
 
-  // Add MetaMask connector first if available
+  // Add Farcaster Mini App connector first (for Mini Apps)
+  // This will automatically connect if user already has a connected wallet
+  connectors.push(miniAppConnector());
+
+  // Add Farcaster Frame connector (for Frames)
+  connectors.push(farcasterFrame());
+
+  // Add MetaMask connector if available
   if (isBrowser && (window.ethereum?.isMetaMask || window.ethereum?.providers?.some((p: any) => p.isMetaMask))) {
     connectors.push(
       metaMask({
@@ -87,9 +95,6 @@ const getConnectors = () => {
       appLogoUrl: APP_ICON_URL,
     })
   );
-
-  // Add Farcaster Frame
-  connectors.push(farcasterFrame());
 
   // Add generic injected connector as fallback
   if (isBrowser && window.ethereum) {
