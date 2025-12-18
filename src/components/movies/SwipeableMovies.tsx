@@ -389,18 +389,18 @@ export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: Sw
               justifyContent: 'center' 
             }}
           >
-            <SwipeableMovieCard
-              movie={movie}
+        <SwipeableMovieCard
+          movie={movie}
               onSwipe={idx === slideIndex ? (direction) => {
                 if (direction === 'left') handleSwipeLeft();
                 else handleSwipeRight();
               } : () => {}}
-              onVoteComplete={handleVoteComplete}
+          onVoteComplete={handleVoteComplete}
               index={idx === slideIndex ? 0 : 1}
               total={currentMovies.length}
-            />
+        />
           </div>
-        ))}
+      ))}
       </SwipeableViews>
       
       {/* CELO Balance Display */}
