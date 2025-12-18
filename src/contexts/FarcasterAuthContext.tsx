@@ -30,19 +30,25 @@ export function FarcasterAuthProvider({ children }: { children: React.ReactNode 
   const [user, setUser] = useState<FarcasterUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Find the Farcaster connector
+  // Find the Farcaster connector (Mini App or Frame)
   const farcasterConnector = useMemo(() => {
+    // Prioritize Mini App connector, then Frame connector
     return connectors.find(c => 
+      c.id === 'farcasterMiniApp' ||
       c.id === 'farcasterFrame' || 
       c.name === 'Farcaster' ||
+      c.type === 'farcasterMiniApp' ||
       c.type === 'farcasterFrame'
     );
   }, [connectors]);
 
-  // Check if connected via Farcaster
+  // Check if connected via Farcaster (Mini App or Frame)
   const isConnected = wagmiConnected && (
+    connector?.id === 'farcasterMiniApp' ||
     connector?.id === 'farcasterFrame' || 
-    connector?.name === 'Farcaster'
+    connector?.name === 'Farcaster' ||
+    connector?.type === 'farcasterMiniApp' ||
+    connector?.type === 'farcasterFrame'
   );
 
   // Fetch Farcaster user info when connected
@@ -75,7 +81,7 @@ export function FarcasterAuthProvider({ children }: { children: React.ReactNode 
                 displayName: userData.displayName,
                 pfp: userData.pfp,
                 address: address,
-              });
+        });
             } else {
               // Fallback: use FID and address if API call fails
               setUser({
@@ -118,15 +124,15 @@ export function FarcasterAuthProvider({ children }: { children: React.ReactNode 
     if (!farcasterConnector) {
       throw new Error('Farcaster connector not available');
     }
-
+    
     try {
-      setIsLoading(true);
+        setIsLoading(true);
       await wagmiConnect({ connector: farcasterConnector });
     } catch (error) {
       console.error('Error connecting to Farcaster:', error);
       throw error;
     } finally {
-      setIsLoading(false);
+        setIsLoading(false);
     }
   };
 
