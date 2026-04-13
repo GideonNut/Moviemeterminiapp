@@ -69,6 +69,13 @@ export default function HomePage() {
             <p className="text-muted-foreground max-w-2xl mx-auto">
               Swipe left to vote Yes, swipe right to vote No.
             </p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              Building for MiniPay?{" "}
+              <a className="font-medium text-primary underline underline-offset-4" href="/build-on-minipay">
+                View the MiniPay builder guide
+              </a>
+              .
+            </p>
           </section>
           <Card className="bg-card border-border rounded-2xl shadow-lg p-6 w-full max-w-md">
             <CardContent className="p-0">
