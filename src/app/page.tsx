@@ -72,7 +72,7 @@ export default function HomePage() {
             <p className="mt-3 text-sm text-muted-foreground">
               Building for MiniPay?{" "}
               <a className="font-medium text-primary underline underline-offset-4" href="/build-on-minipay">
-                View the MiniPay builder guide
+                Open the MiniPay build checklist
               </a>
               .
             </p>
