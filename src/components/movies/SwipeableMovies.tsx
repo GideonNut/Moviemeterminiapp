@@ -234,10 +234,15 @@ export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: Sw
       // submitReferral after initiating tx
       submitReferral({ txHash: txHash ?? '0x', chainId }).catch(() => null);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (/rejected|cancelled/i.test(msg)) addToast('Cancelled', 'error');
-      else if (/insufficient|gas/i.test(msg)) addToast('Not enough CELO for gas', 'error');
-      else addToast('Transaction failed', 'error');
+      // MiniPay docs: prefer error.code / error.name over error.message text matching
+      const e = err as Error & { code?: number; name?: string };
+      if (e.code === -32604 || e.name === 'UserRejectedRequestError' || e.name === 'TransactionExecutionError') {
+        addToast('Cancelled', 'info');
+      } else if (e.code === -32603 || e.name === 'InsufficientFundsError') {
+        addToast('Not enough CELO for network fee', 'error');
+      } else {
+        addToast('Transaction failed', 'error');
+      }
       setPendingVote(null);
       setIsVoting(false);
     }
