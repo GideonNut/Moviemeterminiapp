@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSession } from 'next-auth/react';
+import { useAccount } from 'wagmi';
 import SearchBar from '../SearchBar';
 import { BookmarkIcon, TrophyIcon, GiftIcon } from '../icons';
 
@@ -21,7 +22,8 @@ interface HeaderProps {
 }
 
 export default function Header({ showSearch = false, onSearch, movies = [] }: HeaderProps) {
-  const { data: session } = useSession();
+  useSession();
+  const { address, isConnected } = useAccount();
 
   return (
     <header data-slot="header" className="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border">
@@ -41,6 +43,17 @@ export default function Header({ showSearch = false, onSearch, movies = [] }: He
           
           {/* Right section */}
           <div className="flex items-center gap-4">
+            {/* 🔧 TEMP: wallet debug */}
+            {isConnected && address && (
+              <span className="text-[10px] font-mono text-green-400 bg-green-400/10 border border-green-400/20 rounded px-2 py-0.5 max-w-[100px] truncate" title={address}>
+                {address.slice(0, 6)}…{address.slice(-4)}
+              </span>
+            )}
+            {!isConnected && (
+              <span className="text-[10px] font-mono text-red-400 bg-red-400/10 border border-red-400/20 rounded px-2 py-0.5">
+                no wallet
+              </span>
+            )}
             <Link 
               href="/leaderboards" 
               className="text-foreground/70 hover:text-foreground transition-colors focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-md outline-none group"
