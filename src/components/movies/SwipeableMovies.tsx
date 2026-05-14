@@ -285,7 +285,7 @@ export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: Sw
             aria-label="No"
             disabled={isVoting}
             onClick={() => cardRef.current?.triggerVote('left')}
-            className="w-12 h-12 rounded-full bg-[#181818] flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40"
+            className="w-[62px] h-[62px] rounded-full bg-[#181818] flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40"
           >
             <XIcon />
           </button>
@@ -297,7 +297,7 @@ export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: Sw
             aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
             disabled={savingWatchlist}
             onClick={handleWatchlist}
-            className="w-9 h-9 rounded-full bg-[#181818] flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40"
+            className="w-[50px] h-[50px] rounded-full bg-[#181818] flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40"
           >
             <BookmarkIcon filled={isInWatchlist} />
           </button>
@@ -310,7 +310,7 @@ export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: Sw
             aria-label="Yes"
             disabled={isVoting}
             onClick={() => cardRef.current?.triggerVote('right')}
-            className="w-12 h-12 rounded-full bg-[#181818] flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40"
+            className="w-[62px] h-[62px] rounded-full bg-[#181818] flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40"
           >
             <HeartIcon />
           </button>
