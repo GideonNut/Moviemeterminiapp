@@ -1,165 +1,64 @@
 'use client';
+/**
+ * MiniPayContext  (replaces FarcasterAuthContext)
+ *
+ * In MiniPay the wallet is injected automatically — there is no Farcaster
+ * frame or FID. This context simply exposes the wagmi-connected address and
+ * a flag that tells the UI whether we are running inside MiniPay.
+ *
+ * The legacy `FarcasterAuthProvider` and `useFarcasterAuth` exports are kept
+ * as thin aliases so existing import sites continue to compile unchanged.
+ */
+import { createContext, useContext, useEffect, useState } from 'react';
+import { useAccount } from 'wagmi';
 
-import { createContext, useContext, useEffect, useState, useMemo } from 'react';
-import { useConnect, useAccount, useDisconnect } from 'wagmi';
-import { farcasterFrame } from '@farcaster/frame-wagmi-connector';
-
-// Types
-type FarcasterUser = {
-  fid: number;
-  username?: string;
-  displayName?: string;
-  pfp?: string;
-  address?: string;
+type MiniPayUser = {
+  address: string;
 };
 
-type FarcasterAuthContextType = {
-  user: FarcasterUser | null;
+type MiniPayContextType = {
+  user: MiniPayUser | null;
   isConnected: boolean;
   isLoading: boolean;
+  isMiniPay: boolean;
+  /** no-op — wagmi auto-connects in MiniPay */
   connect: () => Promise<void>;
+  /** no-op */
   disconnect: () => void;
 };
 
-const FarcasterAuthContext = createContext<FarcasterAuthContextType | undefined>(undefined);
+const MiniPayContext = createContext<MiniPayContextType | undefined>(undefined);
 
 export function FarcasterAuthProvider({ children }: { children: React.ReactNode }) {
-  const { connect: wagmiConnect, connectors, isPending: isConnecting } = useConnect();
-  const { address, isConnected: wagmiConnected, connector } = useAccount();
-  const { disconnect: wagmiDisconnect } = useDisconnect();
-  const [user, setUser] = useState<FarcasterUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { address, isConnected } = useAccount();
+  const [isMiniPay, setIsMiniPay] = useState(false);
 
-  // Find the Farcaster connector (Mini App or Frame)
-  const farcasterConnector = useMemo(() => {
-    // Prioritize Mini App connector, then Frame connector
-    return connectors.find(c => 
-      c.id === 'farcasterMiniApp' ||
-      c.id === 'farcasterFrame' || 
-      c.name === 'Farcaster' ||
-      c.type === 'farcasterMiniApp' ||
-      c.type === 'farcasterFrame'
-    );
-  }, [connectors]);
-
-  // Check if connected via Farcaster (Mini App or Frame)
-  const isConnected = wagmiConnected && (
-    connector?.id === 'farcasterMiniApp' ||
-    connector?.id === 'farcasterFrame' || 
-    connector?.name === 'Farcaster' ||
-    connector?.type === 'farcasterMiniApp' ||
-    connector?.type === 'farcasterFrame'
-  );
-
-  // Fetch Farcaster user info when connected
   useEffect(() => {
-    const fetchUserInfo = async () => {
-      if (!isConnected || !address) {
-        setUser(null);
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        
-        // Import the lookup function
-        const { lookupFidByCustodyAddress, getFarcasterUser } = await import('~/lib/farcaster');
-        
-        // Lookup FID from the custody address
-        const fid = await lookupFidByCustodyAddress(address);
-        
-        if (fid) {
-          // Fetch full user info from Farcaster API
-          try {
-            const userData = await getFarcasterUser(fid);
-            
-            if (userData) {
-              setUser({
-                fid,
-                username: userData.username,
-                displayName: userData.displayName,
-                pfp: userData.pfp,
-                address: address,
-        });
-            } else {
-              // Fallback: use FID and address if API call fails
-              setUser({
-                fid,
-                address: address,
-                username: `user_${fid}`,
-                displayName: `User ${fid}`,
-              });
-            }
-          } catch (error) {
-            console.warn('Could not fetch user info from Farcaster API:', error);
-            // Fallback: use FID and address
-            setUser({
-              fid,
-              address: address,
-              username: `user_${fid}`,
-              displayName: `User ${fid}`,
-            });
-          }
-        } else {
-          // No FID found for this address, use address only
-          console.warn('Could not lookup FID for address:', address);
-          setUser({
-            fid: 0, // Placeholder
-            address: address,
-          });
-        }
-      } catch (error) {
-        console.error('Error fetching Farcaster user info:', error);
-        setUser(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUserInfo();
-  }, [isConnected, address]);
-
-  const connect = async () => {
-    if (!farcasterConnector) {
-      throw new Error('Farcaster connector not available');
+    if (typeof window !== 'undefined') {
+      setIsMiniPay(!!(window.ethereum as any)?.isMiniPay);
     }
-    
-    try {
-        setIsLoading(true);
-      await wagmiConnect({ connector: farcasterConnector });
-    } catch (error) {
-      console.error('Error connecting to Farcaster:', error);
-      throw error;
-    } finally {
-        setIsLoading(false);
-    }
-  };
+  }, []);
 
-  const disconnect = () => {
-    wagmiDisconnect();
-    setUser(null);
-  };
-
-  const isLoadingState = isLoading || isConnecting;
+  const user: MiniPayUser | null = isConnected && address ? { address } : null;
 
   return (
-    <FarcasterAuthContext.Provider
+    <MiniPayContext.Provider
       value={{
         user,
         isConnected,
-        isLoading: isLoadingState,
-        connect,
-        disconnect,
+        isLoading: false,
+        isMiniPay,
+        connect: async () => {},   // wagmi auto-connects
+        disconnect: () => {},
       }}
     >
       {children}
-    </FarcasterAuthContext.Provider>
+    </MiniPayContext.Provider>
   );
 }
 
 export const useFarcasterAuth = () => {
-  const context = useContext(FarcasterAuthContext);
+  const context = useContext(MiniPayContext);
   if (context === undefined) {
     throw new Error('useFarcasterAuth must be used within a FarcasterAuthProvider');
   }

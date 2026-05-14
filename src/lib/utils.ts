@@ -23,4 +23,4 @@ export {
   getContractIdForMovie,
   getMoviesWithDerivedContractIds
 } from './movies/utils';
-export { getFarcasterMetadata } from './farcaster/metadata';
+

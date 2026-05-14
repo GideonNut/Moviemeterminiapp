@@ -40,9 +40,19 @@ const nextConfig = {
   async headers() {
     return [
       {
-        // Apply these headers to all routes
+        // Apply security headers to all routes
         source: '/:path*',
         headers: securityHeaders,
+      },
+      {
+        // CORS headers for API routes — required by MiniPay in-app browser
+        // Ref: https://docs.minipay.xyz/getting-started/deployment.html
+        source: '/api/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin',  value: '*' },
+          { key: 'Access-Control-Allow-Methods', value: 'GET, POST, OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type, Authorization' },
+        ],
       },
     ];
   },

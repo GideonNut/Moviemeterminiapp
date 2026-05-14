@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "~/components/ui/Button";
 import ScrollToTop from "~/components/ScrollToTop";
 import { useAccount, useChainId, useSwitchChain, useWriteContract, useConnect, useDisconnect, useWalletClient } from "wagmi";
-import { injected } from 'wagmi/connectors';
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
 
 export default function AdminPage() {

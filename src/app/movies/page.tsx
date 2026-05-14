@@ -15,7 +15,6 @@ import WatchlistButton from "~/components/watchlist/WatchlistButton";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "~/components/ui/card";
 import { Button } from "~/components/ui/Button";
 import Header from "~/components/navigation/Header";
-import { FarcasterConnectButton } from "~/components/auth/FarcasterConnectButton";
 import { ThumbsDownIcon, ThumbsUpIcon } from "~/components/icons";
 import { SwipeableMovies } from "~/components/movies/SwipeableMovies";
 
@@ -452,12 +451,9 @@ export default function MediaPage() {
               <span className="text-white font-semibold">{formatCELOBalance(celoBalance.value)} CELO</span>
             </div>
           ) : (
-            <>
-              <div className="text-sm text-white/70">
-                Connect your Farcaster wallet to vote and track your activity.
-              </div>
-              <FarcasterConnectButton />
-            </>
+            <div className="text-sm text-white/70">
+              Open in MiniPay to vote on-chain.
+            </div>
           )}
         </div>
       </div>

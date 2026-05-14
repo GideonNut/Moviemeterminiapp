@@ -3,7 +3,8 @@
 import dynamic from "next/dynamic";
 import type { Session } from "next-auth"
 import { SessionProvider } from "next-auth/react"
-import { FrameProvider } from "~/components/providers/FrameProvider";
+import { MiniPayGate } from "~/components/MiniPayGate";
+import { AuthProvider } from "~/contexts/AuthContext";
 
 const WagmiConfig = dynamic(
   () => import("~/components/providers/WagmiProvider").then(mod => ({ default: mod.WagmiConfig })),
@@ -16,9 +17,11 @@ export function Providers({ session, children }: { session: Session | null, chil
   return (
     <SessionProvider session={session}>
       <WagmiConfig>
-        <FrameProvider>
-          {children}
-        </FrameProvider>
+        <MiniPayGate>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+        </MiniPayGate>
       </WagmiConfig>
     </SessionProvider>
   );

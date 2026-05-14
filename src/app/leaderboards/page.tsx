@@ -1,516 +1,248 @@
 "use client";
+import React from "react";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { Users, Flame, ArrowLeft, RefreshCw, Loader2, Award } from "lucide-react";
-import { TrophyIcon } from '~/components/icons';
+import { RefreshCw } from "lucide-react";
 import { useAccount } from "wagmi";
 import Header from "~/components/navigation/Header";
-import { Button } from "~/components/ui/Button";
-import { Skeleton } from "~/components/ui/Skeleton";
+import {
+  GoldMedalIcon,
+  SilverMedalIcon,
+  BronzeMedalIcon,
+  VoterTabIcon,
+  EarnerTabIcon,
+  StreakTabIcon,
+  TrophyEmptyIcon,
+  WarningIcon,
+} from "~/components/icons/AppIcons";
 
-interface TopVoter {
+interface TopVoter { rank: number; address: string; votes: number; streak: number; yesVotes: number; noVotes: number; lastVoteDate: string; }
+interface StreakEntry { rank: number; address: string; streak: number; totalVotes: number; lastVoteDate: string; }
+interface EarnerEntry { rank: number; address: string; earnings: number; activity: string; totalVotes: number; streak: number; }
+interface LeaderboardData { topVoters: TopVoter[]; longestStreaks: StreakEntry[]; topEarners: EarnerEntry[]; totalUsers: number; totalVotes: number; }
+
+type LeaderboardEntry = {
   rank: number;
   address: string;
-  votes: number;
-  streak: number;
-  yesVotes: number;
-  noVotes: number;
-  lastVoteDate: string;
-}
+  votes?: number;
+  yesVotes?: number;
+  noVotes?: number;
+  streak?: number;
+  totalVotes?: number;
+  earnings?: number;
+  activity?: string;
+};
 
-interface StreakEntry {
-  rank: number;
-  address: string;
-  streak: number;
-  totalVotes: number;
-  lastVoteDate: string;
-}
+type Tab = "voters" | "earners" | "streaks";
 
-interface EarnerEntry {
-  rank: number;
-  address: string;
-  earnings: number;
-  activity: string;
-  totalVotes: number;
-  streak: number;
-}
-
-interface LeaderboardData {
-  topVoters: TopVoter[];
-  longestStreaks: StreakEntry[];
-  topEarners: EarnerEntry[];
-  totalUsers: number;
-  totalVotes: number;
-}
-
-const leaderboardTypes = [
-  { id: "voters", name: "Top Voters", icon: Users, metric: "votes" },
-  { id: "earners", name: "Top Earners", icon: TrophyIcon, metric: "earnings" },
-  { id: "streaks", name: "Longest Streaks", icon: Flame, metric: "streak" },
+const TABS: { id: Tab; label: string; Icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
+  { id: "voters",  label: "Voters",  Icon: VoterTabIcon },
+  { id: "earners", label: "Earners", Icon: EarnerTabIcon },
+  { id: "streaks", label: "Streaks", Icon: StreakTabIcon },
 ];
 
-function formatAddress(address: string): string {
-  return `${address?.slice(0, 6)}...${address?.slice(-4)}`;
-}
+function fmt(addr: string) { return `${addr?.slice(0, 6)}…${addr?.slice(-4)}`; }
 
-function formatDate(dateString: string): string {
-  if (!dateString) return 'Never';
-  
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffTime = Math.abs(now.getTime() - date.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
-  if (diffDays === 1) return 'Today';
-  if (diffDays === 2) return 'Yesterday';
-  if (diffDays <= 7) return `${diffDays - 1} days ago`;
-  return date.toLocaleDateString();
-}
-
-function getRankIcon(rank: number) {
-  if (rank === 1) return "🥇";
-  if (rank === 2) return "🥈";
-  if (rank === 3) return "🥉";
-  return `#${rank}`;
-}
-
-function getRankColor(rank: number) {
-  if (rank === 1) return "text-yellow-400";
-  if (rank === 2) return "text-gray-300";
-  if (rank === 3) return "text-amber-600";
-  return "text-white/80";
+function RankMark({ rank }: { rank: number }) {
+  if (rank === 1) return <GoldMedalIcon size={20} />;
+  if (rank === 2) return <SilverMedalIcon size={20} />;
+  if (rank === 3) return <BronzeMedalIcon size={20} />;
+  return <span className="text-white/35 text-[13px] font-semibold tabular-nums">#{rank}</span>;
 }
 
 export default function LeaderboardsPage() {
-  const router = useRouter();
   const { address, isConnected } = useAccount();
   const [data, setData] = useState<LeaderboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'voters' | 'earners' | 'streaks'>('voters');
-  const [userRank, setUserRank] = useState<{ voters?: number; earners?: number; streaks?: number }>({});
+  const [tab, setTab] = useState<Tab>("voters");
 
-  const handleBack = () => {
-    if (window.history.length > 1) {
-      router.back();
-    } else {
-      router.push("/");
-    }
-  };
-
-  const fetchLeaderboards = async (showRefreshing = false) => {
+  const fetchData = async (soft = false) => {
     try {
-      if (showRefreshing) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
-      }
+      if (soft) { setRefreshing(true); } else { setLoading(true); }
       setError(null);
-      
-      const response = await fetch('/api/leaderboards');
-      if (!response.ok) {
-        throw new Error('Failed to fetch leaderboard data');
-      }
-      
-      const leaderboardData = await response.json();
-      setData(leaderboardData);
-      
-      // Find user's rank if connected
-      if (isConnected && address) {
-        const votersRank = leaderboardData.topVoters?.find((entry: TopVoter) => entry.address === address)?.rank;
-        const earnersRank = leaderboardData.topEarners?.find((entry: EarnerEntry) => entry.address === address)?.rank;
-        const streaksRank = leaderboardData.longestStreaks?.find((entry: StreakEntry) => entry.address === address)?.rank;
-
-        setUserRank({
-          voters: votersRank,
-          earners: earnersRank,
-          streaks: streaksRank
-        });
-      }
-    } catch (err) {
-      console.error('Error fetching leaderboards:', err);
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const res = await fetch("/api/leaderboards");
+      if (!res.ok) throw new Error("Failed to load leaderboard data");
+      setData(await res.json());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   };
 
-  useEffect(() => {
-    fetchLeaderboards();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  useEffect(() => {
-    // Update user rank when address changes
-    if (data && isConnected && address) {
-      const votersRank = data.topVoters?.find(entry => entry.address === address)?.rank;
-      const earnersRank = data.topEarners?.find(entry => entry.address === address)?.rank;
-      const streaksRank = data.longestStreaks?.find(entry => entry.address === address)?.rank;
-      
-      setUserRank({
-        voters: votersRank,
-        earners: earnersRank,
-        streaks: streaksRank
-      });
-    } else {
-      setUserRank({});
-    }
-  }, [data, address, isConnected]);
-
-  const getCurrentData = () => {
+  const rows = (): LeaderboardEntry[] => {
     if (!data) return [];
-    switch (activeTab) {
-      case 'voters':
-        return data.topVoters;
-      case 'earners':
-        return data.topEarners;
-      case 'streaks':
-        return data.longestStreaks;
-      default:
-        return data.topVoters;
-    }
+    if (tab === "voters")  return data.topVoters;
+    if (tab === "earners") return data.topEarners;
+    return data.longestStreaks;
   };
 
-  const getCurrentUserRank = () => {
-    switch (activeTab) {
-      case 'voters':
-        return userRank.voters;
-      case 'earners':
-        return userRank.earners;
-      case 'streaks':
-        return userRank.streaks;
-      default:
-        return userRank.voters;
-    }
+  const primaryStat = (entry: LeaderboardEntry): string => {
+    if (tab === "voters")  return `${(entry.votes ?? 0).toLocaleString()} votes`;
+    if (tab === "earners") return `${entry.earnings ?? 0} G$`;
+    return `${entry.streak ?? 0}d`;
   };
 
+  const subStat = (entry: LeaderboardEntry): string => {
+    if (tab === "voters")  return `${entry.yesVotes ?? 0} yes · ${entry.noVotes ?? 0} no`;
+    if (tab === "earners") return entry.activity ?? "";
+    return `${entry.totalVotes ?? 0} total votes`;
+  };
+
+  const userRank = (() => {
+    if (!data || !address) return null;
+    return rows().find((e: LeaderboardEntry) => e.address === address)?.rank ?? null;
+  })();
+
+  /* ---- Loading ---- */
   if (loading) {
     return (
-      <main className="min-h-screen">
-        <div className="max-w-2xl mx-auto px-4 pb-20">
-          <Header showSearch={false} />
-          <div className="flex items-center mb-6">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={handleBack}
-              className="mr-3 p-2"
-            >
-              <ArrowLeft size={18} />
-            </Button>
-            <h1 className="text-xl font-semibold text-foreground">Leaderboards</h1>
+      <div className="min-h-screen bg-black">
+        <Header showSearch={false} />
+        <div className="px-4 pt-[72px] pb-10 max-w-lg mx-auto">
+          <div className="h-px bg-white/6 mb-6" />
+          <div className="h-6 w-32 bg-white/8 rounded-full mb-8 animate-pulse" />
+          <div className="flex gap-2 mb-5">
+            {[1,2,3].map(i => <div key={i} className="flex-1 h-10 bg-white/6 rounded-full animate-pulse" />)}
           </div>
-
-          {/* Hero skeleton */}
-          <div className="text-center mb-6">
-            <div className="flex items-center justify-center mb-4">
-              <Skeleton className="h-8 w-8 rounded-full mr-3" />
-              <Skeleton className="h-7 w-40" />
+          {[1,2,3,4,5,6,7,8].map(i => (
+            <div key={i} className="flex items-center gap-3 mb-3">
+              <div className="w-8 h-5 bg-white/6 rounded animate-pulse" />
+              <div className="w-9 h-9 rounded-full bg-white/6 animate-pulse" />
+              <div className="flex-1 h-4 bg-white/6 rounded-lg animate-pulse" />
+              <div className="w-14 h-4 bg-white/6 rounded-lg animate-pulse" />
             </div>
-            <div className="space-y-2 max-w-lg mx-auto">
-              <Skeleton className="h-4 w-2/3 mx-auto" />
-              <div className="flex justify-center gap-6 text-sm">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-4 w-24" />
-              </div>
-            </div>
-          </div>
-
-          {/* Tabs skeleton */}
-          <div className="flex gap-2 mb-6">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-9 flex-1" />
-            ))}
-          </div>
-
-          {/* Leaderboard rows skeleton */}
-          <div className="bg-card rounded-lg border border-border overflow-hidden">
-            <div className="bg-popover px-4 py-3 border-b border-border">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <Skeleton className="h-5 w-5 rounded mr-2" />
-                  <Skeleton className="h-5 w-32" />
-                </div>
-                <Skeleton className="h-5 w-5 rounded" />
-              </div>
-              <Skeleton className="h-3 w-56 mt-2" />
-            </div>
-
-            <div className="divide-y divide-border/50">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 flex items-center justify-center">
-                      <Skeleton className="h-5 w-10" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Skeleton className="h-6 w-6 rounded-full" />
-                        <Skeleton className="h-4 w-40" />
-                        <Skeleton className="h-4 w-10 rounded" />
-                      </div>
-                      <Skeleton className="h-3 w-64" />
-                    </div>
-                    <div className="text-right">
-                      <Skeleton className="h-5 w-12 ml-auto" />
-                      <Skeleton className="h-3 w-16 mt-1 ml-auto" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          ))}
         </div>
-      </main>
+      </div>
     );
   }
 
+  /* ---- Error ---- */
   if (error) {
     return (
-      <main className="min-h-screen">
-        <div className="max-w-2xl mx-auto px-4 pb-20">
-          <Header showSearch={false} />
-          <div className="flex items-center mb-6">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={handleBack}
-              className="mr-3 p-2"
-            >
-              <ArrowLeft size={18} />
-            </Button>
-            <h1 className="text-xl font-semibold text-foreground">Leaderboards</h1>
-          </div>
-
-          <div className="flex justify-center items-center py-20">
-            <div className="text-center">
-              <TrophyIcon size={48} className="text-muted-foreground mx-auto mb-4" />
-              <p className="text-foreground mb-4">{error}</p>
-              <button 
-                onClick={() => fetchLeaderboards()}
-                className="px-4 py-2 rounded-md border bg-background hover:bg-accent hover:text-accent-foreground border-border transition-colors outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-              >
-                Try Again
-              </button>
-            </div>
-          </div>
+      <div className="min-h-screen bg-black">
+        <Header showSearch={false} />
+        <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4 text-center px-6">
+          <WarningIcon size={40} className="text-white/20" />
+          <p className="text-white/40 text-sm max-w-xs">{error}</p>
+          <button onClick={() => fetchData()} className="px-5 py-2.5 rounded-full bg-white/8 text-white text-sm font-semibold hover:bg-white/15 transition-colors">Try again</button>
         </div>
-      </main>
+      </div>
     );
   }
 
-  const currentLeaderboard = leaderboardTypes?.find(lt => lt.id === activeTab);
-  const currentData = getCurrentData();
-
   return (
-    <main className="min-h-screen">
-        <div className="max-w-2xl mx-auto px-4 pb-20">
-        <Header showSearch={false} />
-        
-        {/* Page Header */}
-        <div className="flex items-center mb-6">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={handleBack}
-            className="mr-3 p-2"
-          >
-            <ArrowLeft size={18} />
-          </Button>
-          <h1 className="text-xl font-semibold text-foreground">Leaderboards</h1>
-        </div>
+    <div className="min-h-screen bg-black">
+      <Header showSearch={false} />
+      <div className="px-4 pt-[72px] pb-12 max-w-lg mx-auto">
+        <div className="h-px bg-white/6 mb-6" />
 
-        {/* Hero Section */}
-        <div className="text-center mb-6">
-          <div className="flex items-center justify-center mb-4">
-            <TrophyIcon className="mr-3 text-accent-foreground" size={32} />
-            <h2 className="text-2xl font-bold text-foreground">Top Performers</h2>
+        {/* Title */}
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <p className="text-white/25 text-[11px] font-semibold uppercase tracking-[0.12em] mb-1">Rankings</p>
+            <h1 className="text-white text-2xl font-bold tracking-tight leading-none">Leaderboard</h1>
+            {data && (
+              <p className="text-white/25 text-xs mt-1">
+                {data.totalUsers.toLocaleString()} users · {data.totalVotes.toLocaleString()} votes
+              </p>
+            )}
           </div>
-          <p className="text-muted-foreground text-sm max-w-lg mx-auto mb-4">
-            Discover the top performers in the MovieMeter community
-          </p>
-          {data && (
-            <div className="flex justify-center gap-6 text-sm">
-              <span className="text-foreground font-medium">
-                {data.totalUsers.toLocaleString()} users
-              </span>
-              <span className="text-foreground font-medium">
-                {data.totalVotes.toLocaleString()} votes
-              </span>
-            </div>
-          )}
+          <button
+            onClick={() => fetchData(true)}
+            disabled={refreshing}
+            className="p-2 rounded-full bg-white/6 hover:bg-white/12 transition-colors disabled:opacity-40"
+          >
+            <RefreshCw size={15} className={`text-white/50 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
         </div>
 
-        {/* User's Rank (if connected) */}
-        {isConnected && (
-          <div className="bg-accent/20 border border-border rounded-lg p-4 mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold">
-                {formatAddress(address!)[0].toUpperCase()}
-              </div>
-              <div className="flex-1">
-                <div className="text-foreground font-medium text-sm text-left">Your Ranking</div>
-                <div className="text-muted-foreground text-xs text-left">{formatAddress(address!)}</div>
-              </div>
-              <div className="text-right">
-                {getCurrentUserRank() ? (
-                  <div>
-                    <div className="text-foreground font-bold">#{getCurrentUserRank()}</div>
-                    <div className="text-muted-foreground text-xs">
-                      {activeTab === 'voters' ? 'Votes' : 
-                       activeTab === 'earners' ? 'Earnings' : 'Streak'}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-muted-foreground text-xs">Not ranked</div>
-                )}
-              </div>
+        {/* Your rank */}
+        {isConnected && address && (
+          <div className="mb-5 flex items-center gap-3 rounded-xl bg-white/[0.04] border border-white/8 px-4 py-3">
+            <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+              {fmt(address)[0].toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-white text-[13px] font-medium">{fmt(address)}</p>
+              <p className="text-white/30 text-[11px]">Your wallet</p>
+            </div>
+            <div className="text-right">
+              {userRank
+                ? <span className="text-white font-bold text-base">#{userRank}</span>
+                : <span className="text-white/25 text-xs">Not ranked</span>
+              }
             </div>
           </div>
         )}
 
-        {/* Tab Navigation */}
-        <div className="flex gap-2 mb-6">
-          {leaderboardTypes.map((type) => (
+        {/* Tabs */}
+        <div className="flex gap-2 mb-5">
+          {TABS.map(t => (
             <button
-              key={type.id}
-              onClick={() => setActiveTab(type.id as 'voters' | 'earners' | 'streaks')}
-              className={`flex items-center px-4 py-2 rounded-md font-medium transition-colors flex-1 justify-center text-sm outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] ${
-                activeTab === type.id
-                  ? "bg-primary text-primary-foreground"
-                  : "border bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full text-sm font-semibold transition-all ${
+                tab === t.id
+                  ? "bg-white text-black"
+                  : "bg-white/6 text-white/50 hover:bg-white/10 hover:text-white"
               }`}
             >
-              <type.icon className="mr-2" size={16} />
-              {type.name}
+              <t.Icon size={13} />
+              {t.label}
             </button>
           ))}
         </div>
 
-        {/* Leaderboard Content */}
-        {currentLeaderboard && (
-          <div className="bg-card rounded-lg border border-border overflow-hidden" data-slot="leaderboard">
-            <div className="bg-popover px-4 py-3 border-b border-border">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <currentLeaderboard.icon className="mr-2 text-foreground" size={18} />
-                  <h3 className="font-semibold text-foreground">{currentLeaderboard.name}</h3>
-                </div>
-                <button 
-                  onClick={() => fetchLeaderboards(true)}
-                  disabled={refreshing}
-                  className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+        {/* Rows */}
+        <div className="space-y-1.5">
+          {rows().length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 gap-3">
+              <TrophyEmptyIcon size={40} className="text-white/15" />
+              <p className="text-white/30 text-sm">No data yet — start voting!</p>
+            </div>
+          ) : (
+            rows().map((entry: LeaderboardEntry, i: number) => {
+              const isMe = entry.address === address;
+              return (
+                <div
+                  key={`${entry.address}-${i}`}
+                  className={`flex items-center gap-3 rounded-xl px-4 py-3 transition-colors ${
+                    isMe
+                      ? "bg-white/10 border border-white/15"
+                      : "bg-white/[0.03] border border-transparent hover:bg-white/[0.06]"
+                  }`}
                 >
-                  <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
-                </button>
-              </div>
-              <p className="text-muted-foreground text-xs mt-1 text-left">
-                Updated in real-time • Based on actual voting data
-              </p>
-            </div>
-
-            <div className="divide-y divide-border/50">
-              {currentData?.length > 0 ? (
-                currentData.map((entry: any, index: number) => (
-                  <div 
-                    key={`${entry.address}-${index}`}
-                    className={`p-4 hover:bg-accent/30 transition-colors text-left ${
-                      entry.address === address ? 'bg-accent/30 border-l-4 border-accent' : ''
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      {/* Rank */}
-                      <div className="w-12 flex items-center justify-center">
-                        <div className={`text-lg font-bold text-foreground`}>
-                          {getRankIcon(entry.rank)}
-                        </div>
-                      </div>
-
-                      {/* User Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-xs font-medium">
-                            {formatAddress(entry.address)[0].toUpperCase()}
-                          </div>
-                          <span className="text-foreground font-medium text-sm truncate">
-                            {formatAddress(entry.address)}
-                          </span>
-                          {entry.address === address && (
-                            <span className="text-accent-foreground text-xs bg-accent/40 px-2 py-0.5 rounded flex-shrink-0">
-                              You
-                            </span>
-                          )}
-                        </div>
-                        
-                        {/* Stats based on active tab */}
-                        {activeTab === 'voters' && (
-                          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            <span>{entry.yesVotes} Yes</span>
-                            <span>{entry.noVotes} No</span>
-                           
-                          </div>
-                        )}
-                        
-                        {activeTab === 'streaks' && (
-                          <div className="text-xs text-muted-foreground truncate">
-                            {entry.totalVotes} total votes • Last: {formatDate(entry.lastVoteDate)}
-                          </div>
-                        )}
-                        
-                        {activeTab === 'earners' && (
-                          <div className="text-xs text-muted-foreground truncate">
-                            {entry.activity}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Primary Stat */}
-                      <div className="text-right">
-                        <div className={`text-lg font-bold text-foreground`}>
-                          {activeTab === 'voters' ? entry.votes.toLocaleString() :
-                           activeTab === 'earners' ? `${entry.earnings} G$` :
-                           `${entry.streak}d`}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {currentLeaderboard.metric}
-                        </div>
-                      </div>
-                    </div>
+                  <div className="w-7 flex items-center justify-center flex-shrink-0">
+                    <RankMark rank={entry.rank} />
                   </div>
-                ))
-              ) : (
-                <div className="p-8 text-center">
-                  <TrophyIcon size={48} className="text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground mb-2">No data available yet</p>
-                  <p className="text-xs text-muted-foreground">Start voting on movies to appear on the leaderboard!</p>
+                  <div className="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                    {fmt(entry.address)[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white text-[13px] font-medium truncate">{fmt(entry.address)}</span>
+                      {isMe && (
+                        <span className="text-[10px] font-bold bg-white/12 text-white/60 px-1.5 py-0.5 rounded-full flex-shrink-0">you</span>
+                      )}
+                    </div>
+                    <p className="text-white/30 text-[11px] truncate">{subStat(entry)}</p>
+                  </div>
+                  <span className="text-white font-semibold text-[13px] tabular-nums flex-shrink-0">
+                    {primaryStat(entry)}
+                  </span>
                 </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Refresh Button */}
-        <div className="mt-6 text-center">
-          <button 
-            onClick={() => fetchLeaderboards(true)}
-            disabled={refreshing}
-            className="px-6 py-2 rounded-md border bg-background hover:bg-accent hover:text-accent-foreground border-border transition-colors disabled:opacity-50 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-          >
-            {refreshing ? (
-              <>
-                <RefreshCw size={16} className="animate-spin mr-2 inline" />
-                Refreshing...
-              </>
-            ) : (
-              <>
-                <RefreshCw size={16} className="mr-2 inline" />
-                Refresh Data
-              </>
-            )}
-          </button>
+              );
+            })
+          )}
         </div>
       </div>
-    </main>
+    </div>
   );
 }
+

@@ -1,7 +1,7 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useOnboarding } from "~/hooks/onboarding";
-import BottomNav from "~/components/navigation/BottomNav";
 
 interface ConditionalLayoutProps {
   children: React.ReactNode;
@@ -9,6 +9,12 @@ interface ConditionalLayoutProps {
 
 export function ConditionalLayout({ children }: ConditionalLayoutProps) {
   const { hasSeenOnboarding, isLoading } = useOnboarding();
+  const pathname = usePathname();
+
+  // Home page manages its own full-screen layout — never wrap it
+  if (pathname === "/") {
+    return <>{children}</>;
+  }
 
   // If still loading onboarding state, render children without layout
   if (isLoading) {
@@ -22,9 +28,6 @@ export function ConditionalLayout({ children }: ConditionalLayoutProps) {
 
   // Normal layout for users who have completed onboarding
   return (
-    <>
-      <main className="pt-32 pb-16">{children}</main>
-      <BottomNav />
-    </>
+    <main className="pt-0 pb-4">{children}</main>
   );
 }

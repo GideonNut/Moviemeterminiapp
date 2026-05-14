@@ -95,16 +95,12 @@ export async function POST(request: NextRequest) {
       return Response.json({ success: true, showId: showData.tmdbId });
       
     } else if (body.action === "vote") {
-      // Accept either wallet address or Farcaster fid
-      const userIdentifier = body.userAddress || (session?.user?.fid ? session.user.fid.toString() : null);
+      // MiniPay: identity = wallet address only
+      const userIdentifier = body.userAddress || session?.user?.address || null;
       
       if (!userIdentifier) {
-        console.error('No user identifier found (wallet address or Farcaster fid)');
         return Response.json(
-          { 
-            success: false, 
-            error: 'User not authenticated. Please connect your wallet or sign in with Farcaster.' 
-          },
+          { success: false, error: 'Wallet address required. Open in MiniPay.' },
           { status: 401 }
         );
       }
