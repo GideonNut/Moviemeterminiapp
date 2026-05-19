@@ -52,11 +52,13 @@ FIREBASE_SERVICE_ACCOUNT_KEY={"type":"service_account","project_id":"your-projec
 TMDB_API_KEY=your_tmdb_v4_read_access_token
 NEXTAUTH_SECRET=your_nextauth_secret_here
 NEXTAUTH_URL=http://localhost:3000
+ADMIN_PASSCODE=your_admin_passcode
 ```
 
 Notes:
 - `FIREBASE_SERVICE_ACCOUNT_KEY` should be the JSON service account (stringified) used by `firebase-admin` for server actions. You can obtain it from the Firebase console under **Project Settings → Service Accounts**.
 - TMDb uses the v4 API Read Access Token (Bearer).
+- `ADMIN_PASSCODE` protects all `/admin` pages and `/api/admin/*` routes. Set a strong value in production. (`ADMIN_STATS_PASSCODE` is still accepted as a legacy alias.)
 
 ## 🗄️ Database Setup
 

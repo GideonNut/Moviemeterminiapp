@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAdminPasscode } from "~/components/admin/admin-passcode-context";
 import { Button } from "~/components/ui/Button";
 import ScrollToTop from "~/components/ScrollToTop";
 import { useAccount, useChainId, useSwitchChain, useWriteContract, useConnect, useDisconnect, useWalletClient } from "wagmi";
@@ -9,6 +10,7 @@ import { injected } from 'wagmi/connectors';
 import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from "~/constants/voteContract";
 
 export default function AdminPage() {
+  const { adminFetch } = useAdminPasscode();
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -73,7 +75,7 @@ export default function AdminPage() {
   // Function to reset content IDs (not needed for Firestore but kept for backward compatibility)
   const resetContentIds = async () => {
     try {
-      const response = await fetch("/api/admin", {
+      const response = await adminFetch("/api/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "reset-ids" }),
@@ -148,12 +150,12 @@ export default function AdminPage() {
     try {
       // Retract both movies and TV shows
       const [moviesResponse, tvResponse] = await Promise.all([
-        fetch("/api/admin", {
+        adminFetch("/api/admin", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: 'retract-recent', type: 'movies' })
         }),
-        fetch("/api/admin", {
+        adminFetch("/api/admin", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: 'retract-recent', type: 'tv' })
@@ -190,7 +192,7 @@ export default function AdminPage() {
     setMessage("Retracting recent TV shows...");
     
     try {
-      const response = await fetch("/api/admin", {
+      const response = await adminFetch("/api/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: 'retract-recent', type: 'tv' })
@@ -249,7 +251,7 @@ export default function AdminPage() {
 
     setIsLoading(true);
     try {
-      const res = await fetch("/api/admin", {
+      const res = await adminFetch("/api/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -327,7 +329,7 @@ export default function AdminPage() {
     setImportStatus("Importing trending movies...");
     
     try {
-      const response = await fetch("/api/admin", {
+      const response = await adminFetch("/api/admin", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -370,7 +372,7 @@ export default function AdminPage() {
     setImportStatus("Importing trending TV shows...");
     
     try {
-      const response = await fetch("/api/admin", {
+      const response = await adminFetch("/api/admin", {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
@@ -422,7 +424,7 @@ export default function AdminPage() {
     setImportStatus(`Searching for "${query}"...`);
     
     try {
-      const response = await fetch("/api/admin", {
+      const response = await adminFetch("/api/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "import-search", query: query.trim(), type: "movies" }),
@@ -455,7 +457,7 @@ export default function AdminPage() {
     setImportStatus(`Searching for TV shows "${query}"...`);
     
     try {
-      const response = await fetch("/api/admin", {
+      const response = await adminFetch("/api/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "import-search", query: query.trim(), type: "tv" }),
@@ -594,7 +596,7 @@ export default function AdminPage() {
           const tmdbId = item.tmdbId || item.id;
           const isTVShow = item.isTVShow || false;
           
-          const updateResponse = await fetch('/api/admin', {
+          const updateResponse = await adminFetch('/api/admin', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -637,7 +639,7 @@ export default function AdminPage() {
   const fetchContentCounts = async () => {
     console.log('Fetching content counts...');
     try {
-      const response = await fetch("/api/admin");
+      const response = await adminFetch("/api/admin");
       if (!response.ok) {
         console.error('Failed to fetch counts. Status:', response.status);
         const errorText = await response.text();
@@ -668,7 +670,7 @@ export default function AdminPage() {
     setImportStatus(`Starting import of ${items.length} ${type}...`);
     
     try {
-      const response = await fetch("/api/admin", {
+      const response = await adminFetch("/api/admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -898,7 +900,15 @@ export default function AdminPage() {
       </div>
 
       <div className="container mx-auto px-4 py-8 mt-10">
-        <h1 className="text-3xl font-bold mb-8 text-white">Admin Dashboard</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+          <h1 className="text-3xl font-bold text-white">Admin Dashboard</h1>
+          <a
+            href="/admin/stats"
+            className="text-sm font-medium text-blue-400 hover:text-blue-300 border border-blue-500/30 rounded-lg px-4 py-2 self-start"
+          >
+            View stats
+          </a>
+        </div>
         
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {/* TMDb Import Section */}

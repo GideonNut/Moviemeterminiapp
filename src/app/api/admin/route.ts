@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "~/auth";
+import { requireAdminPasscode } from "~/lib/admin-passcode";
 import { adminDb } from "~/lib/firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
 import { updateMovieContractId, updateTVShowContractId } from "~/lib/firestore";
@@ -24,12 +25,14 @@ export const runtime = "nodejs";
 const getContentCollection = (isTVShow: boolean) => 
   adminDb.collection(isTVShow ? 'tvShows' : 'movies');
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const denied = requireAdminPasscode(request);
+  if (denied) {
+    return denied;
+  }
+
   try {
     console.log('Admin GET request received');
-    
-    // Content counts are public - no authentication required
-    // This allows the admin page to work as a webapp
 
     // Get counts for movies and TV shows
     const [moviesSnapshot, tvShowsSnapshot] = await Promise.all([
@@ -54,6 +57,11 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = requireAdminPasscode(request);
+  if (denied) {
+    return denied;
+  }
+
   try {
     console.log('Admin POST request received');
     
