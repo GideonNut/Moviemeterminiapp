@@ -1,12 +1,13 @@
 import { NextRequest } from "next/server";
-import { 
+import {
   saveMovie as saveMovieToFirestore,
   getMovie,
   getAllMovies as getFirestoreMovies,
   updateVote,
   getUserVote,
-  type MovieData
+  type MovieData,
 } from "~/lib/firestore";
+import { buildTmdbMovieFeed } from "~/lib/tmdb-feed";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "~/auth";
 
@@ -25,45 +26,22 @@ export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const searchTerm = searchParams.get('search');
-    
-    let movies = await getFirestoreMovies();
-    
-    // Filter by search term if provided
-    if (searchTerm) {
-      movies = movies.filter(movie => 
-        movie.title?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
+    const searchTerm = request.nextUrl.searchParams.get("search");
+    const firestoreMovies = await getFirestoreMovies();
+    const movies = await buildTmdbMovieFeed({
+      searchTerm,
+      firestoreMovies,
+    });
 
-    // Sort by most recent first and ensure proper data structure
-    const sortedMovies = movies
-      .filter((movie): movie is MovieData & { id: string; _id?: string; title?: string } => Boolean(movie && movie?.title)) // Filter out any invalid entries
-      .sort((a, b) => {
-        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
-        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
-        return dateB.getTime() - dateA.getTime();
-      })
-      .map(movie => ({
-        ...movie,
-        id: movie.id || movie._id || '',
-        _id: movie.id || movie._id || '', // For backward compatibility
-        contractId: movie.contractId || undefined, // Include contractId if it exists
-        commentCount: movie.commentCount || 0,
-        votes: movie.votes || { yes: 0, no: 0 },
-        createdAt: movie.createdAt?.toDate ? movie.createdAt.toDate().toISOString() : new Date().toISOString(),
-        updatedAt: movie.updatedAt?.toDate ? movie.updatedAt.toDate().toISOString() : new Date().toISOString()
-      }));
-
-    return Response.json({ 
-      success: true, 
-      movies: sortedMovies 
+    return Response.json({
+      success: true,
+      movies,
+      source: "tmdb",
     });
   } catch (error) {
-    console.error('Error in GET /api/movies:', error);
+    console.error("Error in GET /api/movies:", error);
     return Response.json(
-      { success: false, error: (error as Error).message }, 
+      { success: false, error: (error as Error).message },
       { status: 500 }
     );
   }

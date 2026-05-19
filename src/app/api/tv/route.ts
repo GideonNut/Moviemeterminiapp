@@ -1,12 +1,13 @@
 import { NextRequest } from "next/server";
-import { 
+import {
   getTVShow,
   getAllTVShows,
   updateTVShowVote,
   saveTVShow,
   TVShowData,
-  getUserVote
+  getUserVote,
 } from "~/lib/firestore";
+import { buildTmdbTVFeed } from "~/lib/tmdb-feed";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "~/auth";
 
@@ -20,50 +21,22 @@ export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const searchTerm = searchParams.get('search');
-    
-    let tvShows = await getAllTVShows();
-    
-    // Filter by search term if provided
-    if (searchTerm) {
-      tvShows = tvShows.filter(show => 
-        show.title?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
+    const searchTerm = request.nextUrl.searchParams.get("search");
+    const firestoreShows = await getAllTVShows();
+    const tvShows = await buildTmdbTVFeed({
+      searchTerm,
+      firestoreShows,
+    });
 
-    // Sort by most recent first and ensure proper data structure
-    const sortedShows = tvShows
-      .filter((show): show is TVShowData & { id: string; _id?: string } => Boolean(show && show.title))
-      .sort((a, b) => {
-        const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(0);
-        const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(0);
-        return dateB.getTime() - dateA.getTime();
-      })
-      .map(show => ({
-        ...show,
-        id: show.id || show._id || '',
-        _id: show.id || show._id || '', // For backward compatibility
-        contractId: show.contractId || undefined, // Include contractId if it exists
-        isTVShow: true,
-        commentCount: show.commentCount || 0,
-        votes: show.votes || { yes: 0, no: 0 },
-        createdAt: show.createdAt?.toDate ? show.createdAt.toDate().toISOString() : new Date().toISOString(),
-        updatedAt: show.updatedAt?.toDate ? show.updatedAt.toDate().toISOString() : new Date().toISOString(),
-        firstAirDate: show.firstAirDate,
-        lastAirDate: show.lastAirDate,
-        numberOfSeasons: show.numberOfSeasons,
-        numberOfEpisodes: show.numberOfEpisodes
-      }));
-
-    return Response.json({ 
-      success: true, 
-      tvShows: sortedShows 
+    return Response.json({
+      success: true,
+      tvShows,
+      source: "tmdb",
     });
   } catch (error) {
-    console.error('Error in GET /api/tv:', error);
+    console.error("Error in GET /api/tv:", error);
     return Response.json(
-      { success: false, error: (error as Error).message }, 
+      { success: false, error: (error as Error).message },
       { status: 500 }
     );
   }
