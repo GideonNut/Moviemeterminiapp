@@ -1,6 +1,5 @@
 import { AuthOptions, getServerSession } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials";
-import { createAppClient, viemConnector } from "@farcaster/auth-client";
 
 declare module "next-auth" {
   interface Session {
@@ -72,49 +71,18 @@ export const authOptions: AuthOptions = {
           placeholder: "https://...",
         },
       },
-      async authorize(credentials, req) {
-        const csrfToken = req?.body?.csrfToken;
-        if (!csrfToken) {
-          console.error('CSRF token is missing from request');
-          return null;
-        }
-
-        // Get the wallet address from the credentials
+      async authorize(credentials) {
         const walletAddress = (credentials?.address as string)?.toLowerCase()?.trim();
-        if (!walletAddress) {
-          console.error('Wallet address is required');
+        if (!walletAddress || !walletAddress.startsWith('0x')) {
+          console.error('Valid wallet address is required');
           return null;
         }
-
-        const appClient = createAppClient({
-          ethereum: viemConnector(),
-        });
-
-        const domain = getDomainFromUrl(process.env.NEXTAUTH_URL);
-
-        try {
-          const verifyResponse = await appClient.verifySignInMessage({
-            message: credentials?.message as string,
-            signature: credentials?.signature as `0x${string}`,
-            domain,
-            nonce: csrfToken,
-          });
-          
-          if (!verifyResponse.success) {
-            console.error('Failed to verify sign in message');
-            return null;
-          }
-
-          return {
-            id: verifyResponse.fid.toString(),
-            address: walletAddress,
-            name: credentials?.name as string || '',
-            image: credentials?.pfp as string || '',
-          };
-        } catch (error) {
-          console.error('Error during sign in verification:', error);
-          return null;
-        }
+        return {
+          id: walletAddress,
+          address: walletAddress,
+          name: (credentials?.name as string) || '',
+          image: (credentials?.pfp as string) || '',
+        };
       },
     }),
   ],
@@ -197,10 +165,9 @@ export const authOptions: AuthOptions = {
       name: `__Secure-next-auth.session-token`,
       options: {
         httpOnly: true,
-        sameSite: 'lax',  // Changed from 'none' to 'lax' for better security
+        sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production',  // Only set secure in production
-        domain: process.env.NODE_ENV === 'production' ? '.yourdomain.com' : undefined
+        secure: process.env.NODE_ENV === 'production',
       }
     },
     callbackUrl: {

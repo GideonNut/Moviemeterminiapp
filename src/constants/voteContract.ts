@@ -1,6 +1,17 @@
-import type { Abi } from 'viem';
+import type { Abi, Address } from 'viem';
+import { celo, celoSepolia } from 'wagmi/chains';
 
-export const VOTE_CONTRACT_ADDRESS = "0x6d83eF793A7e82BFa20B57a60907F85c06fB8828" as `0x${string}`;
+// Per MiniPay docs: manage addresses per network
+const CONTRACT_ADDRESSES: Record<number, Address> = {
+  [celo.id]:        "0x6d83eF793A7e82BFa20B57a60907F85c06fB8828",
+  [celoSepolia.id]: "0x6d83eF793A7e82BFa20B57a60907F85c06fB8828", // update if testnet address differs
+};
+
+export const VOTE_CONTRACT_ADDRESS = "0x6d83eF793A7e82BFa20B57a60907F85c06fB8828" as Address;
+
+export function getVoteContractAddress(chainId: number): Address | undefined {
+  return CONTRACT_ADDRESSES[chainId];
+}
 export const VOTE_CONTRACT_ABI = [
   {
     "anonymous": false,

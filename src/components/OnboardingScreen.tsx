@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "~/components/ui/Button";
 import { AnimatedMovies } from "~/components/ui/animatedmovies";
 import { motion, AnimatePresence } from "motion/react";
@@ -8,6 +8,7 @@ import { ArrowRight } from "lucide-react";
 import { RewardsIcon } from "~/components/icons";
 import { VotingIcon } from "./icons/VotingIcon";
 import voteMoviesData from "../data/vote-movies.json";
+import { MetalFx } from "metal-fx";
 
 // Add the Testimonial interface to match what AnimatedMovies expects
 interface Testimonial {
@@ -24,6 +25,8 @@ interface OnboardingProps {
 export function OnboardingScreen({ onComplete }: OnboardingProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [movies, setMovies] = useState<Testimonial[]>([]);
+  const nextRef = useRef<HTMLButtonElement>(null);
+  const skipRef = useRef<HTMLButtonElement>(null);
 
   // Load movies from JSON file
   useEffect(() => {
@@ -78,8 +81,9 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
     <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between">
       {/* Top Section - Skip Button */}
       <div className="flex justify-end p-4">
-        <Button 
-          variant="ghost" 
+        <Button
+          ref={skipRef}
+          variant="ghost"
           onClick={handleSkip}
           className="text-white/90 hover:text-white"
         >
@@ -160,19 +164,22 @@ export function OnboardingScreen({ onComplete }: OnboardingProps) {
           transition={{ delay: 0.4, duration: 0.5 }}
           className="w-full max-w-sm"
         >
-          <Button 
-            onClick={handleNext}
-            className="w-full bg-white text-black hover:bg-white/90 font-medium py-3 ring-primary rounded-full text-base"
-          >
-            {currentSlide === slides.length - 1 ? (
-              "Get Started"
-            ) : (
-              <>
-                Next
-                <ArrowRight size={16} className="ml-2" />
-              </>
-            )}
-          </Button>
+          <MetalFx variant="button" preset="chromatic" theme="dark" strength={0.9} reflectionTargets={[skipRef]} className="w-full">
+            <button
+              ref={nextRef}
+              onClick={handleNext}
+              className="w-full text-center bg-white/10 text-white font-medium py-3 rounded-full text-base active:scale-95 transition-transform"
+            >
+              {currentSlide === slides.length - 1 ? (
+                "Get Started"
+              ) : (
+                <span className="flex items-center justify-center gap-2">
+                  Next
+                  <ArrowRight size={16} />
+                </span>
+              )}
+            </button>
+          </MetalFx>
         </motion.div>
       </div>
     </div>

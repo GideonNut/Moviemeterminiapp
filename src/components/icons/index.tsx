@@ -1,4 +1,5 @@
 export { BellIcon } from './BellIcon';
+export { BookmarkIcon } from './BookmarkIcon';
 export { TrophyIcon } from './TrophyIcon';
 export { HomeIcon } from './HomeIcon';
 export { TvIcon } from './TvIcon';

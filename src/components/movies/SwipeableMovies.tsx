@@ -1,16 +1,12 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import SwipeableViews from 'react-swipeable-views';
-import { useFarcasterAuth } from '~/contexts/FarcasterAuthContext';
-import { useAccount, useWalletClient, useChainId, useBalance } from 'wagmi';
-import { encodeFunctionData, createPublicClient, http } from 'viem';
-import { celo } from 'viem/chains';
-import { SwipeableMovieCard } from './SwipeableMovieCard';
-import { Button } from '../ui/Button';
-import { VOTE_CONTRACT_ADDRESS, VOTE_CONTRACT_ABI } from '~/constants/voteContract';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useAccount, useChainId, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';import { AnimatePresence } from 'motion/react';
+import { SwipeableMovieCard, type SwipeableMovieCardRef } from './SwipeableMovieCard';
+import { SwipeGestureHint, HINT_KEY } from './SwipeGestureHint';
+import { MetalFx } from 'metal-fx';
+import { VOTE_CONTRACT_ABI, getVoteContractAddress } from '~/constants/voteContract';
 import { getContractIdForMovie } from '~/lib/movies/utils';
-import { hasSufficientCELOForGas, formatCELOBalance } from '~/lib/blockchain/utils';
 import { submitReferral } from '@divvi/referral-sdk';
 import type { MediaItem } from '~/types';
 
@@ -21,410 +17,328 @@ interface Movie {
   description: string;
   releaseYear?: string;
   posterUrl?: string;
-  votes?: {
-    yes: number;
-    no: number;
-  };
+  votes?: { yes: number; no: number };
   genres?: string[];
   rating?: number;
 }
 
+interface Toast {
+  id: number;
+  message: string;
+  type: 'info' | 'success' | 'error';
+}
+
+let toastCounter = 0;
+
 interface SwipeableMoviesProps {
   movies: Movie[];
-  allMedia?: MediaItem[]; // All media items for contractId calculation
+  allMedia?: MediaItem[];
   onMoviesExhausted?: () => void;
 }
 
-export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: SwipeableMoviesProps) {
-  const { user, isConnected, isLoading, connect } = useFarcasterAuth();
-  const { address } = useAccount();
-  const { data: walletClient, isLoading: walletClientLoading } = useWalletClient();
-  const chainId = useChainId();
-  const { data: celoBalance } = useBalance({
-    address: address,
-    query: { enabled: !!address && isConnected }
-  });
-  const [currentMovies, setCurrentMovies] = useState<Movie[]>([]);
-  const [votedMovies, setVotedMovies] = useState<Set<string>>(new Set());
-  const [isVoting, setIsVoting] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [txStatus, setTxStatus] = useState<string>('');
-  const [slideIndex, setSlideIndex] = useState(0);
-
-  // Initialize with movies that haven't been voted on
-  useEffect(() => {
-    const unvotedMovies = movies.filter(movie => {
-      const movieId = movie.id || movie._id || '';
-      return !votedMovies.has(movieId);
-    });
-    setCurrentMovies(unvotedMovies);
-    setSlideIndex(0);
-  }, [movies, votedMovies]);
-
-  const handleSwipe = async (direction: 'left' | 'right') => {
-    console.log('=== handleSwipe START ===');
-    console.log('handleSwipe called:', { 
-      direction, 
-      currentMoviesLength: currentMovies.length, 
-      isVoting,
-      isConnected,
-      hasUser: !!user,
-      address,
-      walletClient: !!walletClient,
-      chainId
-    });
-    
-    if (currentMovies.length === 0 || isVoting) {
-      console.log('Swipe blocked:', { currentMoviesLength: currentMovies.length, isVoting });
-      return;
-    }
-
-    // Check if user is connected, if not, prompt to connect
-    if (!isConnected || !user) {
-      console.log('User not connected, attempting to connect');
-      try {
-        setIsConnecting(true);
-        await connect();
-        // After connecting, retry the vote
-        setTimeout(() => handleSwipe(direction), 100);
-        return;
-      } catch (error) {
-        console.error('Error connecting to Farcaster:', error);
-        alert('Please connect your Farcaster wallet to vote');
-        setIsConnecting(false);
-        return;
-      } finally {
-        setIsConnecting(false);
-      }
-    }
-
-    const currentMovie = currentMovies[0];
-    const movieId = currentMovie.id || currentMovie._id || '';
-    const vote = direction === 'left' ? 'yes' : 'no';
-
-    setIsVoting(true);
-    setTxStatus('Preparing transaction...');
-
-    try {
-      // Check if we're on a Celo network
-      console.log('Chain ID:', chainId);
-      if (chainId !== 42220 && chainId !== 44787) {
-        console.error('Not on Celo network, current chainId:', chainId);
-        throw new Error('Please switch to a Celo network (testnet or mainnet) before voting.');
-      }
-
-      console.log('Wallet check:', { 
-        address: !!address, 
-        walletClient: !!walletClient,
-        addressValue: address,
-        walletClientValue: walletClient 
-      });
-      
-      if (!address) {
-        console.error('No address available');
-        throw new Error('Wallet address not available. Please reconnect your wallet.');
-      }
-      
-      if (!walletClient) {
-        console.error('Wallet client not available');
-        if (walletClientLoading) {
-          throw new Error('Wallet is still connecting. Please wait a moment and try again.');
-        }
-        throw new Error('Wallet client not available. Please ensure your wallet is connected and try again.');
-      }
-      
-      console.log('Wallet client available, proceeding with transaction');
-
-      // Get contract ID for the movie
-      // If allMedia is provided, use it; otherwise try to use movies array if they have createdAt
-      let contractId = -1;
-      if (allMedia.length > 0) {
-        contractId = getContractIdForMovie(movieId, allMedia);
-      } else {
-        // Fallback: try to use movies array if they have createdAt (cast to MediaItem[])
-        const moviesWithCreatedAt = movies as unknown as MediaItem[];
-        if (moviesWithCreatedAt.length > 0 && moviesWithCreatedAt[0].createdAt) {
-          contractId = getContractIdForMovie(movieId, moviesWithCreatedAt);
-        }
-      }
-      
-      if (contractId === -1) {
-        throw new Error(
-          `Could not determine contract ID for "${currentMovie.title}". ` +
-          `Please ensure all media items are loaded with creation dates.`
-        );
-      }
-
-      const movieIdBigInt = BigInt(contractId);
-      console.log('Sending vote transaction:', { movieId, contractId, vote });
-
-      // Build calldata for the vote transaction
-      setTxStatus('Please sign the transaction...');
-      const calldata = encodeFunctionData({
-        abi: VOTE_CONTRACT_ABI,
-        functionName: 'vote',
-        args: [movieIdBigInt, vote === 'yes']
-      });
-
-      // Send transaction using wagmi wallet client
-      console.log('=== SENDING TRANSACTION ===');
-      console.log('Transaction details:', {
-        account: address,
-        to: VOTE_CONTRACT_ADDRESS,
-        dataLength: calldata.length,
-        data: calldata,
-        value: 0n,
-        contractId,
-        movieId,
-        vote
-      });
-      
-      let txHash: `0x${string}`;
-      try {
-        txHash = await walletClient.sendTransaction({
-          account: address,
-          to: VOTE_CONTRACT_ADDRESS,
-          data: calldata as `0x${string}`,
-          value: 0n
-        });
-        
-        console.log('✅ Transaction sent successfully, hash:', txHash);
-      } catch (txError) {
-        console.error('❌ Transaction send failed:', txError);
-        throw txError;
-      }
-
-      console.log('Transaction hash:', txHash);
-      setTxStatus('Transaction submitted! Waiting for confirmation...');
-
-      // Wait for transaction confirmation
-      const publicClient = createPublicClient({
-        chain: celo,
-        transport: http()
-      });
-
-      setTxStatus('Waiting for transaction confirmation...');
-      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
-      console.log('Transaction confirmed:', receipt);
-
-      if (receipt.status === 'reverted') {
-        throw new Error('Transaction was reverted on-chain');
-      }
-
-      setTxStatus('Transaction confirmed! Saving to database...');
-
-      // Submit referral to Divvi
-      submitReferral({ txHash, chainId }).catch((e) => 
-        console.error('Divvi submitReferral failed:', e)
-      );
-
-      // After successful blockchain transaction, save the vote to Firestore
-      const userIdentifier = user?.fid?.toString() || user?.address || address || '';
-      
-      const response = await fetch("/api/movies", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: 'include',
-        body: JSON.stringify({
-          action: "vote",
-          id: movieId,
-          type: vote,
-          userAddress: userIdentifier
-        })
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        // Mark this movie as voted
-        setVotedMovies(prev => new Set(prev).add(movieId));
-        
-        // Remove the current movie from the stack (it's already been voted on)
-        setCurrentMovies(prev => {
-          const newMovies = prev.filter(m => (m.id || m._id) !== movieId);
-          console.log('Removed movie from stack, remaining:', newMovies.length);
-          return newMovies;
-        });
-
-        // Adjust slide index if needed
-        if (slideIndex >= currentMovies.length - 1) {
-          setSlideIndex(Math.max(0, currentMovies.length - 2));
-        }
-
-        setTxStatus('Vote successful!');
-        console.log(`Successfully voted ${vote} for movie ${movieId} - transaction confirmed and saved to Firebase`);
-        
-        // Clear status after a delay
-        setTimeout(() => setTxStatus(''), 2000);
-      } else {
-        throw new Error(result.error || 'Failed to save vote to database');
-      }
-    } catch (error) {
-      console.error('Error voting:', error);
-      console.error('Error details:', {
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-        error
-      });
-      setTxStatus('');
-      
-      // Handle specific error types
-      if (error instanceof Error) {
-        const errorMsg = error.message;
-        if (errorMsg.includes('User rejected') || errorMsg.includes('user rejected')) {
-          alert('Transaction was cancelled. Please try again.');
-        } else if (errorMsg.includes('insufficient funds') || errorMsg.includes('gas') || errorMsg.includes('Insufficient')) {
-          alert('Insufficient CELO for gas fees. Please add more CELO to your wallet.');
-        } else {
-          console.error('Voting error:', errorMsg);
-          alert(`Error: ${errorMsg}`);
-        }
-      } else {
-        console.error('Unknown voting error:', error);
-        alert('An error occurred while voting. Please try again.');
-      }
-    } finally {
-      setIsVoting(false);
-    }
-  };
-
-  const handleVoteComplete = () => {
-    // Check if we've run out of movies
-    if (currentMovies.length <= 1 && onMoviesExhausted) {
-      setTimeout(() => {
-        onMoviesExhausted();
-      }, 500);
-    }
-  };
-
-  // Show connect prompt if not connected
-  if (!isConnected && !isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[600px] text-white">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Connect Your Farcaster Wallet</h2>
-          <p className="text-white/70 mb-6">Connect your Farcaster wallet to start voting on movies.</p>
-          <Button
-            onClick={async () => {
-              try {
-                setIsConnecting(true);
-                await connect();
-              } catch (error) {
-                console.error('Error connecting:', error);
-                alert('Failed to connect. Please try again.');
-              } finally {
-                setIsConnecting(false);
-              }
-            }}
-            disabled={isConnecting}
-            className="px-6 py-3"
-          >
-            {isConnecting ? 'Connecting...' : 'Connect Farcaster Wallet'}
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (currentMovies.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[600px] text-white">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">All caught up!</h2>
-          <p className="text-white/70 mb-6">You've voted on all available movies.</p>
-          <button
-            onClick={() => {
-              setVotedMovies(new Set());
-              setCurrentMovies(movies);
-            }}
-            className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors"
-          >
-            Reset & Vote Again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const handleChangeIndex = (index: number) => {
-    setSlideIndex(index);
-  };
-
-  const handleSwipeLeft = () => {
-    if (slideIndex < currentMovies.length) {
-      handleSwipe('left');
-    }
-  };
-
-  const handleSwipeRight = () => {
-    if (slideIndex < currentMovies.length) {
-      handleSwipe('right');
-    }
-  };
-
+function XIcon() {
   return (
-    <div className="relative w-full max-w-sm mx-auto h-[80vh] min-h-[520px] overflow-hidden flex items-center justify-center">
-      <SwipeableViews
-        index={slideIndex}
-        onChangeIndex={handleChangeIndex}
-        enableMouseEvents
-        resistance
-        style={{ width: '100%', height: '100%' }}
-        slideStyle={{ 
-          padding: '0 10px', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          height: '100%'
-        }}
-      >
-        {currentMovies.map((movie, idx) => (
-          <div 
-            key={movie.id || movie._id || idx} 
-            style={{ 
-              width: '100%', 
-              height: '100%', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center' 
-            }}
-          >
-        <SwipeableMovieCard
-          movie={movie}
-              onSwipe={idx === slideIndex ? (direction) => {
-                if (direction === 'left') handleSwipeLeft();
-                else handleSwipeRight();
-              } : () => {}}
-          onVoteComplete={handleVoteComplete}
-              index={idx === slideIndex ? 0 : 1}
-              total={currentMovies.length}
-        />
-          </div>
-      ))}
-      </SwipeableViews>
-      
-      {/* CELO Balance Display */}
-      {isConnected && celoBalance && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded-lg text-sm z-40">
-          <div className="flex items-center gap-2">
-            <span className="text-white/70">CELO Balance:</span>
-            <span className="font-semibold">{formatCELOBalance(celoBalance.value)} CELO</span>
-          </div>
-        </div>
-      )}
-      
-      {currentMovies.length > 0 && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white/60 text-sm">
-          {currentMovies.length} {currentMovies.length === 1 ? 'movie' : 'movies'} remaining
-        </div>
-      )}
-      
-      {txStatus && (
-        <div className="absolute top-16 left-1/2 transform -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded-lg text-sm z-50">
-          {txStatus}
-        </div>
-      )}
-    </div>
+    <svg width="20" height="20" viewBox="0 0 26 26" fill="none">
+      <path d="M6 6L20 20M20 6L6 20" stroke="#FF4458" strokeWidth="2.6" strokeLinecap="round"/>
+    </svg>
   );
 }
 
+function HeartIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 26 26" fill="none">
+      <path
+        d="M13 22.5C13 22.5 3 16.5 3 9.5C3 6.46243 5.46243 4 8.5 4C10.4 4 12.1 5 13 6.5C13.9 5 15.6 4 17.5 4C20.5376 4 23 6.46243 23 9.5C23 16.5 13 22.5 13 22.5Z"
+        fill="#4CDF6F"
+        stroke="#4CDF6F"
+        strokeWidth="0.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function AllCaughtUpIcon() {
+  return (
+    <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+      {/* Outer ring */}
+      <circle cx="26" cy="26" r="24" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" />
+      {/* Tick */}
+      <path
+        d="M16 26.5L22.5 33L36 19"
+        stroke="rgba(255,255,255,0.5)"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Small sparkle top-right */}
+      <path d="M38 10l1 3 3 1-3 1-1 3-1-3-3-1 3-1z" fill="rgba(255,255,255,0.25)" />
+      {/* Small sparkle bottom-left */}
+      <path d="M12 38l0.7 2 2 0.7-2 0.7-0.7 2-0.7-2-2-0.7 2-0.7z" fill="rgba(255,255,255,0.18)" />
+    </svg>
+  );
+}
+
+function BookmarkIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M6 4h12a1 1 0 0 1 1 1v15l-7-3.5L5 20V5a1 1 0 0 1 1-1z"
+        fill={filled ? "#FACC15" : "none"}
+        stroke={filled ? "#FACC15" : "#ffffff"}
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function SwipeableMovies({ movies, allMedia = [], onMoviesExhausted }: SwipeableMoviesProps) {
+  const { address } = useAccount();
+  const chainId = useChainId();
+  const { writeContract, data: txHash } = useWriteContract();
+  const { isSuccess: txConfirmed, isError: txFailed } = useWaitForTransactionReceipt({ hash: txHash });
+  const nopeRef = useRef<HTMLButtonElement>(null);
+  const likeRef = useRef<HTMLButtonElement>(null);
+  const cardRef = useRef<SwipeableMovieCardRef>(null);
+
+  const [currentMovies, setCurrentMovies] = useState<Movie[]>([]);
+  const [votedMovies, setVotedMovies] = useState<Set<string>>(new Set());
+  const [isVoting, setIsVoting] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [showGestureHint, setShowGestureHint] = useState(false);
+  const [isInWatchlist, setIsInWatchlist] = useState(false);
+  const [savingWatchlist, setSavingWatchlist] = useState(false);
+  const [pendingVote, setPendingVote] = useState<{ movieId: string; vote: string } | null>(null);
+
+  useEffect(() => {
+    const unvoted = movies.filter(m => !votedMovies.has(m.id || m._id || ''));
+    setCurrentMovies(unvoted);
+  }, [movies, votedMovies]);
+
+  // Show swipe gesture hint once on first visit
+  useEffect(() => {
+    if (currentMovies.length === 0) return;
+    try {
+      if (localStorage.getItem(HINT_KEY) !== 'true') {
+        const t = setTimeout(() => setShowGestureHint(true), 500);
+        return () => clearTimeout(t);
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMovies.length > 0]);
+
+  // Reset watchlist state when top card changes
+  const topCardId = currentMovies[0]?.id;
+  useEffect(() => { setIsInWatchlist(false); }, [topCardId]);
+
+  const addToast = useCallback((message: string, type: Toast['type'] = 'info') => {
+    const id = ++toastCounter;
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3200);
+  }, []);
+
+  const handleWatchlist = useCallback(async () => {
+    const movie = currentMovies[0];
+    if (!movie) return;
+    if (!address) { addToast('Connect wallet to save', 'error'); return; }
+    setSavingWatchlist(true);
+    try {
+      if (isInWatchlist) {
+        await fetch(`/api/watchlist?address=${address}&movieId=${movie.id || movie._id}`, { method: 'DELETE' });
+        setIsInWatchlist(false);
+        addToast('Removed from watchlist', 'info');
+      } else {
+        const res = await fetch('/api/watchlist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address, movieId: movie.id || movie._id, movieTitle: movie.title }),
+        });
+        if (res.status === 409) { setIsInWatchlist(true); }
+        else if (res.ok) { setIsInWatchlist(true); addToast('Saved to watchlist', 'success'); }
+      }
+    } catch { addToast('Watchlist error', 'error'); }
+    finally { setSavingWatchlist(false); }
+  }, [currentMovies, address, isInWatchlist, addToast]);
+
+  // React to tx confirmation/failure
+  useEffect(() => {
+    if (!pendingVote) return;
+    if (txConfirmed) {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([25, 40, 25]);
+      addToast(pendingVote.vote === 'yes' ? 'Voted Yes ✓' : 'Voted No ✓', 'success');
+      fetch('/api/movies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action: 'vote', id: pendingVote.movieId, type: pendingVote.vote, userAddress: address }),
+      }).catch(() => null);
+      setPendingVote(null);
+      setIsVoting(false);
+    }
+    if (txFailed) {
+      addToast('Transaction failed', 'error');
+      setPendingVote(null);
+      setIsVoting(false);
+    }
+  }, [txConfirmed, txFailed, pendingVote, address, addToast]);
+
+  const handleSwipe = useCallback(async (direction: 'left' | 'right') => {
+    if (currentMovies.length === 0 || isVoting) return;
+
+    const currentMovie = currentMovies[0];
+    const movieId = currentMovie.id || currentMovie._id || '';
+    const vote = direction === 'right' ? 'yes' : 'no';
+
+    setVotedMovies(prev => new Set(prev).add(movieId));
+    setCurrentMovies(prev => prev.slice(1));
+
+    if (currentMovies.length <= 1 && onMoviesExhausted) {
+      setTimeout(onMoviesExhausted, 600);
+    }
+
+    if (movieId.startsWith('fallback-')) return;
+
+    // Validate network — MiniPay supports Celo mainnet (42220) and Sepolia (11142220)
+    const contractAddress = getVoteContractAddress(chainId);
+    if (!contractAddress) {
+      addToast('Switch to Celo to vote on-chain', 'error');
+      return;
+    }
+    if (!address) { addToast('Wallet not connected', 'error'); return; }
+
+    let contractId = -1;
+    if (allMedia.length > 0) {
+      contractId = getContractIdForMovie(movieId, allMedia);
+    } else {
+      const cast = movies as unknown as MediaItem[];
+      if (cast.length > 0 && cast[0].createdAt) contractId = getContractIdForMovie(movieId, cast);
+    }
+    if (contractId === -1) {
+      addToast(`No contract ID for "${currentMovie.title}"`, 'error');
+      return;
+    }
+
+    setIsVoting(true);
+    setPendingVote({ movieId, vote });
+
+    try {
+      addToast('Confirm in MiniPay…', 'info');
+      // MiniPay docs pattern: useWriteContract for contract writes
+      writeContract({
+        address: contractAddress,
+        abi: VOTE_CONTRACT_ABI,
+        functionName: 'vote',
+        args: [BigInt(contractId), vote === 'yes'],
+      });
+      // submitReferral after initiating tx
+      submitReferral({ txHash: txHash ?? '0x', chainId }).catch(() => null);
+    } catch (err) {
+      // MiniPay docs: prefer error.code / error.name over error.message text matching
+      const e = err as Error & { code?: number; name?: string };
+      if (e.code === -32604 || e.name === 'UserRejectedRequestError' || e.name === 'TransactionExecutionError') {
+        addToast('Cancelled', 'info');
+      } else if (e.code === -32603 || e.name === 'InsufficientFundsError') {
+        addToast('Not enough CELO for network fee', 'error');
+      } else {
+        addToast('Transaction failed', 'error');
+      }
+      setPendingVote(null);
+      setIsVoting(false);
+    }
+  }, [currentMovies, isVoting, address, chainId, allMedia, movies, onMoviesExhausted, addToast, writeContract, txHash]);
+
+  if (currentMovies.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center flex-1 gap-4 px-6 text-center">
+        <AllCaughtUpIcon />
+        <h2 className="text-white text-xl font-bold tracking-tight">All caught up</h2>
+        <p className="text-white/40 text-sm">You&apos;ve rated everything. Check back soon.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative flex flex-col flex-1">
+      {/* Card stack — needs explicit height so absolute-positioned cards are visible */}
+      <div className="relative flex-1 mx-4 mt-2 mb-1 min-h-0">
+        {currentMovies.slice(0, 3).map((movie, index) => (
+          <SwipeableMovieCard
+            key={movie.id || movie._id || index}
+            ref={index === 0 ? cardRef : undefined}
+            movie={movie}
+            onSwipe={handleSwipe}
+            index={index}
+            total={Math.min(currentMovies.length, 3)}
+          />
+        ))}
+
+        {/* First-time swipe gesture onboarding */}
+        <AnimatePresence>
+          {showGestureHint && (
+            <SwipeGestureHint onDismiss={() => setShowGestureHint(false)} />
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Action buttons: NO · Watchlist · YES */}
+      <div className="flex items-center justify-center gap-5 py-7">
+        {/* NO */}
+        <MetalFx variant="circle" preset="chromatic" theme="dark" strength={0.9} reflectionTargets={[likeRef]}>
+          <button
+            ref={nopeRef}
+            aria-label="No"
+            disabled={isVoting}
+            onClick={() => cardRef.current?.triggerVote('left')}
+            className="w-[62px] h-[62px] rounded-full bg-[#181818] flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40"
+          >
+            <XIcon />
+          </button>
+        </MetalFx>
+
+        {/* Watchlist — secondary action, smaller */}
+        <MetalFx variant="circle" preset="silver" theme="dark" strength={0.7}>
+          <button
+            aria-label={isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}
+            disabled={savingWatchlist}
+            onClick={handleWatchlist}
+            className="w-[50px] h-[50px] rounded-full bg-[#181818] flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40"
+          >
+            <BookmarkIcon filled={isInWatchlist} />
+          </button>
+        </MetalFx>
+
+        {/* YES */}
+        <MetalFx variant="circle" preset="chromatic" theme="dark" strength={0.9} reflectionTargets={[nopeRef]}>
+          <button
+            ref={likeRef}
+            aria-label="Yes"
+            disabled={isVoting}
+            onClick={() => cardRef.current?.triggerVote('right')}
+            className="w-[62px] h-[62px] rounded-full bg-[#181818] flex items-center justify-center active:scale-95 transition-transform disabled:opacity-40"
+          >
+            <HeartIcon />
+          </button>
+        </MetalFx>
+      </div>
+
+      {/* Toasts */}
+      <div className="fixed bottom-28 left-1/2 -translate-x-1/2 flex flex-col gap-2 items-center z-50 pointer-events-none">
+        {toasts.map(t => (
+          <div
+            key={t.id}
+            className={`px-4 py-2 rounded-full text-[13px] font-medium shadow-lg ${
+              t.type === 'error'
+                ? 'bg-[#FF4458]/15 text-[#FF4458] border border-[#FF4458]/30'
+                : t.type === 'success'
+                ? 'bg-[#4CDF6F]/15 text-[#4CDF6F] border border-[#4CDF6F]/30'
+                : 'bg-white/8 text-white/70 border border-white/10'
+            }`}
+          >
+            {t.message}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

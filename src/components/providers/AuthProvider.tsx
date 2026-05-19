@@ -2,8 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signIn, signOut, useSession } from 'next-auth/react';
-import { createAppClient, viemConnector } from '@farcaster/auth-client';
+import { signOut, useSession } from 'next-auth/react';
 
 type User = {
   fid: number;
@@ -37,15 +36,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { data: session, status } = useSession();
 
-  // Initialize Farcaster auth client
-  const farcasterClient = createAppClient({
-    ethereum: viemConnector(),
-  });
-
-  // Handle session changes
   useEffect(() => {
     if (status === 'loading') return;
-
     if (session?.user) {
       setCurrentUser({
         fid: session.user.fid,
@@ -56,21 +48,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     } else {
       setCurrentUser(null);
-      // Attempt to sign in automatically if not already signed in
-      signIn('farcaster', { redirect: false });
     }
-    
     setLoading(false);
   }, [session, status]);
 
-  // Handle login with Farcaster
   const login = async () => {
-    try {
-      await signIn('farcaster');
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    }
+    // Auth is handled by MiniPay wallet connection
   };
 
   // Handle logout

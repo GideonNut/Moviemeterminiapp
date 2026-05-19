@@ -45,6 +45,7 @@
     "firebase": "^12.5.0",
     "firebase-admin": "^13.6.0",
     "lucide-react": "^0.469.0",
+    "metal-fx": "^0.2.3",
     "mipd": "^0.0.7",
     "motion": "^12.23.22",
     "next": "^15.0.5",

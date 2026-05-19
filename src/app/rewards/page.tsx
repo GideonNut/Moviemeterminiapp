@@ -1,12 +1,18 @@
 "use client";
-import { Card, CardContent, CardTitle, CardDescription } from "~/components/ui/card";
-import { Button } from "~/components/ui/Button";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, Gift, Coins, Star } from "lucide-react";
-import {  TrophyIcon } from '~/components/icons'
+import { useState, useEffect } from "react";
 import Header from "~/components/navigation/Header";
 import { useAccount } from "wagmi";
-import { useState, useEffect } from "react";
+import {
+  IconTrophy,
+  IconBolt,
+  IconMessageCircle,
+  IconUsers,
+  IconLock,
+  IconCheck,
+  IconStar,
+  IconLogin,
+  IconGift,
+} from "@tabler/icons-react";
 
 interface UserPoints {
   address: string;
@@ -16,210 +22,211 @@ interface UserPoints {
   lastUpdated: Date;
 }
 
-export default function RewardsPage() {
-  const router = useRouter();
-  const { address, isConnected } = useAccount();
-  const [userPoints, setUserPoints] = useState<UserPoints | null>(null);
-  const [loading, setLoading] = useState(true);
+const BADGES = [
+  {
+    id: 1,
+    Icon: IconTrophy,
+    title: "Movie Critic",
+    desc: "Vote on 10 movies",
+    goal: 10,
+    key: "votePoints" as const,
+    pts: 100,
+    color: "#F5C542",
+  },
+  {
+    id: 2,
+    Icon: IconMessageCircle,
+    title: "Commentator",
+    desc: "Comment on 5 movies",
+    goal: 5,
+    key: "commentPoints" as const,
+    pts: 150,
+    divisor: 2,
+    color: "#60A5FA",
+  },
+  {
+    id: 3,
+    Icon: IconUsers,
+    title: "Community Champ",
+    desc: "Vote on 25 movies",
+    goal: 25,
+    key: "votePoints" as const,
+    pts: 250,
+    color: "#A78BFA",
+  },
+  {
+    id: 4,
+    Icon: IconBolt,
+    title: "Streak Master",
+    desc: "Vote 7 days in a row",
+    goal: 7,
+    key: "votePoints" as const,
+    pts: 300,
+    locked: true,
+    color: "#F97316",
+  },
+];
 
-  // Fetch user points
+export default function RewardsPage() {
+  const { address, isConnected } = useAccount();
+  const [points, setPoints] = useState<UserPoints | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [claimed, setClaimed] = useState<Set<number>>(new Set());
+
   useEffect(() => {
     if (address) {
-      fetchUserPoints();
+      fetch(`/api/points?address=${address}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (d?.points) setPoints(d.points); })
+        .catch(console.error)
+        .finally(() => setLoading(false));
     } else {
       setLoading(false);
     }
   }, [address]);
 
-  const fetchUserPoints = async () => {
-    try {
-      const response = await fetch(`/api/points?address=${address}`);
-      if (response.ok) {
-        const data = await response.json();
-        setUserPoints(data.points);
-      }
-    } catch (error) {
-      console.error('Error fetching user points:', error);
-    } finally {
-      setLoading(false);
-    }
+  const progress = (b: typeof BADGES[0]) => {
+    if (!points) return 0;
+    const raw = points[b.key] ?? 0;
+    const val = "divisor" in b && b.divisor ? Math.floor(raw / b.divisor) : raw;
+    return Math.min(val, b.goal);
   };
 
-  // Calculate rewards based on user points
-  const availableRewards = [
-    {
-      id: 1,
-      title: "Movie Critic Badge",
-      description: "Vote on 10 movies to earn this badge",
-      points: 100,
-      progress: userPoints?.votePoints || 0,
-      total: 10,
-      type: "badge",
-      claimable: (userPoints?.votePoints || 0) >= 10
-    },
-    {
-      id: 2,
-      title: "Community Commentator",
-      description: "Comment on 5 movies to unlock",
-      points: 150,
-      progress: Math.floor((userPoints?.commentPoints || 0) / 2),
-      total: 5,
-      type: "badge",
-      claimable: Math.floor((userPoints?.commentPoints || 0) / 2) >= 5
-    },
-    {
-      id: 3,
-      title: "Community Champion",
-      description: "Vote on 25 movies to unlock",
-      points: 250,
-      progress: userPoints?.votePoints || 0,
-      total: 25,
-      type: "badge",
-      claimable: (userPoints?.votePoints || 0) >= 25
-    }
+  const pct = (b: typeof BADGES[0]) => (progress(b) / b.goal) * 100;
+  const claimable = (b: typeof BADGES[0]) => !b.locked && progress(b) >= b.goal && !claimed.has(b.id);
+
+  const totalPts = points?.totalPoints ?? 0;
+  const votePts  = points?.votePoints  ?? 0;
+  const cmtPts   = points?.commentPoints ?? 0;
+
+  const STATS = [
+    { label: "Total",    value: loading ? "—" : totalPts.toLocaleString(), Icon: IconStar,           color: "#F5C542" },
+    { label: "Votes",    value: loading ? "—" : votePts.toLocaleString(),  Icon: IconTrophy,         color: "#A78BFA" },
+    { label: "Comments", value: loading ? "—" : cmtPts.toLocaleString(),   Icon: IconMessageCircle,  color: "#60A5FA" },
   ];
 
-  const getIcon = (type: string) => {
-    switch (type) {
-      case 'badge':
-        return <TrophyIcon size={20} className="text-accent-foreground" />;
-      case 'tokens':
-        return <Coins size={20} className="text-primary" />;
-      default:
-        return <Gift size={20} className="text-accent-foreground" />;
-    }
-  };
-
   return (
-    <div className="max-w-2xl mx-auto px-4">
-      {/* Page Header */}
-       <Header showSearch={false} />
-      <div className="flex items-center mb-6">
-        <Button 
-          variant="ghost" 
-          size="sm"
-          onClick={() => router.back()} 
-          className="mr-3 p-2"
-        >
-          <ArrowLeft size={18} />
-        </Button>
-        <h1 className="text-xl font-semibold text-foreground">Rewards</h1>
-      </div>
+    <div className="min-h-screen bg-black">
+      <Header showSearch={false} />
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        <Card className="bg-card border-border" data-slot="stats-card">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-foreground mb-1">
-              {loading ? "..." : (userPoints?.totalPoints || 0)}
-            </div>
-            <div className="text-xs text-muted-foreground">Total Points</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border" data-slot="stats-card">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-primary mb-1">
-              {loading ? "..." : (userPoints?.votePoints || 0)}
-            </div>
-            <div className="text-xs text-muted-foreground">Vote Points</div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border" data-slot="stats-card">
-          <CardContent className="p-4 text-center">
-            <div className="text-2xl font-bold text-accent-foreground mb-1">
-              {loading ? "..." : (userPoints?.commentPoints || 0)}
-            </div>
-            <div className="text-xs text-muted-foreground">Comment Points</div>
-          </CardContent>
-        </Card>
-      </div>
+      <div className="px-5 pt-[80px] pb-16 max-w-lg mx-auto">
+        <div className="h-[1px] w-full bg-white/6 mb-6" />
 
-      {/* Available Rewards */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-foreground mb-3">Available Rewards</h2>
-        
-        {availableRewards.map((reward) => (
-          <Card key={reward.id} className="bg-card border-border" data-slot="reward-card">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    {getIcon(reward.type)}
-                    <CardTitle className="text-base font-medium text-foreground">
-                      {reward.title}
-                    </CardTitle>
+        {/* Title */}
+        <div className="mb-6">
+          <p className="text-white/30 text-[11px] font-semibold uppercase tracking-[0.12em] mb-1">Earn & Unlock</p>
+          <h1 className="text-white text-2xl font-bold tracking-tight leading-none">Rewards</h1>
+        </div>
+
+        {/* Stats row */}
+        <div className="grid grid-cols-3 gap-2.5 mb-7">
+          {STATS.map(s => (
+            <div key={s.label} className="rounded-xl bg-white/[0.04] border border-white/[0.07] px-3 py-5 text-center">
+              <s.Icon size={18} className="mx-auto mb-2.5" style={{ color: s.color }} />
+              <p className="text-white text-2xl font-bold leading-none mb-1.5 tabular-nums">{s.value}</p>
+              <p className="text-white/25 text-[10px] uppercase tracking-wide font-semibold">{s.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Daily spin CTA */}
+        <div className="flex items-center gap-3.5 rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-3.5 mb-7">
+          <div className="w-9 h-9 rounded-full bg-white/8 flex items-center justify-center flex-shrink-0">
+            <IconGift size={18} className="text-white/60" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-white text-[13px] font-semibold">Daily Spin</p>
+            <p className="text-white/35 text-[11px] mt-0.5">One free spin per day — bonus points await</p>
+          </div>
+          <span className="text-white/15 text-[10px] font-semibold uppercase tracking-wide">Auto</span>
+        </div>
+
+        {/* Badges */}
+        <p className="text-white/25 text-[10px] font-semibold uppercase tracking-[0.14em] mb-3">Badges</p>
+        <div className="space-y-2.5">
+          {BADGES.map(b => {
+            const prog = progress(b);
+            const can = claimable(b);
+            const done = claimed.has(b.id);
+            const p = pct(b);
+
+            return (
+              <div
+                key={b.id}
+                className={`rounded-xl border px-4 py-4 transition-colors ${
+                  can  ? "bg-white/[0.05] border-white/15" :
+                  done ? "bg-white/[0.02] border-white/[0.05] opacity-50" :
+                  b.locked ? "bg-white/[0.02] border-white/[0.04]" :
+                  "bg-white/[0.03] border-white/[0.07]"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  {/* Icon circle */}
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                    style={{ background: `${b.color}18` }}
+                  >
+                    <b.Icon size={16} style={{ color: b.color }} />
                   </div>
-                  
-                  <CardDescription className="text-sm text-muted-foreground mb-3">
-                    {reward.description}
-                  </CardDescription>
 
-                  {/* Progress bar for non-claimable items */}
-                  {reward.progress !== undefined && reward.total && (
-                    <div className="mb-3">
-                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                        <span>Progress</span>
-                        <span>{Math.min(reward.progress, reward.total)}/{reward.total}</span>
-                      </div>
-                      <div className="w-full bg-muted/20 rounded-full h-2">
-                        <div 
-                          className="bg-primary h-2 rounded-full transition-all duration-300"
-                          style={{ width: `${Math.min((reward.progress / reward.total) * 100, 100)}%` }}
-                        />
-                      </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-white text-sm font-semibold tracking-tight">{b.title}</span>
+                      <span className="text-white/30 text-xs font-medium">{b.pts} pts</span>
                     </div>
-                  )}
+                    <p className="text-white/40 text-xs mb-3 leading-relaxed">{b.desc}</p>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">
-                      {reward.points} {reward.type === 'tokens' ? 'tokens' : 'points'}
-                    </span>
-                    
-                    <Button
-                      size="sm"
-                      variant={reward.claimable ? 'default' : 'ghost'}
-                      disabled={!reward.claimable}
-                      className="text-xs px-3 py-1"
-                    >
-                      {reward.claimable ? 'Claim' : 'Locked'}
-                    </Button>
+                    {/* Progress bar */}
+                    <div className="w-full h-[3px] rounded-full bg-white/8 overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{
+                          width: `${p}%`,
+                          background: done ? "rgba(255,255,255,0.15)" : b.color,
+                        }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-white/20 text-[10px]">{prog}/{b.goal}</span>
+                      {can && (
+                        <button
+                          onClick={() => setClaimed(prev => new Set([...prev, b.id]))}
+                          className="px-4 py-2 rounded-full text-xs font-bold text-black transition-colors"
+                          style={{ background: b.color }}
+                        >
+                          Claim reward
+                        </button>
+                      )}
+                      {done && (
+                        <span className="flex items-center gap-1 text-white/25 text-[10px]">
+                          <IconCheck size={11} stroke={2.5} /> Claimed
+                        </span>
+                      )}
+                      {b.locked && !can && (
+                        <span className="flex items-center gap-1 text-white/20 text-[10px]">
+                          <IconLock size={11} stroke={2} /> Locked
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        ))}
+            );
+          })}
+        </div>
+
+        {/* Not connected */}
+        {!isConnected && (
+          <div className="mt-8 rounded-xl bg-white/[0.03] border border-white/[0.07] p-8 text-center">
+            <div className="w-12 h-12 rounded-full bg-white/[0.05] flex items-center justify-center mx-auto mb-3">
+              <IconLogin size={20} className="text-white/20" />
+            </div>
+            <h3 className="text-white text-sm font-semibold mb-1">Connect your wallet</h3>
+            <p className="text-white/30 text-xs">Open MovieMeter in MiniPay to track your rewards</p>
+          </div>
+        )}
       </div>
-
-      {/* Empty state if no rewards */}
-      {availableRewards.length === 0 && (
-        <Card className="bg-card border-border" data-slot="empty-state">
-          <CardContent className="p-8 text-center">
-            <Gift size={48} className="text-muted-foreground/40 mx-auto mb-4" />
-            <CardTitle className="text-base font-medium mb-2 text-foreground">
-              No rewards available
-            </CardTitle>
-            <CardDescription className="text-sm text-muted-foreground">
-              Start voting on movies to earn your first rewards!
-            </CardDescription>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Not connected state */}
-      {!isConnected && (
-        <Card className="bg-card border-border" data-slot="not-connected">
-          <CardContent className="p-8 text-center">
-            <Star size={48} className="text-muted-foreground/40 mx-auto mb-4" />
-            <CardTitle className="text-base font-medium mb-2 text-foreground">
-              Connect Your Wallet
-            </CardTitle>
-            <CardDescription className="text-sm text-muted-foreground">
-              Connect your wallet to start earning points and unlocking rewards!
-            </CardDescription>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import { FrameNotificationDetails } from '@farcaster/frame-sdk';
+// Local type replacing @farcaster/frame-sdk FrameNotificationDetails
+type FrameNotificationDetails = { url: string; token: string };
 import { db } from './firebase';
 import { 
   collection, 
