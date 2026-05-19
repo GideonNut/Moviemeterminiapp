@@ -12,16 +12,31 @@
  * References:
  *   https://docs.celo.org/build-on-celo/build-on-minipay/quickstart
  */
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 interface Props {
   children: React.ReactNode;
 }
 
+/** Admin is the only section meant to run in a normal desktop/mobile browser. */
+function isAdminPath(pathname: string | null) {
+  return pathname?.startsWith("/admin") ?? false;
+}
+
 export function MiniPayGate({ children }: Props) {
-  const [status, setStatus] = useState<"loading" | "ok" | "no-provider">("loading");
+  const pathname = usePathname();
+  const adminRoute = isAdminPath(pathname);
+  const [status, setStatus] = useState<"loading" | "ok" | "no-provider">(
+    adminRoute ? "ok" : "loading"
+  );
 
   useEffect(() => {
+    if (adminRoute) {
+      setStatus("ok");
+      return;
+    }
+
     if (typeof window === "undefined") return;
 
     // Allow bypass in dev mode so you can test without a MiniPay device
@@ -37,7 +52,12 @@ export function MiniPayGate({ children }: Props) {
     } else {
       setStatus("no-provider");
     }
-  }, []);
+  }, [adminRoute]);
+
+  // /admin (and /admin/*) bypass MiniPay — passcode + wallet connect only
+  if (adminRoute) {
+    return <>{children}</>;
+  }
 
   if (status === "loading") return null;
 

@@ -25,9 +25,7 @@ export async function middleware(request: NextRequest) {
   // Check if the path is a public route
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
 
-  // For Farcaster miniapps and public routes, allow access without authentication
-  // Authentication should be handled client-side when needed
-  // Admin page is now public and accessible as a webapp
+  // Public routes and /admin (browser-accessible ops UI; MiniPay gate is client-side)
   if (isPublicRoute || pathname === '/' || pathname.startsWith('/admin')) {
     return NextResponse.next();
   }
