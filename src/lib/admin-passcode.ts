@@ -1,5 +1,9 @@
 import { timingSafeEqual } from "crypto";
 import type { NextRequest } from "next/server";
+import {
+  getAdminAuthTokenFromRequest,
+  verifyAdminAuthToken,
+} from "~/lib/admin-auth-cookie";
 
 export const ADMIN_PASSCODE_HEADER = "x-admin-passcode";
 
@@ -62,13 +66,23 @@ export function adminPasscodeNotConfigured() {
   );
 }
 
+export function hasValidAdminSession(request: NextRequest): boolean {
+  return verifyAdminAuthToken(getAdminAuthTokenFromRequest(request));
+}
+
 /** Returns a Response when the request should be rejected, otherwise null. */
 export function requireAdminPasscode(request: NextRequest): Response | null {
   if (!isAdminPasscodeConfigured()) {
     return adminPasscodeNotConfigured();
   }
+
+  if (hasValidAdminSession(request)) {
+    return null;
+  }
+
   if (!verifyAdminPasscode(getPasscodeFromRequest(request))) {
     return adminPasscodeUnauthorized();
   }
+
   return null;
 }

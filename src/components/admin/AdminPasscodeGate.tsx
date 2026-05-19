@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useAdminPasscode } from "./admin-passcode-context";
 
 export function AdminPasscodeGate({ children }: { children: React.ReactNode }) {
-  const { isUnlocked, isVerifying, error, unlock, lock } = useAdminPasscode();
+  const { isUnlocked, isVerifying, isConfigured, error, unlock, lock } =
+    useAdminPasscode();
   const [passcode, setPasscode] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -45,12 +46,18 @@ export function AdminPasscodeGate({ children }: { children: React.ReactNode }) {
           />
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || !isConfigured}
             className="w-full bg-blue-600 text-white p-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
           >
             {submitting ? "Verifying…" : "Unlock admin"}
           </button>
           {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
+          {!isConfigured ? (
+            <p className="mt-3 text-xs text-amber-400">
+              Server passcode is missing. Restart the dev server after adding{" "}
+              <code>ADMIN_PASSCODE</code> to <code>.env</code>.
+            </p>
+          ) : null}
         </form>
       </div>
     );
@@ -61,7 +68,7 @@ export function AdminPasscodeGate({ children }: { children: React.ReactNode }) {
       <div className="fixed top-4 right-4 z-50">
         <button
           type="button"
-          onClick={lock}
+          onClick={() => void lock()}
           className="text-sm text-white/60 hover:text-white border border-white/20 rounded-lg px-3 py-1.5 bg-[#18181B]/90 backdrop-blur"
         >
           Lock admin

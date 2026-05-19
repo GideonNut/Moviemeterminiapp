@@ -10,14 +10,13 @@ import {
 } from "react";
 import { ADMIN_PASSCODE_HEADER } from "~/lib/admin-passcode";
 
-export const ADMIN_PASSCODE_STORAGE_KEY = "admin-passcode";
-
 type AdminPasscodeContextValue = {
   isUnlocked: boolean;
   isVerifying: boolean;
+  isConfigured: boolean;
   error: string;
   unlock: (passcode: string) => Promise<boolean>;
-  lock: () => void;
+  lock: () => Promise<void>;
   adminFetch: (
     input: RequestInfo | URL,
     init?: RequestInit
@@ -33,105 +32,114 @@ export function AdminPasscodeProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [passcode, setPasscode] = useState<string | null>(null);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [isVerifying, setIsVerifying] = useState(true);
+  const [isConfigured, setIsConfigured] = useState(true);
   const [error, setError] = useState("");
 
-  const verifyPasscode = useCallback(async (code: string) => {
-    const response = await fetch("/api/admin/verify", {
-      method: "POST",
-      headers: { [ADMIN_PASSCODE_HEADER]: code },
+  const checkSession = useCallback(async () => {
+    const response = await fetch("/api/admin/session", {
+      credentials: "include",
+      cache: "no-store",
     });
     const data = await response.json().catch(() => ({}));
-    return response.ok && data.success === true;
+    return {
+      configured: data.configured !== false,
+      authenticated: Boolean(data.authenticated),
+    };
   }, []);
 
-  const unlock = useCallback(
-    async (code: string) => {
-      setIsVerifying(true);
-      setError("");
-
-      const trimmed = code.trim();
-      if (!trimmed) {
-        setError("Enter the admin passcode.");
-        setIsVerifying(false);
-        return false;
-      }
-
+  useEffect(() => {
+    void (async () => {
       try {
-        const valid = await verifyPasscode(trimmed);
-        if (!valid) {
-          sessionStorage.removeItem(ADMIN_PASSCODE_STORAGE_KEY);
-          setPasscode(null);
-          setIsUnlocked(false);
-          setError("Invalid passcode.");
-          return false;
+        const session = await checkSession();
+        setIsConfigured(session.configured);
+        setIsUnlocked(session.authenticated);
+        if (!session.configured) {
+          setError(
+            "ADMIN_PASSCODE is not set on the server. Add it to .env and restart."
+          );
         }
-
-        sessionStorage.setItem(ADMIN_PASSCODE_STORAGE_KEY, trimmed);
-        setPasscode(trimmed);
-        setIsUnlocked(true);
-        return true;
       } catch {
-        setError("Could not verify passcode.");
-        return false;
+        setError("Could not verify admin session.");
+        setIsUnlocked(false);
       } finally {
         setIsVerifying(false);
       }
-    },
-    [verifyPasscode]
-  );
+    })();
+  }, [checkSession]);
 
-  const lock = useCallback(() => {
-    sessionStorage.removeItem(ADMIN_PASSCODE_STORAGE_KEY);
-    setPasscode(null);
+  const unlock = useCallback(async (code: string) => {
+    setIsVerifying(true);
+    setError("");
+
+    const trimmed = code.trim();
+    if (!trimmed) {
+      setError("Enter the admin passcode.");
+      setIsVerifying(false);
+      return false;
+    }
+
+    try {
+      const response = await fetch("/api/admin/verify", {
+        method: "POST",
+        credentials: "include",
+        headers: { [ADMIN_PASSCODE_HEADER]: trimmed },
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        setIsUnlocked(false);
+        setError(data.error || "Invalid passcode.");
+        return false;
+      }
+
+      setIsConfigured(true);
+      setIsUnlocked(true);
+      return true;
+    } catch {
+      setError("Could not verify passcode.");
+      setIsUnlocked(false);
+      return false;
+    } finally {
+      setIsVerifying(false);
+    }
+  }, []);
+
+  const lock = useCallback(async () => {
+    try {
+      await fetch("/api/admin/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // Still clear local unlock state if logout request fails.
+    }
     setIsUnlocked(false);
     setError("");
   }, []);
 
   const adminFetch = useCallback(
     async (input: RequestInfo | URL, init?: RequestInit) => {
-      const code =
-        passcode ?? sessionStorage.getItem(ADMIN_PASSCODE_STORAGE_KEY);
-      const headers = new Headers(init?.headers);
-      if (code) {
-        headers.set(ADMIN_PASSCODE_HEADER, code);
-      }
-      return fetch(input, { ...init, headers });
+      return fetch(input, {
+        ...init,
+        credentials: "include",
+      });
     },
-    [passcode]
+    []
   );
-
-  useEffect(() => {
-    const saved = sessionStorage.getItem(ADMIN_PASSCODE_STORAGE_KEY);
-    if (!saved) {
-      setIsVerifying(false);
-      return;
-    }
-
-    void (async () => {
-      const valid = await verifyPasscode(saved);
-      if (valid) {
-        setPasscode(saved);
-        setIsUnlocked(true);
-      } else {
-        sessionStorage.removeItem(ADMIN_PASSCODE_STORAGE_KEY);
-      }
-      setIsVerifying(false);
-    })();
-  }, [verifyPasscode]);
 
   const value = useMemo(
     () => ({
       isUnlocked,
       isVerifying,
+      isConfigured,
       error,
       unlock,
       lock,
       adminFetch,
     }),
-    [isUnlocked, isVerifying, error, unlock, lock, adminFetch]
+    [isUnlocked, isVerifying, isConfigured, error, unlock, lock, adminFetch]
   );
 
   return (
